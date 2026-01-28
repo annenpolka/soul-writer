@@ -2,6 +2,7 @@ import { generate } from './cli/generate.js';
 import { story } from './cli/story.js';
 import { resume } from './cli/resume.js';
 import { review } from './cli/review.js';
+import { factory } from './cli/factory.js';
 
 const args = process.argv.slice(2);
 
@@ -17,6 +18,7 @@ Commands:
   story       Generate a full story with all features
   resume      Resume an interrupted story generation
   review      Review and approve learning candidates
+  factory     Run batch generation with random themes
 
 Common Options:
   --soul      Path to soul text directory (default: "soul")
@@ -28,6 +30,10 @@ story Options:
 
 resume Options:
   --task-id   Task ID to resume (required)
+
+factory Options:
+  --config    Path to factory config JSON file (required)
+  --resume    Resume interrupted batch generation
 
 Examples:
   # Simple tournament generation
@@ -41,6 +47,9 @@ Examples:
 
   # Review learning candidates
   npx tsx src/main.ts review --soul soul
+
+  # Batch generation with random themes
+  npx tsx src/main.ts factory --config factory-config.json
   `);
 }
 
@@ -122,6 +131,20 @@ async function main(): Promise<void> {
       const dbPath = options.db || 'soul-writer.db';
 
       await review({ soul, dbPath });
+      break;
+    }
+
+    case 'factory': {
+      const configPath = options.config;
+      const resumeFlag = options.resume === 'true';
+
+      if (!configPath) {
+        console.error('Error: --config is required');
+        printUsage();
+        process.exit(1);
+      }
+
+      await factory({ config: configPath, resume: resumeFlag });
       break;
     }
 

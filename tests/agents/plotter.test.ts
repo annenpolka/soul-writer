@@ -3,6 +3,7 @@ import { PlotterAgent } from '../../src/agents/plotter.js';
 import type { LLMClient } from '../../src/llm/types.js';
 import type { SoulText } from '../../src/soul/manager.js';
 import { DEFAULT_PLOTTER_CONFIG } from '../../src/agents/types.js';
+import type { GeneratedTheme } from '../../src/schemas/generated-theme.js';
 
 // Mock LLM Client
 const createMockLLMClient = (response: string): LLMClient => ({
@@ -212,6 +213,71 @@ This plot focuses on the theme of existence.
       const plotter = new PlotterAgent(mockLLMClient, mockSoulText);
 
       await expect(plotter.generatePlot()).rejects.toThrow();
+    });
+  });
+
+  describe('with theme', () => {
+    const mockTheme: GeneratedTheme = {
+      emotion: '孤独',
+      timeline: '出会い前',
+      characters: [
+        { name: '御鐘透心', isNew: false },
+        { name: '新キャラ', isNew: true, description: 'テスト用の新キャラクター' },
+      ],
+      premise: 'テスト前提文',
+    };
+
+    it('should include theme in user prompt', async () => {
+      const mockLLMClient = createMockLLMClient(validPlotResponse);
+      const plotter = new PlotterAgent(mockLLMClient, mockSoulText, {
+        chapterCount: 3,
+        theme: mockTheme,
+      });
+
+      await plotter.generatePlot();
+
+      const userPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      expect(userPrompt).toContain('感情テーマ: 孤独');
+      expect(userPrompt).toContain('時系列: 出会い前');
+      expect(userPrompt).toContain('テスト前提文');
+    });
+
+    it('should include new character with description', async () => {
+      const mockLLMClient = createMockLLMClient(validPlotResponse);
+      const plotter = new PlotterAgent(mockLLMClient, mockSoulText, {
+        chapterCount: 3,
+        theme: mockTheme,
+      });
+
+      await plotter.generatePlot();
+
+      const userPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      expect(userPrompt).toContain('新キャラ（新規）');
+      expect(userPrompt).toContain('テスト用の新キャラクター');
+    });
+
+    it('should include existing character without description', async () => {
+      const mockLLMClient = createMockLLMClient(validPlotResponse);
+      const plotter = new PlotterAgent(mockLLMClient, mockSoulText, {
+        chapterCount: 3,
+        theme: mockTheme,
+      });
+
+      await plotter.generatePlot();
+
+      const userPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      expect(userPrompt).toContain('- 御鐘透心');
+      expect(userPrompt).not.toContain('御鐘透心（新規）');
+    });
+
+    it('should work without theme (backward compatible)', async () => {
+      const mockLLMClient = createMockLLMClient(validPlotResponse);
+      const plotter = new PlotterAgent(mockLLMClient, mockSoulText, { chapterCount: 3 });
+
+      const result = await plotter.generatePlot();
+
+      expect(result.plot).toBeDefined();
+      expect(result.plot.title).toBe('透心の朝');
     });
   });
 });
