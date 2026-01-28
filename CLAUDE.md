@@ -8,11 +8,44 @@ soul-writerは、ソウルテキスト（原典の小説メモ）に基づいて
 
 ## 開発状況
 
-**現在は設計フェーズ。実装コードは未着手。**
+**LLMループMVP実装済み。TDDで機能追加中。**
 
 - 言語: MoonBit（Native ターゲット）
 - データベース: SQLite（確定）
 - LLM API: OpenAI互換API（Cerebras等）
+
+## 開発方針
+
+### TDD（テスト駆動開発）
+
+t-wada流のTDDで開発を進める。`/twada-tdd:twada-tdd`スキルを使用すること。
+
+**Red-Green-Refactorサイクル**:
+1. **Red**: 失敗するテストを先に書く
+2. **Green**: テストを通す最小限のコードを書く
+3. **Refactor**: テストが通る状態を維持しながらリファクタリング
+
+**MoonBitでのテスト**:
+```bash
+moon test                    # 全テスト実行
+moon test -u                 # スナップショット更新
+moon test --filter 'pattern' # 特定テストのみ
+```
+
+**テストファイル命名規則**:
+- `*_test.mbt` - テストファイル
+- `test "テスト名" { ... }` - テストブロック
+
+### MoonBitコーディング
+
+MoonBitコードを書く際は`/moonbit-practice:moonbit-practice`スキルを参照すること。
+
+**主なポイント**:
+- コード探索には`moon ide`コマンドを優先（grep/Readより正確）
+- 型パラメータは`fn[T]`の形式（`fn identity[T]`は旧構文）
+- エラーは`raise`キーワードで宣言
+- マクロ呼び出しの`!`サフィックスは廃止
+- `moon doc <Type>`でAPI確認
 
 ### 使用パッケージ
 
