@@ -10,9 +10,20 @@ soul-writerは、ソウルテキスト（原典の小説メモ）に基づいて
 
 **現在は設計フェーズ。実装コードは未着手。**
 
-- 言語: 未定（TypeScript/Deno, Python, Rust, Ruby が候補）
+- 言語: MoonBit（Native ターゲット）
 - データベース: SQLite（確定）
 - LLM API: OpenAI互換API（Cerebras等）
+
+### 使用パッケージ
+
+| パッケージ | 用途 |
+|-----------|------|
+| `mizchi/sqlite` | SQLiteデータベース |
+| `moonbitlang/async/http` | HTTP/HTTPSクライアント・サーバー |
+| `moonbitlang/async/websocket` | WebSocket (Dashboard用) |
+| `moonbitlang/async/fs` | ファイルシステム操作 |
+| `TheWaWaR/clap` | CLIパーサー |
+| コアライブラリ `@json` | JSON処理 |
 
 ## アーキテクチャ
 
