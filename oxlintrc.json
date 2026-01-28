@@ -1,0 +1,45 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "unicorn", "typescript"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "restriction": "warn",
+    "style": "warn",
+    "perf": "warn"
+  },
+  "rules": {
+    "max-classes-per-file": ["error", 0],
+    "no-class-assign": "error",
+    "no-dupe-class-members": "error",
+    "no-useless-constructor": "error",
+    "no-static-only-class": "error",
+    "class-methods-use-this": ["warn", { "exceptMethods": [] }],
+    "no-var": "error",
+    "prefer-const": ["error", {
+      "destructuring": "all",
+      "ignoreReadBeforeAssign": true
+    }],
+    "prefer-arrow-callback": "error",
+    "prefer-template": "error",
+    "prefer-spread": "error",
+    "prefer-destructuring": ["error", {
+      "array": true,
+      "object": true
+    }],
+    "no-param-reassign": ["error", { "props": true }],
+    "no-throw-literal": "error",
+    "no-new": "warn",
+    "no-new-func": "error",
+    "no-new-wrappers": "error",
+    "unicorn/prefer-array-find": "error",
+    "unicorn/prefer-array-some": "error",
+    "unicorn/prefer-spread": "error",
+    "unicorn/prefer-object-from-entries": "error",
+    "unicorn/no-anonymous-default-export": "error",
+    "unicorn/prefer-optional-catch-binding": "error",
+    "unicorn/no-array-for-each": "warn",
+    "unicorn/prefer-at": "error",
+    "unicorn/prefer-export-from": "error"
+  }
+}
