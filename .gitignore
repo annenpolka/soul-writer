@@ -1,0 +1,70 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Build outputs (language-agnostic)
+dist/
+build/
+out/
+target/
+
+# Dependencies (various languages)
+node_modules/
+vendor/
+.bundle/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# TypeScript/Deno
+.deno/
+
+# Rust
+Cargo.lock
+
+# Ruby
+.ruby-version
+Gemfile.lock
+
+# Python
+*.egg-info/
+.eggs/
+pip-log.txt
+
+# Test coverage
+coverage/
+.coverage
+htmlcov/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Generated content
+exports/
+output/
