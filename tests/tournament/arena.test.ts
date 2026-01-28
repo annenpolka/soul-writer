@@ -69,7 +69,15 @@ const mockSoulText: SoulText = {
     terminology: {},
     locations: {},
   },
-  antiSoul: { categories: {} },
+  antiSoul: {
+    categories: {
+      theme_violation: [],
+      excessive_sentiment: [],
+      explanatory_worldbuilding: [],
+      character_normalization: [],
+      cliche_simile: [],
+    },
+  },
   readerPersonas: { personas: [] },
   fragments: new Map(),
 };
