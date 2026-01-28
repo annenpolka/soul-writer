@@ -1,4 +1,7 @@
 import { generate } from './cli/generate.js';
+import { story } from './cli/story.js';
+import { resume } from './cli/resume.js';
+import { review } from './cli/review.js';
 
 const args = process.argv.slice(2);
 
@@ -7,17 +10,37 @@ function printUsage(): void {
 Soul Writer - LLM-based novel generation system
 
 Usage:
-  npx tsx src/main.ts generate --soul <path> --prompt <text>
+  npx tsx src/main.ts <command> [options]
 
 Commands:
-  generate    Run tournament generation
+  generate    Run single tournament generation (simple pipeline)
+  story       Generate a full story with all features
+  resume      Resume an interrupted story generation
+  review      Review and approve learning candidates
 
-Options:
+Common Options:
   --soul      Path to soul text directory (default: "soul")
-  --prompt    Generation prompt
+  --db        Path to SQLite database (default: "soul-writer.db")
+
+story Options:
+  --prompt    Generation prompt (required)
+  --chapters  Number of chapters (default: 5)
+
+resume Options:
+  --task-id   Task ID to resume (required)
 
 Examples:
+  # Simple tournament generation
   npx tsx src/main.ts generate --soul soul --prompt "透心の朝の独白を書いてください"
+
+  # Full story generation (5 chapters)
+  npx tsx src/main.ts story --soul soul --prompt "透心とつるぎの出会い" --chapters 5
+
+  # Resume interrupted task
+  npx tsx src/main.ts resume --task-id <id> --soul soul
+
+  # Review learning candidates
+  npx tsx src/main.ts review --soul soul
   `);
 }
 
@@ -60,6 +83,45 @@ async function main(): Promise<void> {
       }
 
       await generate({ soul, prompt });
+      break;
+    }
+
+    case 'story': {
+      const soul = options.soul || 'soul';
+      const prompt = options.prompt;
+      const chapters = options.chapters ? parseInt(options.chapters, 10) : 5;
+      const dbPath = options.db || 'soul-writer.db';
+
+      if (!prompt) {
+        console.error('Error: --prompt is required');
+        printUsage();
+        process.exit(1);
+      }
+
+      await story({ soul, prompt, chapters, dbPath });
+      break;
+    }
+
+    case 'resume': {
+      const soul = options.soul || 'soul';
+      const taskId = options['task-id'];
+      const dbPath = options.db || 'soul-writer.db';
+
+      if (!taskId) {
+        console.error('Error: --task-id is required');
+        printUsage();
+        process.exit(1);
+      }
+
+      await resume({ taskId, soul, dbPath });
+      break;
+    }
+
+    case 'review': {
+      const soul = options.soul || 'soul';
+      const dbPath = options.db || 'soul-writer.db';
+
+      await review({ soul, dbPath });
       break;
     }
 

@@ -55,3 +55,11 @@ export {
 
 // Combined SoulText
 export { type SoulText } from './soul-text.js';
+
+// Plot
+export {
+  PlotSchema,
+  ChapterSchema,
+  type Plot,
+  type Chapter,
+} from './plot.js';
