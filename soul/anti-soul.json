@@ -1,0 +1,56 @@
+{
+  "categories": {
+    "excessive_sentiment": [
+      {
+        "id": "anti-sentiment-001",
+        "text": "透心は深い悲しみに包まれていた。両親を失った痛みは、今も彼女の心を締め付けている。涙が頬を伝い、彼女は静かに泣いた。",
+        "reason": "感情を直接的に説明しすぎ。透心は感情を言語化しない。涙を流す描写も文体に合わない。",
+        "source": "manual",
+        "added_at": "2024-01-01T00:00:00Z"
+      }
+    ],
+    "explanatory_worldbuilding": [
+      {
+        "id": "anti-world-001",
+        "text": "この世界では、ARコンタクトという技術が普及していた。それは目に装着するレンズ型のデバイスで、様々な情報を表示することができる。人々はこれを使って、互いの名前や属性を確認していた。",
+        "reason": "設定説明が前面に出ている。世界観は行動や思考を通じて自然に織り込むべき。",
+        "source": "manual",
+        "added_at": "2024-01-01T00:00:00Z"
+      }
+    ],
+    "character_normalization": [
+      {
+        "id": "anti-char-001",
+        "text": "「ねえ、透心ちゃん、お昼一緒に食べない？」つるぎは明るく笑った。「今日のお弁当、ちょっと作りすぎちゃって」",
+        "reason": "つるぎが「普通の女子高生」になっている。彼女は常に挑発的で、古い言葉を使い、一般的な友人関係を求めない。",
+        "source": "manual",
+        "added_at": "2024-01-01T00:00:00Z"
+      },
+      {
+        "id": "anti-char-002",
+        "text": "もしかしたら、この世界にも信じられる人がいるのかもしれない。透心は初めて、誰かと繋がれる希望を感じた。",
+        "reason": "透心が他者に心を開く描写。テーマ（forbidden_resolutions）に違反。",
+        "source": "manual",
+        "added_at": "2024-01-01T00:00:00Z"
+      }
+    ],
+    "cliche_simile": [
+      {
+        "id": "anti-simile-001",
+        "text": "つるぎの笑顔は花のように美しかった。その瞳は星のように輝いていた。",
+        "reason": "身体感覚に根ざさない陳腐な比喩。rhetoric.forbidden_similesに該当。",
+        "source": "manual",
+        "added_at": "2024-01-01T00:00:00Z"
+      }
+    ],
+    "theme_violation": [
+      {
+        "id": "anti-theme-001",
+        "text": "「私、変わりたいの」透心は決意を込めて言った。「みんなと仲良くなりたい。普通の高校生活を送りたい」",
+        "reason": "透心が社会に適応しようとしている。forbidden_resolutionsに違反。",
+        "source": "manual",
+        "added_at": "2024-01-01T00:00:00Z"
+      }
+    ]
+  }
+}
