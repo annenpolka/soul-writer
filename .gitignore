@@ -27,13 +27,15 @@ logs/
 
 # MoonBit
 _build/
+target/
+target
 .mooncakes/
+.moonagent/
 
 # Build outputs (language-agnostic)
 dist/
 build/
 out/
-target/
 
 # Dependencies (various languages)
 node_modules/
