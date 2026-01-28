@@ -25,9 +25,16 @@ ARタグシステムとMR（拡張現実）を背景にした近未来SF。
 
 **現在は設計フェーズ。実装コードは未着手。**
 
-- 言語: 未定（TypeScript/Deno, Python, Rust, Ruby が候補）
+- 言語: TypeScript (Deno)
 - データベース: SQLite（確定）
 - LLM API: OpenAI互換API（Cerebras等）
+
+### TypeScript/Deno選択理由
+
+- **型とJSONの相性**: ソウルテキスト四層構造はJSON。Zodによるランタイムバリデーション+型推論が強力
+- **非同期が自然**: Promise.all、async/awaitがネイティブ。並列生成のコードが読みやすい
+- **MCP親和性**: MCP SDKはTypeScriptがファーストクラス。将来的なMCPサーバー化に有利
+- **Deno固有利点**: TypeScript直接実行、パーミッションシステム、`deno compile`でシングルバイナリ
 
 ## アーキテクチャ
 

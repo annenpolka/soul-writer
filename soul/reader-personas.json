@@ -1,0 +1,72 @@
+{
+  "personas": [
+    {
+      "id": "sf-enthusiast",
+      "name": "SF愛好家",
+      "description": "伊藤計劃、円城塔などのSFを愛読。世界設定の緻密さを重視。",
+      "preferences": [
+        "技術的設定の整合性",
+        "社会システムの論理的構築",
+        "『ハーモニー』的なディストピア描写"
+      ],
+      "evaluation_weights": {
+        "style": 0.2,
+        "plot": 0.2,
+        "character": 0.2,
+        "worldbuilding": 0.3,
+        "readability": 0.1
+      }
+    },
+    {
+      "id": "literary-reader",
+      "name": "文学少女",
+      "description": "純文学を好む。心理描写の深さと文体の美しさを重視。",
+      "preferences": [
+        "内面描写の繊細さ",
+        "文体のリズム",
+        "比喩表現の独自性"
+      ],
+      "evaluation_weights": {
+        "style": 0.4,
+        "plot": 0.1,
+        "character": 0.3,
+        "worldbuilding": 0.1,
+        "readability": 0.1
+      }
+    },
+    {
+      "id": "light-reader",
+      "name": "ライトリーダー",
+      "description": "ライトノベル、Web小説を好む。テンポと読みやすさを重視。",
+      "preferences": [
+        "展開のスピード感",
+        "読みやすい文章",
+        "キャラクターの魅力"
+      ],
+      "evaluation_weights": {
+        "style": 0.1,
+        "plot": 0.3,
+        "character": 0.3,
+        "worldbuilding": 0.1,
+        "readability": 0.2
+      }
+    },
+    {
+      "id": "editor",
+      "name": "編集者",
+      "description": "商業出版の視点から評価。構成と完成度を重視。",
+      "preferences": [
+        "物語の構成",
+        "テーマの一貫性",
+        "商業的な訴求力"
+      ],
+      "evaluation_weights": {
+        "style": 0.2,
+        "plot": 0.3,
+        "character": 0.2,
+        "worldbuilding": 0.1,
+        "readability": 0.2
+      }
+    }
+  ]
+}
