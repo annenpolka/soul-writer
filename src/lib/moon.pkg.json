@@ -1,0 +1,8 @@
+{
+  "import": [
+    "moonbitlang/core/json",
+    "moonbitlang/async/http",
+    "moonbitlang/async/fs",
+    { "path": "moonbitlang/x/sys", "alias": "sys" }
+  ]
+}

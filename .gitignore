@@ -25,6 +25,10 @@ Thumbs.db
 *.log
 logs/
 
+# MoonBit
+_build/
+.mooncakes/
+
 # Build outputs (language-agnostic)
 dist/
 build/
