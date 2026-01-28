@@ -39,4 +39,6 @@ export interface LLMClient {
 export interface CerebrasConfig {
   apiKey: string;
   model: string;
+  /** Maximum retries for empty responses (default: 3) */
+  maxRetries?: number;
 }

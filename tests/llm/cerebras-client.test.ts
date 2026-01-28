@@ -65,6 +65,70 @@ describe('CerebrasClient', () => {
 
     expect(client.getTotalTokens()).toBe(100);
   });
+
+  it('should retry when response content is empty', async () => {
+    // First call returns empty, second call returns valid response
+    mockCreate
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: '' } }],
+        usage: { total_tokens: 50 },
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: 'Success after retry' } }],
+        usage: { total_tokens: 100 },
+      });
+
+    const result = await client.complete('System', 'User');
+
+    expect(result).toBe('Success after retry');
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+  });
+
+  it('should retry when response content is null/undefined', async () => {
+    mockCreate
+      .mockResolvedValueOnce({
+        choices: [{ message: {} }],
+        usage: { total_tokens: 50 },
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: 'Success after null' } }],
+        usage: { total_tokens: 100 },
+      });
+
+    const result = await client.complete('System', 'User');
+
+    expect(result).toBe('Success after null');
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+  });
+
+  it('should throw after max retries exceeded', async () => {
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: '' } }],
+      usage: { total_tokens: 50 },
+    });
+
+    await expect(client.complete('System', 'User')).rejects.toThrow(
+      'No content in LLM response after 3 retries'
+    );
+    expect(mockCreate).toHaveBeenCalledTimes(3);
+  });
+
+  it('should accumulate tokens across retries', async () => {
+    mockCreate
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: '' } }],
+        usage: { total_tokens: 50 },
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: 'Success' } }],
+        usage: { total_tokens: 100 },
+      });
+
+    await client.complete('System', 'User');
+
+    // 50 + 100 = 150
+    expect(client.getTotalTokens()).toBe(150);
+  });
 });
 
 describe('CerebrasClient Integration', () => {

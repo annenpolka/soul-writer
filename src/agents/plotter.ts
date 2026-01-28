@@ -115,6 +115,24 @@ export class PlotterAgent {
   private buildUserPrompt(): string {
     const parts: string[] = [];
 
+    // Include theme if specified (used by Factory)
+    if (this.config.theme) {
+      const t = this.config.theme;
+      parts.push('## テーマ指定');
+      parts.push(`感情テーマ: ${t.emotion}`);
+      parts.push(`時系列: ${t.timeline}`);
+      parts.push(`前提: ${t.premise}`);
+      parts.push('登場人物:');
+      for (const c of t.characters) {
+        if (c.isNew) {
+          parts.push(`- ${c.name}（新規）: ${c.description || ''}`);
+        } else {
+          parts.push(`- ${c.name}`);
+        }
+      }
+      parts.push('');
+    }
+
     parts.push(`${this.config.chapterCount}章構成の物語を設計してください。`);
     parts.push(`総文字数の目安: ${this.config.targetTotalLength}字`);
     parts.push('');

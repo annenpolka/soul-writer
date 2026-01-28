@@ -63,3 +63,18 @@ export {
   type Plot,
   type Chapter,
 } from './plot.js';
+
+// Generated Theme (Factory)
+export {
+  GeneratedThemeSchema,
+  CharacterSchema as GeneratedCharacterSchema,
+  type GeneratedTheme,
+  type Character as GeneratedCharacter,
+} from './generated-theme.js';
+
+// Factory Config
+export {
+  FactoryConfigSchema,
+  DEFAULT_FACTORY_CONFIG,
+  type FactoryConfig,
+} from './factory-config.js';

@@ -55,6 +55,8 @@ export interface PlotterConfig {
   chapterCount: number;
   targetTotalLength: number;
   temperature?: number;
+  /** Optional theme for guided plot generation (used by Factory) */
+  theme?: import('../schemas/generated-theme.js').GeneratedTheme;
 }
 
 /**
