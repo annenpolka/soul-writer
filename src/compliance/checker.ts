@@ -5,6 +5,8 @@ import { ForbiddenSimilesRule } from './rules/forbidden-similes.js';
 import { SpecialMarksRule } from './rules/special-marks.js';
 import { PovConsistencyRule } from './rules/pov-consistency.js';
 import { RhythmCheckRule } from './rules/rhythm-check.js';
+import { MarkdownContaminationRule } from './rules/markdown-contamination.js';
+import { QuoteOriginalityRule } from './rules/quote-originality.js';
 import type { SoulText } from '../soul/manager.js';
 
 const COMPLIANCE_THRESHOLD = 0.75;
@@ -53,6 +55,12 @@ export class ComplianceChecker {
     // Add rhythm check rule
     const maxLen = parseInt(constitution.sentence_structure.typical_lengths.forbidden.replace(/[^0-9]/g, '')) || 100;
     rules.push(new RhythmCheckRule(maxLen));
+
+    // Add markdown contamination rule
+    rules.push(new MarkdownContaminationRule());
+
+    // Add quote originality rule (extracts quotes from fragments)
+    rules.push(new QuoteOriginalityRule(soulText.fragments));
 
     return new ComplianceChecker(rules);
   }

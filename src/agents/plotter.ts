@@ -90,6 +90,12 @@ export class PlotterAgent {
       parts.push('');
     }
 
+    // Originality requirements
+    parts.push('## オリジナリティ要求');
+    parts.push('- 原作の既知シーンをなぞらない。同じ世界観の中で、まだ語られていない物語を設計すること');
+    parts.push('- 各章に最低1つ、原作に存在しないオリジナルの出来事・場所・小道具を含めること');
+    parts.push('');
+
     // Output format
     parts.push('## 出力形式');
     parts.push('以下のJSON形式で章構成を出力してください:');

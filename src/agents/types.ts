@@ -100,7 +100,9 @@ export type ViolationType =
   | 'forbidden_simile'
   | 'special_mark_misuse'
   | 'theme_violation'
-  | 'pov_violation';
+  | 'pov_violation'
+  | 'markdown_contamination'
+  | 'quote_direct_copy';
 
 /**
  * A single violation found in text

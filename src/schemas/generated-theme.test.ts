@@ -61,6 +61,7 @@ describe('GeneratedThemeSchema', () => {
         { name: '愛原つるぎ', isNew: false },
       ],
       premise: '透心が日常の中で感じる空虚さを描く',
+      scene_types: ['教室独白', '日常観察'],
     };
 
     const result = GeneratedThemeSchema.safeParse(theme);
@@ -71,6 +72,7 @@ describe('GeneratedThemeSchema', () => {
       expect(result.data.timeline).toBe('出会い前');
       expect(result.data.characters).toHaveLength(2);
       expect(result.data.premise).toBe('透心が日常の中で感じる空虚さを描く');
+      expect(result.data.scene_types).toHaveLength(2);
     }
   });
 
@@ -83,6 +85,7 @@ describe('GeneratedThemeSchema', () => {
         { name: '新キャラ', isNew: true, description: 'テスト用の新キャラクター' },
       ],
       premise: 'テスト前提',
+      scene_types: ['MRフロアセッション'],
     };
 
     const result = GeneratedThemeSchema.safeParse(theme);
@@ -101,6 +104,7 @@ describe('GeneratedThemeSchema', () => {
       timeline: '出会い前',
       characters: [{ name: '透心', isNew: false }],
       premise: 'テスト',
+      scene_types: ['教室独白'],
     };
 
     const result = GeneratedThemeSchema.safeParse(theme);
@@ -113,6 +117,7 @@ describe('GeneratedThemeSchema', () => {
       timeline: '出会い前',
       characters: [],
       premise: 'テスト',
+      scene_types: ['教室独白'],
     };
 
     const result = GeneratedThemeSchema.safeParse(theme);

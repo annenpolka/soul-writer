@@ -16,6 +16,8 @@ export const FactoryConfigSchema = z.object({
   outputDir: z.string().default('output'),
   /** Path to SQLite database */
   dbPath: z.string().default('factory.db'),
+  /** Delay in milliseconds between tasks per worker slot (throttling) */
+  taskDelayMs: z.number().int().min(0).default(1000),
 });
 
 export type FactoryConfig = z.infer<typeof FactoryConfigSchema>;

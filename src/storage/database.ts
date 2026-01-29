@@ -12,6 +12,9 @@ export class DatabaseConnection {
   constructor(path: string = ':memory:') {
     this.sqlite = new Database(path);
     this.sqlite.pragma('journal_mode = WAL');
+    this.sqlite.pragma('foreign_keys = ON');
+    this.sqlite.pragma('synchronous = NORMAL');
+    this.sqlite.pragma('busy_timeout = 5000');
     this.db = drizzle(this.sqlite, { schema });
   }
 
@@ -164,6 +167,14 @@ export class DatabaseConnection {
       CREATE INDEX IF NOT EXISTS idx_candidates_status ON soul_candidates(status);
       CREATE INDEX IF NOT EXISTS idx_candidates_soul_id ON soul_candidates(soul_id);
     `);
+  }
+
+  /**
+   * Run a function inside a transaction
+   * Automatically commits on success and rolls back on error
+   */
+  transaction<T>(fn: () => T): T {
+    return this.sqlite.transaction(fn)();
   }
 
   /**

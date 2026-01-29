@@ -46,6 +46,8 @@ const mockSoulText: SoulText = {
   antiSoul: {
     categories: {
       theme_violation: [],
+      mentor_tsurgi: [],
+      lion_concretization: [],
       excessive_sentiment: [],
       explanatory_worldbuilding: [],
       character_normalization: [],
@@ -94,8 +96,8 @@ describe('ComplianceChecker', () => {
       const result = checker.check('彼女は天使のような笑顔を見せた。');
 
       expect(result.isCompliant).toBe(false);
-      expect(result.violations).toHaveLength(1);
-      expect(result.violations[0].type).toBe('forbidden_simile');
+      const simileViolations = result.violations.filter(v => v.type === 'forbidden_simile');
+      expect(simileViolations).toHaveLength(1);
     });
 
     it('should detect special mark misuse', () => {

@@ -69,6 +69,16 @@ export class FullPipeline {
     });
     await this.taskRepo.markStarted(task.id);
 
+    try {
+      return await this._executeStory(task.id, prompt);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await this.taskRepo.markFailed(task.id, message);
+      throw error;
+    }
+  }
+
+  private async _executeStory(taskId: string, prompt: string): Promise<FullPipelineResult> {
     // 2. Generate plot
     const plotter = new PlotterAgent(this.llmClient, this.soulManager.getSoulText(), {
       chapterCount: this.config.chapterCount,
@@ -79,7 +89,7 @@ export class FullPipeline {
 
     // 3. Save plot checkpoint
     await this.checkpointManager.saveCheckpoint(
-      task.id,
+      taskId,
       'plot_generation',
       { plot: plotResult.plot, chapters: [] },
       { completedChapters: 0, totalChapters: plotResult.plot.chapters.length }
@@ -102,7 +112,7 @@ export class FullPipeline {
 
       // Save checkpoint after each chapter
       await this.checkpointManager.saveCheckpoint(
-        task.id,
+        taskId,
         'chapter_done',
         { plot: plotResult.plot, chapters: chapterResults },
         { completedChapters: chapterResults.length, totalChapters: plotResult.plot.chapters.length }
@@ -152,10 +162,10 @@ export class FullPipeline {
     }
 
     // 8. Mark task as completed
-    await this.taskRepo.markCompleted(task.id);
+    await this.taskRepo.markCompleted(taskId);
 
     return {
-      taskId: task.id,
+      taskId: taskId,
       plot: plotResult.plot,
       chapters: chapterResults,
       totalTokensUsed,
@@ -188,6 +198,21 @@ export class FullPipeline {
     }
     await this.taskRepo.markStarted(taskId);
 
+    try {
+      return await this._executeResume(taskId, plot, completedChapters, progress);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await this.taskRepo.markFailed(taskId, message);
+      throw error;
+    }
+  }
+
+  private async _executeResume(
+    taskId: string,
+    plot: Plot,
+    completedChapters: ChapterPipelineResult[],
+    progress: { completedChapters: number; totalChapters: number },
+  ): Promise<FullPipelineResult> {
     // 4. Continue from next chapter
     const chapterResults: ChapterPipelineResult[] = [...completedChapters];
     const remainingChapters = plot.chapters.slice(progress.completedChapters);
