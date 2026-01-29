@@ -150,6 +150,8 @@ const mockSoulText: SoulText = {
   antiSoul: {
     categories: {
       theme_violation: [],
+      mentor_tsurgi: [],
+      lion_concretization: [],
       excessive_sentiment: [],
       explanatory_worldbuilding: [],
       character_normalization: [],

@@ -11,6 +11,7 @@ describe('FactoryConfigSchema', () => {
         soulPath: 'soul',
         outputDir: 'output',
         dbPath: 'factory.db',
+        taskDelayMs: 1000,
       };
 
       const result = FactoryConfigSchema.safeParse(config);

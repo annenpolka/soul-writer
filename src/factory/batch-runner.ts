@@ -156,11 +156,20 @@ export class BatchRunner {
       }
     };
 
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
     // Worker slot function - pulls from queue until empty
     const runSlot = async (): Promise<void> => {
+      let isFirst = true;
       while (true) {
         const taskIndex = queue.shift();
         if (taskIndex === undefined) break;
+
+        // Throttle between tasks (skip delay for first task in slot)
+        if (!isFirst && this.config.taskDelayMs > 0) {
+          await delay(this.config.taskDelayMs);
+        }
+        isFirst = false;
 
         const result = await executeTask(taskIndex);
         results[taskIndex] = result;

@@ -70,6 +70,8 @@ const mockSoulText: SoulText = {
       character_normalization: [],
       cliche_simile: [],
       theme_violation: [],
+      mentor_tsurgi: [],
+      lion_concretization: [],
     },
   },
   readerPersonas: { personas: [] },
@@ -85,6 +87,7 @@ const validThemeResponse = JSON.stringify({
     { name: '愛原つるぎ', isNew: false },
   ],
   premise: '透心が日常の中で感じる空虚さを描く物語',
+  scene_types: ['教室独白', '日常観察'],
 });
 
 const themeWithNewCharacter = JSON.stringify({
@@ -95,6 +98,7 @@ const themeWithNewCharacter = JSON.stringify({
     { name: '新入生A', isNew: true, description: '透心のクラスに転入してきた謎の生徒' },
   ],
   premise: '新入生との出会いが透心に変化をもたらす',
+  scene_types: ['MRフロアセッション', '通学路・移動'],
 });
 
 describe('ThemeGeneratorAgent', () => {

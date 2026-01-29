@@ -64,6 +64,8 @@ const mockSoulText: SoulText = {
       character_normalization: [],
       cliche_simile: [],
       theme_violation: [],
+      mentor_tsurgi: [],
+      lion_concretization: [],
     },
   },
   readerPersonas: { personas: [] },

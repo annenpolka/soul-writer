@@ -109,6 +109,11 @@ export class ThemeGeneratorAgent {
     parts.push('- 他生徒との表面的交流（学級委員長としての仮面）');
     parts.push('- 記憶・回想（孤児院や過去の断片）');
     parts.push('');
+    parts.push('## オリジナリティ要求');
+    parts.push('- 上記カタログはあくまで参考。原作にない新しいシーン・場所・アイテムを積極的に発明すること');
+    parts.push('- 例：透心が一人で行く場所、つるぎ以外の人物との遭遇、ARシステムの予想外の挙動');
+    parts.push('- 原作の再現ではなく、原作の世界観を拡張する物語を生成すること');
+    parts.push('');
 
     // Output format
     parts.push('## 出力形式');

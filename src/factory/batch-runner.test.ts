@@ -10,6 +10,7 @@ describe('BatchRunner', () => {
     soulPath: 'soul',
     outputDir: 'output',
     dbPath: ':memory:',
+    taskDelayMs: 0,
   };
 
   const mockSoulText = {
