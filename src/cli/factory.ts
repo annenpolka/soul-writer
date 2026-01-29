@@ -9,7 +9,7 @@ import { CheckpointRepository } from '../storage/checkpoint-repository.js';
 import { CheckpointManager } from '../storage/checkpoint-manager.js';
 import { SoulCandidateRepository } from '../storage/soul-candidate-repository.js';
 import { FactoryConfigSchema } from '../schemas/factory-config.js';
-import { BatchRunner, type ProgressInfo } from '../factory/batch-runner.js';
+import { BatchRunner, type ProgressInfo, calculateAnalytics, ReportGenerator } from '../factory/index.js';
 
 dotenv.config();
 
@@ -105,6 +105,10 @@ export async function factory(options: FactoryOptions): Promise<void> {
   try {
     const result = await runner.run(onProgress);
 
+    // Calculate analytics
+    const analytics = calculateAnalytics(result);
+    const reporter = new ReportGenerator();
+
     // Final output
     console.log(`\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     console.log(`✓ Batch completed!`);
@@ -114,7 +118,6 @@ export async function factory(options: FactoryOptions): Promise<void> {
     console.log(`  Completed: ${result.completed}`);
     console.log(`  Failed: ${result.failed}`);
     console.log(`  Skipped: ${result.skipped}`);
-    console.log(`  Total tokens: ${result.totalTokensUsed.toLocaleString()}`);
 
     if (result.failed > 0) {
       console.log(`\nFailed tasks:`);
@@ -123,7 +126,14 @@ export async function factory(options: FactoryOptions): Promise<void> {
       }
     }
 
-    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
+    // Detailed report
+    console.log(reporter.generateCliReport(analytics));
+
+    // Save JSON report
+    const jsonReport = reporter.generateJsonReport(result, analytics);
+    const reportPath = `${config.outputDir}/report.json`;
+    fs.writeFileSync(reportPath, JSON.stringify(jsonReport, null, 2));
+    console.log(`\n📄 Report saved: ${reportPath}\n`);
 
   } catch (error) {
     console.error(`\nError during batch generation:`, (error as Error).message);

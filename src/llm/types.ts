@@ -39,6 +39,10 @@ export interface LLMClient {
 export interface CerebrasConfig {
   apiKey: string;
   model: string;
-  /** Maximum retries for empty responses (default: 3) */
+  /** Maximum retries for empty responses or HTTP errors (default: 5) */
   maxRetries?: number;
+  /** Initial retry delay in ms (default: 1000) */
+  initialRetryDelayMs?: number;
+  /** Maximum retry delay in ms (default: 30000) */
+  maxRetryDelayMs?: number;
 }
