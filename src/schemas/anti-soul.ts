@@ -16,6 +16,8 @@ export const AntiSoulCategory = z.enum([
   'character_normalization',
   'cliche_simile',
   'theme_violation',
+  'mentor_tsurgi',
+  'lion_concretization',
 ]);
 
 // Full Anti-Soul schema

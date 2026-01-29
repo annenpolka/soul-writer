@@ -68,6 +68,7 @@ describe('BatchRunner', () => {
           timeline: '出会い前',
           characters: [{ name: '透心', isNew: false }],
           premise: 'テスト前提',
+          scene_types: ['教室独白', '日常観察'],
         },
         tokensUsed: 100,
       }),

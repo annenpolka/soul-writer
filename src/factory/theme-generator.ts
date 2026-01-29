@@ -95,6 +95,21 @@ export class ThemeGeneratorAgent {
       parts.push('');
     }
 
+    // Scene catalog
+    parts.push('## シーン種類カタログ');
+    parts.push('以下から2-4種類を選択してください。毎回異なる組み合わせを選ぶこと:');
+    parts.push('- 教室独白（授業中の透心の内面）');
+    parts.push('- 屋上会話（つるぎとの非公式な対話）');
+    parts.push('- 名前消去事件（ARタグの操作に関する出来事）');
+    parts.push('- 日常観察（透心が他者を観察する静かなシーン）');
+    parts.push('- MRフロアセッション（仮想殺害の場面）');
+    parts.push('- セッション後の反芻（殺害後の内省）');
+    parts.push('- 通学路・移動（物理空間での孤独）');
+    parts.push('- デジタル空間探索（ARシステムの裏側）');
+    parts.push('- 他生徒との表面的交流（学級委員長としての仮面）');
+    parts.push('- 記憶・回想（孤児院や過去の断片）');
+    parts.push('');
+
     // Output format
     parts.push('## 出力形式');
     parts.push('以下のJSON形式でテーマを出力してください:');
@@ -106,7 +121,8 @@ export class ThemeGeneratorAgent {
     parts.push('    {"name": "キャラ名", "isNew": false},');
     parts.push('    {"name": "新キャラ名", "isNew": true, "description": "新キャラの説明"}');
     parts.push('  ],');
-    parts.push('  "premise": "物語の前提を1-2文で"');
+    parts.push('  "premise": "物語の前提を1-2文で",');
+    parts.push('  "scene_types": ["教室独白", "通学路・移動"]');
     parts.push('}');
     parts.push('```');
 

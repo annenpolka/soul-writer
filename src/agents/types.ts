@@ -6,16 +6,18 @@ export interface WriterConfig {
   temperature: number;
   topP: number;
   style: 'balanced' | 'creative' | 'conservative' | 'moderate';
+  /** Focus categories for fragment selection - each writer gets different emphasis */
+  focusCategories?: string[];
 }
 
 /**
  * Default writer configurations for tournament
  */
 export const DEFAULT_WRITERS: WriterConfig[] = [
-  { id: 'writer_1', temperature: 0.7, topP: 0.9, style: 'balanced' },
-  { id: 'writer_2', temperature: 0.9, topP: 0.95, style: 'creative' },
-  { id: 'writer_3', temperature: 0.5, topP: 0.8, style: 'conservative' },
-  { id: 'writer_4', temperature: 0.8, topP: 0.85, style: 'moderate' },
+  { id: 'writer_1', temperature: 0.7, topP: 0.9, style: 'balanced', focusCategories: ['opening', 'introspection'] },
+  { id: 'writer_2', temperature: 0.9, topP: 0.95, style: 'creative', focusCategories: ['dialogue', 'character_voice'] },
+  { id: 'writer_3', temperature: 0.5, topP: 0.8, style: 'conservative', focusCategories: ['killing', 'symbolism'] },
+  { id: 'writer_4', temperature: 0.8, topP: 0.85, style: 'moderate', focusCategories: ['world_building', 'introspection'] },
 ];
 
 /**
@@ -25,6 +27,10 @@ export interface ScoreBreakdown {
   style: number;
   compliance: number;
   overall: number;
+  /** Accuracy of character voice reproduction */
+  voice_accuracy?: number;
+  /** Fidelity to original work's setting and plot */
+  originality_fidelity?: number;
 }
 
 /**
@@ -36,6 +42,11 @@ export interface JudgeResult {
   scores: {
     A: ScoreBreakdown;
     B: ScoreBreakdown;
+  };
+  /** Praised excerpts from each text (for synthesis) */
+  praised_excerpts?: {
+    A: string[];
+    B: string[];
   };
 }
 
@@ -88,7 +99,8 @@ export type ViolationType =
   | 'sentence_too_long'
   | 'forbidden_simile'
   | 'special_mark_misuse'
-  | 'theme_violation';
+  | 'theme_violation'
+  | 'pov_violation';
 
 /**
  * A single violation found in text
@@ -200,6 +212,7 @@ export interface ChapterPipelineResult {
   correctionAttempts: number;
   readerJuryResult: ReaderJuryResult;
   learningResult?: import('../learning/learning-pipeline.js').ProcessResult;
+  synthesized?: boolean;
   tokensUsed: number;
 }
 

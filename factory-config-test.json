@@ -1,0 +1,8 @@
+{
+  "count": 10,
+  "parallel": 4,
+  "chaptersPerStory": 1,
+  "soulPath": "soul",
+  "outputDir": "output",
+  "dbPath": "factory.db"
+}
