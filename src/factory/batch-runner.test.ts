@@ -220,4 +220,130 @@ describe('BatchRunner', () => {
       expect(mockFileWriter.writeStory).toHaveBeenCalledTimes(3);
     });
   });
+
+  describe('parallel execution', () => {
+    const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    it('should execute tasks with configured parallelism', async () => {
+      let maxConcurrent = 0;
+      let currentConcurrent = 0;
+
+      const slowPipelineFactory = vi.fn().mockImplementation(() => ({
+        generateStory: vi.fn().mockImplementation(async () => {
+          currentConcurrent++;
+          maxConcurrent = Math.max(maxConcurrent, currentConcurrent);
+          await delay(20);
+          currentConcurrent--;
+          return {
+            taskId: 'mock-task-id',
+            plot: { title: 'テスト', theme: 'テスト', chapters: [] },
+            chapters: [],
+            totalTokensUsed: 1000,
+            avgComplianceScore: 0.9,
+            avgReaderScore: 0.85,
+            learningCandidates: 0,
+            antiPatternsCollected: 0,
+          };
+        }),
+      }));
+
+      const parallelConfig = { ...mockConfig, count: 8, parallel: 4 };
+      const deps = createMockDeps();
+      const runner = new BatchRunner(parallelConfig, deps, {
+        themeGenerator: mockThemeGenerator as any,
+        pipelineFactory: slowPipelineFactory,
+        fileWriter: mockFileWriter as any,
+      });
+
+      await runner.run();
+
+      expect(maxConcurrent).toBe(4);
+    });
+
+    it('should complete all tasks even when some fail in parallel', async () => {
+      let taskIndex = 0;
+      const mixedPipelineFactory = vi.fn().mockImplementation(() => ({
+        generateStory: vi.fn().mockImplementation(async () => {
+          const index = taskIndex++;
+          await delay(10);
+          if (index % 2 === 0) {
+            throw new Error(`Task ${index} failed`);
+          }
+          return {
+            taskId: `task-${index}`,
+            plot: { title: 'テスト', theme: 'テスト', chapters: [] },
+            chapters: [],
+            totalTokensUsed: 1000,
+            avgComplianceScore: 0.9,
+            avgReaderScore: 0.85,
+            learningCandidates: 0,
+            antiPatternsCollected: 0,
+          };
+        }),
+      }));
+
+      const parallelConfig = { ...mockConfig, count: 6, parallel: 3 };
+      const deps = createMockDeps();
+      const runner = new BatchRunner(parallelConfig, deps, {
+        themeGenerator: mockThemeGenerator as any,
+        pipelineFactory: mixedPipelineFactory,
+        fileWriter: mockFileWriter as any,
+      });
+
+      const result = await runner.run();
+
+      // 0,2,4 fail, 1,3,5 succeed
+      expect(result.completed + result.failed).toBe(6);
+      expect(result.failed).toBe(3);
+      expect(result.completed).toBe(3);
+    });
+
+    it('should report progress for all tasks in parallel execution', async () => {
+      const progressCalls: { current: number; status: string }[] = [];
+
+      const parallelConfig = { ...mockConfig, count: 6, parallel: 3 };
+      const deps = createMockDeps();
+      const runner = new BatchRunner(parallelConfig, deps, {
+        themeGenerator: mockThemeGenerator as any,
+        pipelineFactory: mockPipelineFactory,
+        fileWriter: mockFileWriter as any,
+      });
+
+      await runner.run((info) => progressCalls.push({ current: info.current, status: info.status }));
+
+      expect(progressCalls).toHaveLength(6);
+      // Final call should have current = 6
+      expect(progressCalls.some((p) => p.current === 6)).toBe(true);
+    });
+
+    it('should correctly aggregate tokens from parallel tasks', async () => {
+      const parallelConfig = { ...mockConfig, count: 4, parallel: 2 };
+      const deps = createMockDeps();
+      const runner = new BatchRunner(parallelConfig, deps, {
+        themeGenerator: mockThemeGenerator as any,
+        pipelineFactory: mockPipelineFactory,
+        fileWriter: mockFileWriter as any,
+      });
+
+      const result = await runner.run();
+
+      // 100 theme + 1000 story = 1100 per task * 4 = 4400
+      expect(result.totalTokensUsed).toBe(4400);
+    });
+
+    it('should behave identically with parallel=1', async () => {
+      const sequentialConfig = { ...mockConfig, count: 3, parallel: 1 };
+      const deps = createMockDeps();
+      const runner = new BatchRunner(sequentialConfig, deps, {
+        themeGenerator: mockThemeGenerator as any,
+        pipelineFactory: mockPipelineFactory,
+        fileWriter: mockFileWriter as any,
+      });
+
+      const result = await runner.run();
+
+      expect(result.totalTasks).toBe(3);
+      expect(result.completed).toBe(3);
+    });
+  });
 });

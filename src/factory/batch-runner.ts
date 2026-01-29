@@ -27,6 +27,10 @@ export interface TaskResult {
   status: 'completed' | 'failed' | 'skipped';
   error?: string;
   tokensUsed?: number;
+  complianceScore?: number;
+  readerScore?: number;
+  emotion?: string;
+  timeline?: string;
 }
 
 export interface ProgressInfo {
@@ -79,11 +83,11 @@ export class BatchRunner {
   }
 
   /**
-   * Run batch generation
+   * Run batch generation with parallel execution
    * @param onProgress Optional callback for progress updates
    */
   async run(onProgress?: (info: ProgressInfo) => void): Promise<BatchResult> {
-    const results: TaskResult[] = [];
+    const results: TaskResult[] = new Array(this.config.count);
     let totalTokensUsed = 0;
     let completed = 0;
     let failed = 0;
@@ -112,58 +116,76 @@ export class BatchRunner {
       );
     });
 
-    for (let i = 0; i < this.config.count; i++) {
-      const themeId = `theme_${Date.now()}_${i}`;
+    // Shared queue for worker pool pattern
+    const queue: number[] = Array.from({ length: this.config.count }, (_, i) => i);
+    let progressCount = 0;
+
+    // Execute a single task
+    const executeTask = async (taskIndex: number): Promise<TaskResult> => {
+      const themeId = `theme_${Date.now()}_${taskIndex}`;
 
       try {
         // Generate theme
         const themeResult = await themeGenerator.generateTheme();
-        totalTokensUsed += themeResult.tokensUsed;
 
         // Create pipeline and generate story
         const pipeline = createPipeline(themeResult.theme);
         const storyResult = await pipeline.generateStory(themeResult.theme.premise);
-        totalTokensUsed += storyResult.totalTokensUsed;
 
         // Write to file
         fileWriter.writeStory(storyResult, themeResult.theme);
 
-        results.push({
+        return {
           taskId: storyResult.taskId,
           themeId,
           status: 'completed',
           tokensUsed: themeResult.tokensUsed + storyResult.totalTokensUsed,
-        });
-
-        completed++;
-
-        onProgress?.({
-          current: i + 1,
-          total: this.config.count,
-          status: 'completed',
-          themeId,
-        });
-
+          complianceScore: storyResult.avgComplianceScore,
+          readerScore: storyResult.avgReaderScore,
+          emotion: themeResult.theme.emotion,
+          timeline: themeResult.theme.timeline,
+        };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-
-        results.push({
+        return {
           taskId: '',
           themeId,
           status: 'failed',
           error: errorMessage,
-        });
+        };
+      }
+    };
 
-        failed++;
+    // Worker slot function - pulls from queue until empty
+    const runSlot = async (): Promise<void> => {
+      while (true) {
+        const taskIndex = queue.shift();
+        if (taskIndex === undefined) break;
 
+        const result = await executeTask(taskIndex);
+        results[taskIndex] = result;
+
+        // Update aggregates
+        if (result.status === 'completed') {
+          completed++;
+          totalTokensUsed += result.tokensUsed ?? 0;
+        } else {
+          failed++;
+        }
+
+        progressCount++;
         onProgress?.({
-          current: i + 1,
+          current: progressCount,
           total: this.config.count,
-          status: 'failed',
-          themeId,
+          status: result.status === 'completed' ? 'completed' : 'failed',
+          themeId: result.themeId,
         });
       }
-    }
+    };
+
+    // Run N slots in parallel
+    const slotCount = Math.min(this.config.parallel, this.config.count);
+    await Promise.all(Array.from({ length: slotCount }, () => runSlot()));
 
     return {
       totalTasks: this.config.count,
@@ -171,7 +193,7 @@ export class BatchRunner {
       failed,
       skipped: 0,
       totalTokensUsed,
-      results,
+      results: results.filter(Boolean),
     };
   }
 }
