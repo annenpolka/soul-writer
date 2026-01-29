@@ -46,6 +46,7 @@ const createMockTheme = (): GeneratedTheme => ({
     { name: '新キャラ', isNew: true, description: 'テスト説明' },
   ],
   premise: 'テスト前提',
+  scene_types: ['教室独白', '日常観察'],
 });
 
 describe('FileWriter', () => {

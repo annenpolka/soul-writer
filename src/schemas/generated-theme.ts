@@ -24,6 +24,8 @@ export const GeneratedThemeSchema = z.object({
   characters: z.array(CharacterSchema).min(1),
   /** Story premise (1-2 sentences) */
   premise: z.string().min(1),
+  /** Scene types to include in the story */
+  scene_types: z.array(z.string().min(1)).min(1),
 });
 
 export type Character = z.infer<typeof CharacterSchema>;

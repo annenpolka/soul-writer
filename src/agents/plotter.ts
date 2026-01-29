@@ -130,6 +130,10 @@ export class PlotterAgent {
           parts.push(`- ${c.name}`);
         }
       }
+      if (t.scene_types && t.scene_types.length > 0) {
+        parts.push(`指定シーン種類: ${t.scene_types.join(', ')}`);
+        parts.push('これらのシーン種類を章に反映してください。すべてMRフロアに収束させないこと。');
+      }
       parts.push('');
     }
 

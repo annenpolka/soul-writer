@@ -23,6 +23,10 @@ import { LearningPipeline } from '../learning/learning-pipeline.js';
 import { FragmentExtractor } from '../learning/fragment-extractor.js';
 import { SoulExpander } from '../learning/soul-expander.js';
 import { AntiSoulCollector } from '../learning/anti-soul-collector.js';
+import { RetakeAgent } from '../retake/retake-agent.js';
+import { RetakeLoop, DEFAULT_RETAKE_CONFIG } from '../retake/retake-loop.js';
+import { JudgeAgent } from '../agents/judge.js';
+import { SynthesisAgent } from '../synthesis/synthesis-agent.js';
 
 /**
  * Full pipeline that integrates all generation, compliance, evaluation, and learning features
@@ -283,6 +287,24 @@ export class FullPipeline {
 
     let finalText = tournamentResult.championText;
     let correctionAttempts = 0;
+    let synthesized = false;
+
+    // 1.5. Synthesis: enhance champion using elements from all entries
+    if (tournamentResult.allGenerations.length > 1) {
+      try {
+        const synthesizer = new SynthesisAgent(this.llmClient, this.soulManager.getSoulText());
+        const synthesisResult = await synthesizer.synthesize(
+          tournamentResult.championText,
+          tournamentResult.champion,
+          tournamentResult.allGenerations,
+          tournamentResult.rounds,
+        );
+        finalText = synthesisResult.synthesizedText;
+        synthesized = true;
+      } catch (err) {
+        console.warn(`Chapter ${chapter.index}: Synthesis failed, using champion text as-is.`, err);
+      }
+    }
 
     // 2. Compliance check
     const checker = ComplianceChecker.fromSoulText(this.soulManager.getSoulText());
@@ -308,7 +330,18 @@ export class FullPipeline {
       }
     }
 
-    // 5. Reader jury evaluation
+    // 5. Retake loop (post-tournament, pre-reader-jury)
+    const retakeAgent = new RetakeAgent(this.llmClient, this.soulManager.getSoulText());
+    const judgeAgent = new JudgeAgent(this.llmClient, this.soulManager.getSoulText());
+    const retakeLoop = new RetakeLoop(retakeAgent, judgeAgent, DEFAULT_RETAKE_CONFIG);
+    const retakeResult = await retakeLoop.run(finalText);
+    if (retakeResult.improved) {
+      finalText = retakeResult.finalText;
+      // Re-check compliance after retake
+      complianceResult = checker.check(finalText);
+    }
+
+    // 6. Reader jury evaluation
     const readerJury = new ReaderJuryAgent(this.llmClient, this.soulManager.getSoulText());
     const readerJuryResult: ReaderJuryResult = await readerJury.evaluate(finalText);
 
@@ -324,6 +357,7 @@ export class FullPipeline {
       complianceResult,
       correctionAttempts,
       readerJuryResult,
+      synthesized,
       tokensUsed,
     };
   }

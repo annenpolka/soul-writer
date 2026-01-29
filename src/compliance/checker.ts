@@ -3,6 +3,8 @@ import type { ComplianceRule } from './rules/forbidden-words.js';
 import { ForbiddenWordsRule } from './rules/forbidden-words.js';
 import { ForbiddenSimilesRule } from './rules/forbidden-similes.js';
 import { SpecialMarksRule } from './rules/special-marks.js';
+import { PovConsistencyRule } from './rules/pov-consistency.js';
+import { RhythmCheckRule } from './rules/rhythm-check.js';
 import type { SoulText } from '../soul/manager.js';
 
 const COMPLIANCE_THRESHOLD = 0.75;
@@ -44,6 +46,13 @@ export class ComplianceChecker {
         )
       );
     }
+
+    // Add POV consistency rule
+    rules.push(new PovConsistencyRule());
+
+    // Add rhythm check rule
+    const maxLen = parseInt(constitution.sentence_structure.typical_lengths.forbidden.replace(/[^0-9]/g, '')) || 100;
+    rules.push(new RhythmCheckRule(maxLen));
 
     return new ComplianceChecker(rules);
   }
