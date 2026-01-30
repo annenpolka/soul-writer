@@ -2,6 +2,7 @@ import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import type { GenerationResult } from '../agents/types.js';
 import type { MatchResult } from '../tournament/arena.js';
+import { type NarrativeRules, resolveNarrativeRules } from '../factory/narrative-rules.js';
 
 export interface SynthesisResult {
   synthesizedText: string;
@@ -16,10 +17,12 @@ export interface SynthesisResult {
 export class SynthesisAgent {
   private llmClient: LLMClient;
   private soulText: SoulText;
+  private narrativeRules: NarrativeRules;
 
-  constructor(llmClient: LLMClient, soulText: SoulText) {
+  constructor(llmClient: LLMClient, soulText: SoulText, narrativeRules?: NarrativeRules) {
     this.llmClient = llmClient;
     this.soulText = soulText;
+    this.narrativeRules = narrativeRules ?? resolveNarrativeRules();
   }
 
   async synthesize(
@@ -107,7 +110,10 @@ export class SynthesisAgent {
     parts.push('- 取り込むのは「表現の質感」「イメージの鮮度」「感情の動きの精度」のみ');
     parts.push('- プロットや設定を変更しない');
     parts.push('- ベーステキストの文字数を大幅に変えない（±10%以内）');
-    parts.push('- 一人称は必ず「わたし」。視点は御鐘透心のみ');
+    parts.push(`- 視点: ${this.narrativeRules.povDescription}`);
+    if (this.narrativeRules.pronoun) {
+      parts.push(`- 人称代名詞: 「${this.narrativeRules.pronoun}」を使用`);
+    }
     parts.push('- 合成の痕跡が見えないよう、自然に織り込むこと');
     parts.push('- 引用された表現をそのまま挿入するのではなく、文脈に溶け込む形で取り入れる');
     parts.push('');

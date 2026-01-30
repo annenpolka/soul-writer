@@ -8,6 +8,7 @@ import { RhythmCheckRule } from './rules/rhythm-check.js';
 import { MarkdownContaminationRule } from './rules/markdown-contamination.js';
 import { QuoteOriginalityRule } from './rules/quote-originality.js';
 import type { SoulText } from '../soul/manager.js';
+import type { NarrativeRules } from '../factory/narrative-rules.js';
 
 const COMPLIANCE_THRESHOLD = 0.75;
 
@@ -24,7 +25,7 @@ export class ComplianceChecker {
   /**
    * Create a ComplianceChecker from SoulText configuration
    */
-  static fromSoulText(soulText: SoulText): ComplianceChecker {
+  static fromSoulText(soulText: SoulText, narrativeRules?: NarrativeRules): ComplianceChecker {
     const rules: ComplianceRule[] = [];
 
     const { constitution } = soulText;
@@ -50,7 +51,7 @@ export class ComplianceChecker {
     }
 
     // Add POV consistency rule
-    rules.push(new PovConsistencyRule());
+    rules.push(new PovConsistencyRule(narrativeRules));
 
     // Add rhythm check rule
     const maxLen = parseInt(constitution.sentence_structure.typical_lengths.forbidden.replace(/[^0-9]/g, '')) || 100;

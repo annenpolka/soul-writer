@@ -1,6 +1,8 @@
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import { DEFAULT_WRITERS, type WriterConfig, type GenerationResult } from './types.js';
+import { type NarrativeRules, buildPovRules, resolveNarrativeRules } from '../factory/narrative-rules.js';
+import type { DevelopedCharacter } from '../factory/character-developer.js';
 
 export { DEFAULT_WRITERS, type WriterConfig };
 
@@ -11,15 +13,21 @@ export class WriterAgent {
   private llmClient: LLMClient;
   private soulText: SoulText;
   private config: WriterConfig;
+  private narrativeRules: NarrativeRules;
+  private developedCharacters?: DevelopedCharacter[];
 
   constructor(
     llmClient: LLMClient,
     soulText: SoulText,
-    config: WriterConfig = DEFAULT_WRITERS[0]
+    config: WriterConfig = DEFAULT_WRITERS[0],
+    narrativeRules?: NarrativeRules,
+    developedCharacters?: DevelopedCharacter[],
   ) {
     this.llmClient = llmClient;
     this.soulText = soulText;
     this.config = config;
+    this.narrativeRules = narrativeRules ?? resolveNarrativeRules();
+    this.developedCharacters = developedCharacters;
   }
 
   getId(): string {
@@ -66,10 +74,16 @@ export class WriterAgent {
     parts.push('あなたは以下の世界観に棲む作家です。原作の文体を「型」として身体に染み込ませた上で、自分の言葉で新しいシーンを書いてください。');
     parts.push('');
     parts.push('【最重要ルール】');
-    parts.push('- 一人称は必ず「わたし」（ひらがな）を使用。「私」「僕」「俺」は禁止');
-    parts.push('- 視点は御鐘透心の一人称のみ。三人称的な外部描写は禁止');
+    // Dynamic POV rules based on narrative type
+    for (const rule of buildPovRules(this.narrativeRules)) {
+      parts.push(rule);
+    }
     parts.push('- 文体は冷徹・簡潔・乾いた語り。装飾過多や感傷的表現を避ける');
-    parts.push('- 原作にない設定やキャラクターを捏造しない');
+    if (this.narrativeRules.isDefaultProtagonist) {
+      parts.push('- 原作にない設定やキャラクターを捏造しない');
+    } else {
+      parts.push('- この世界観に存在し得る設定・キャラクターを使用すること');
+    }
     parts.push('- 参考断片の表現をそのままコピーしない。文体の「質感」を吸収し、独自の描写で新しいシーンを構築すること');
     parts.push('- 参考断片は文体の質感を学ぶためのもの。シーンやプロットを再現してはならない');
     parts.push('- 原作に存在しない新しい描写・比喩・状況を積極的に創作すること');
@@ -112,7 +126,7 @@ export class WriterAgent {
     parts.push(`- 擬人化許可対象: ${constitution.rhetoric.personification_allowed_for.join(', ')}`);
     parts.push('');
     parts.push('### 語り');
-    parts.push(`- 視点: ${constitution.narrative.default_pov}`);
+    parts.push(`- 視点: ${this.narrativeRules.povDescription}`);
     parts.push(`- 時制: ${constitution.narrative.default_tense}（${constitution.narrative.tense_shift_allowed}）`);
     parts.push(`- 対話比率: ${constitution.narrative.dialogue_ratio}`);
     parts.push('- キャラクター別対話スタイル:');
@@ -125,27 +139,55 @@ export class WriterAgent {
     parts.push(`- 禁止結末: ${constitution.thematic_constraints.forbidden_resolutions.join(', ')}`);
     parts.push('');
 
-    // World Bible - full details
-    parts.push('## キャラクター');
-    for (const [name, char] of Object.entries(this.soulText.worldBible.characters)) {
-      const c = char as { role: string; traits?: string[]; speech_pattern?: string };
-      parts.push(`### ${name}`);
-      parts.push(`- 役割: ${c.role}`);
-      if (c.traits) parts.push(`- 特徴: ${c.traits.join(', ')}`);
-      if (c.speech_pattern) parts.push(`- 話し方: ${c.speech_pattern}`);
-    }
-    parts.push('');
+    // Characters - use developedCharacters if available
+    if (this.developedCharacters && this.developedCharacters.length > 0) {
+      parts.push('## 登場人物（本作品用）');
+      for (const c of this.developedCharacters) {
+        const tag = c.isNew ? '（新規）' : '（既存）';
+        parts.push(`### ${c.name}${tag}`);
+        parts.push(`- 役割: ${c.role}`);
+        if (c.description) parts.push(`- 背景: ${c.description}`);
+        if (c.voice) parts.push(`- 口調: ${c.voice}`);
+      }
+      parts.push('この人物のみで執筆すること。上記にない人物を登場させないこと。');
+      parts.push('');
 
-    // Character behavior constraints
-    parts.push('## キャラクター行動制約');
-    parts.push('### 愛原つるぎの描写ルール（厳守）');
-    parts.push('- つるぎは透心の案内役やメンターではない。対等な共犯者であり、稚気のある挑発者');
-    parts.push('- つるぎは解説しない。断片的に、挑発的に語る。世界の仕組みを長台詞で説明させない');
-    parts.push('- つるぎの台詞は短く砕けていて、時に意味不明。3行以上の説明台詞は禁止');
-    parts.push('- つるぎが透心に何かを「教える」「導く」「説明する」「選ばせる」シーンを書かない');
-    parts.push('- つるぎは透心の殺意を「正解」と肯定するが、その理由は明示しない');
-    parts.push('- つるぎは自分の飢えや衝動を晒すだけ。透心を評価しない');
-    parts.push('');
+      // Only inject つるぎ rules if つるぎ is in developed characters
+      const hasTsurugi = this.developedCharacters.some(c => c.name.includes('つるぎ'));
+      if (hasTsurugi) {
+        parts.push('## キャラクター行動制約');
+        parts.push('### 愛原つるぎの描写ルール（厳守）');
+        parts.push('- つるぎは透心の案内役やメンターではない。対等な共犯者であり、稚気のある挑発者');
+        parts.push('- つるぎは解説しない。断片的に、挑発的に語る。世界の仕組みを長台詞で説明させない');
+        parts.push('- つるぎの台詞は短く砕けていて、時に意味不明。3行以上の説明台詞は禁止');
+        parts.push('- つるぎが透心に何かを「教える」「導く」「説明する」「選ばせる」シーンを書かない');
+        parts.push('- つるぎは透心の殺意を「正解」と肯定するが、その理由は明示しない');
+        parts.push('- つるぎは自分の飢えや衝動を晒すだけ。透心を評価しない');
+        parts.push('');
+      }
+    } else {
+      // Fallback: world-bible characters
+      parts.push('## キャラクター');
+      for (const [name, char] of Object.entries(this.soulText.worldBible.characters)) {
+        const c = char as { role: string; traits?: string[]; speech_pattern?: string };
+        parts.push(`### ${name}`);
+        parts.push(`- 役割: ${c.role}`);
+        if (c.traits) parts.push(`- 特徴: ${c.traits.join(', ')}`);
+        if (c.speech_pattern) parts.push(`- 話し方: ${c.speech_pattern}`);
+      }
+      parts.push('');
+
+      // Character behavior constraints (always include when using world-bible)
+      parts.push('## キャラクター行動制約');
+      parts.push('### 愛原つるぎの描写ルール（厳守）');
+      parts.push('- つるぎは透心の案内役やメンターではない。対等な共犯者であり、稚気のある挑発者');
+      parts.push('- つるぎは解説しない。断片的に、挑発的に語る。世界の仕組みを長台詞で説明させない');
+      parts.push('- つるぎの台詞は短く砕けていて、時に意味不明。3行以上の説明台詞は禁止');
+      parts.push('- つるぎが透心に何かを「教える」「導く」「説明する」「選ばせる」シーンを書かない');
+      parts.push('- つるぎは透心の殺意を「正解」と肯定するが、その理由は明示しない');
+      parts.push('- つるぎは自分の飢えや衝動を晒すだけ。透心を評価しない');
+      parts.push('');
+    }
 
     // Terminology
     parts.push('## 用語');

@@ -27,6 +27,7 @@ import { RetakeAgent } from '../retake/retake-agent.js';
 import { RetakeLoop, DEFAULT_RETAKE_CONFIG } from '../retake/retake-loop.js';
 import { JudgeAgent } from '../agents/judge.js';
 import { SynthesisAgent } from '../synthesis/synthesis-agent.js';
+import { resolveNarrativeRules, type NarrativeRules } from '../factory/narrative-rules.js';
 
 /**
  * Full pipeline that integrates all generation, compliance, evaluation, and learning features
@@ -56,7 +57,16 @@ export class FullPipeline {
     this.workRepo = workRepo;
     this.candidateRepo = candidateRepo;
     this.config = { ...DEFAULT_FULL_PIPELINE_CONFIG, ...config };
+    // Convert developedCharacters to Character[] for narrative rules resolution
+    const chars = this.config.developedCharacters?.map(c => ({
+      name: c.name,
+      isNew: c.isNew,
+      description: c.description,
+    }));
+    this.narrativeRules = resolveNarrativeRules(this.config.narrativeType, chars);
   }
+
+  private narrativeRules: NarrativeRules;
 
   /**
    * Generate a full story with all pipeline features
@@ -83,6 +93,7 @@ export class FullPipeline {
     const plotter = new PlotterAgent(this.llmClient, this.soulManager.getSoulText(), {
       chapterCount: this.config.chapterCount,
       targetTotalLength: this.config.targetTotalLength,
+      developedCharacters: this.config.developedCharacters,
     });
     const plotResult = await plotter.generatePlot();
     let totalTokensUsed = plotResult.tokensUsed;
@@ -306,7 +317,7 @@ export class FullPipeline {
     const tokensStart = this.llmClient.getTotalTokens();
 
     // 1. Run tournament
-    const arena = new TournamentArena(this.llmClient, this.soulManager.getSoulText());
+    const arena = new TournamentArena(this.llmClient, this.soulManager.getSoulText(), undefined, this.narrativeRules, this.config.developedCharacters);
     const chapterPrompt = this.buildChapterPrompt(chapter, plot);
     const tournamentResult = await arena.runTournament(chapterPrompt);
 
@@ -317,7 +328,7 @@ export class FullPipeline {
     // 1.5. Synthesis: enhance champion using elements from all entries
     if (tournamentResult.allGenerations.length > 1) {
       try {
-        const synthesizer = new SynthesisAgent(this.llmClient, this.soulManager.getSoulText());
+        const synthesizer = new SynthesisAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules);
         const synthesisResult = await synthesizer.synthesize(
           tournamentResult.championText,
           tournamentResult.champion,
@@ -332,7 +343,7 @@ export class FullPipeline {
     }
 
     // 2. Compliance check
-    const checker = ComplianceChecker.fromSoulText(this.soulManager.getSoulText());
+    const checker = ComplianceChecker.fromSoulText(this.soulManager.getSoulText(), this.narrativeRules);
     let complianceResult: ComplianceResult = checker.check(finalText);
 
     // 3. Correction loop if needed
@@ -356,8 +367,8 @@ export class FullPipeline {
     }
 
     // 5. Retake loop (post-tournament, pre-reader-jury)
-    const retakeAgent = new RetakeAgent(this.llmClient, this.soulManager.getSoulText());
-    const judgeAgent = new JudgeAgent(this.llmClient, this.soulManager.getSoulText());
+    const retakeAgent = new RetakeAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules);
+    const judgeAgent = new JudgeAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules);
     const retakeLoop = new RetakeLoop(retakeAgent, judgeAgent, DEFAULT_RETAKE_CONFIG);
     const retakeResult = await retakeLoop.run(finalText);
     if (retakeResult.improved) {
@@ -396,6 +407,27 @@ export class FullPipeline {
     parts.push(`# ${plot.title}`);
     parts.push(`テーマ: ${plot.theme}`);
     parts.push('');
+
+    // Inject narrative rules
+    if (this.config.narrativeType) {
+      parts.push(`## ナラティブ`);
+      parts.push(`- 型: ${this.config.narrativeType}`);
+      parts.push(`- ${this.narrativeRules.povDescription}`);
+      parts.push('');
+    }
+
+    // Inject developed characters
+    if (this.config.developedCharacters && this.config.developedCharacters.length > 0) {
+      parts.push('## 登場人物');
+      for (const c of this.config.developedCharacters) {
+        const tag = c.isNew ? '（新規）' : '（既存）';
+        parts.push(`- ${c.name}${tag}: ${c.role}`);
+        if (c.description) parts.push(`  背景: ${c.description}`);
+        if (c.voice) parts.push(`  口調: ${c.voice}`);
+      }
+      parts.push('');
+    }
+
     parts.push(`## ${chapter.title}（第${chapter.index}章）`);
     parts.push(`概要: ${chapter.summary}`);
     parts.push('');

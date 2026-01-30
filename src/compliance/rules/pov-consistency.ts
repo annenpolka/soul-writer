@@ -1,19 +1,32 @@
 import type { Violation } from '../../agents/types.js';
 import type { ComplianceRule } from './forbidden-words.js';
+import type { NarrativeRules } from '../../factory/narrative-rules.js';
 
 /**
  * Rule that checks for POV consistency:
- * - Must use 「わたし」 not 「私」
- * - No third-person narrative intrusion
+ * - Must use 「わたし」 not 「私」 (only for first-person default protagonist)
+ * - No third-person narrative intrusion (only for first-person default protagonist)
  */
 export class PovConsistencyRule implements ComplianceRule {
   readonly name = 'pov_consistency';
+  private narrativeRules?: NarrativeRules;
+
+  constructor(narrativeRules?: NarrativeRules) {
+    this.narrativeRules = narrativeRules;
+  }
 
   check(text: string): Violation[] {
+    // Skip POV checks for non-default narratives
+    if (this.narrativeRules) {
+      const { pov, isDefaultProtagonist } = this.narrativeRules;
+      if (pov !== 'first-person' || !isDefaultProtagonist) {
+        return [];
+      }
+    }
+
     const violations: Violation[] = [];
 
     // Check for 「私」 used as first-person pronoun (not inside quotes from other characters)
-    // Simple heuristic: 「私」 outside of 「」 brackets
     this.checkWrongPronoun(text, violations);
 
     // Check for third-person narrative patterns
