@@ -26,6 +26,8 @@ export const GeneratedThemeSchema = z.object({
   premise: z.string().min(1),
   /** Scene types to include in the story */
   scene_types: z.array(z.string().min(1)).min(1),
+  /** Narrative type (e.g., "一人称内面独白", "時系列逆転") */
+  narrative_type: z.string().min(1).optional(),
 });
 
 export type Character = z.infer<typeof CharacterSchema>;
