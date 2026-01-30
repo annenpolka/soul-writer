@@ -68,6 +68,8 @@ export interface PlotterConfig {
   temperature?: number;
   /** Optional theme for guided plot generation (used by Factory) */
   theme?: import('../schemas/generated-theme.js').GeneratedTheme;
+  /** Developed characters from CharacterDeveloper - overrides world-bible characters in prompt */
+  developedCharacters?: import('../factory/character-developer.js').DevelopedCharacter[];
 }
 
 /**
@@ -191,6 +193,8 @@ export interface FullPipelineConfig {
   targetTotalLength: number;
   maxCorrectionAttempts: number;
   dbPath: string;
+  narrativeType?: string;
+  developedCharacters?: import('../factory/character-developer.js').DevelopedCharacter[];
 }
 
 /**

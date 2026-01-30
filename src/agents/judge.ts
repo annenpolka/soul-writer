@@ -1,6 +1,7 @@
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import type { JudgeResult, ScoreBreakdown } from './types.js';
+import { type NarrativeRules, resolveNarrativeRules } from '../factory/narrative-rules.js';
 
 export type { JudgeResult };
 
@@ -10,10 +11,12 @@ export type { JudgeResult };
 export class JudgeAgent {
   private llmClient: LLMClient;
   private soulText: SoulText;
+  private narrativeRules: NarrativeRules;
 
-  constructor(llmClient: LLMClient, soulText: SoulText) {
+  constructor(llmClient: LLMClient, soulText: SoulText, narrativeRules?: NarrativeRules) {
     this.llmClient = llmClient;
     this.soulText = soulText;
+    this.narrativeRules = narrativeRules ?? resolveNarrativeRules();
   }
 
   /**
@@ -34,21 +37,32 @@ export class JudgeAgent {
     const meta = this.soulText.constitution.meta;
     const constitution = this.soulText.constitution;
     const parts: string[] = [];
+    const { isDefaultProtagonist, pov } = this.narrativeRules;
 
     parts.push(`あなたは「${meta.soul_name}」の厳格な審査員です。`);
     parts.push('2つのテキストを比較し、原作の文体・語り口・世界観により忠実な方を選んでください。');
     parts.push('');
     parts.push('## 評価基準（重要度順）');
-    parts.push('1. **語り声の再現** (voice_accuracy): 一人称「わたし」、冷徹で乾いた語り口、短文リズム');
-    parts.push('2. **原作忠実度** (originality_fidelity): 原作の設定・キャラクター造形を捏造せず忠実に再現');
+    if (isDefaultProtagonist && pov === 'first-person') {
+      parts.push('1. **語り声の再現** (voice_accuracy): 一人称「わたし」、冷徹で乾いた語り口、短文リズム');
+      parts.push('2. **原作忠実度** (originality_fidelity): 原作の設定・キャラクター造形を捏造せず忠実に再現');
+    } else {
+      parts.push(`1. **語り声の一貫性** (voice_accuracy): ${this.narrativeRules.povDescription}。冷徹で乾いた語り口、短文リズム`);
+      parts.push('2. **世界観忠実度** (originality_fidelity): この世界観に存在し得る設定・キャラクターを使用しているか');
+    }
     parts.push('3. **文体の一貫性** (style): 短-短-長(内省)-短(断定)のリズム、体言止め、比喩密度low');
     parts.push('4. **禁止パターンの回避** (compliance): 禁止語彙、禁止比喩、「×」の正しい用法');
     parts.push('');
     parts.push('## 具体的な減点対象');
-    parts.push('- 「私」表記（「わたし」でなければならない）→ 大幅減点');
-    parts.push('- 三人称的な外部描写の混入 → 大幅減点');
+    if (isDefaultProtagonist && pov === 'first-person') {
+      parts.push('- 「私」表記（「わたし」でなければならない）→ 大幅減点');
+      parts.push('- 三人称的な外部描写の混入 → 大幅減点');
+      parts.push('- 原作にない設定やキャラクターの捏造 → 大幅減点');
+    } else {
+      parts.push('- 視点の一貫性が崩れている → 大幅減点');
+      parts.push('- 世界観に存在し得ない設定の捏造 → 大幅減点');
+    }
     parts.push('- つるぎの台詞が説明的・解説的になっている → 減点');
-    parts.push('- 原作にない設定やキャラクターの捏造 → 大幅減点');
     parts.push('- 陳腐な比喩の多用（「死んだ魚のような」「井戸の底のような」等） → 減点');
     parts.push('- 装飾過多な長文の連続 → 減点');
     parts.push('');
@@ -59,7 +73,7 @@ export class JudgeAgent {
     parts.push(`- 禁止語彙: ${constitution.vocabulary.forbidden_words.join(', ')}`);
     parts.push(`- 特殊記号「${constitution.vocabulary.special_marks.mark}」: ${constitution.vocabulary.special_marks.usage}`);
     parts.push(`- 禁止比喩: ${constitution.rhetoric.forbidden_similes.join(', ')}`);
-    parts.push(`- 視点: ${constitution.narrative.default_pov}`);
+    parts.push(`- 視点: ${this.narrativeRules.povDescription}`);
     parts.push(`- 対話比率: ${constitution.narrative.dialogue_ratio}`);
     parts.push('');
 

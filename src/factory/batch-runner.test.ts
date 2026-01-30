@@ -32,6 +32,10 @@ describe('BatchRunner', () => {
     generateTheme: ReturnType<typeof vi.fn>;
   };
 
+  let mockCharacterDeveloper: {
+    develop: ReturnType<typeof vi.fn>;
+  };
+
   let mockPipelineFactory: ReturnType<typeof vi.fn>;
 
   let mockFileWriter: {
@@ -75,6 +79,16 @@ describe('BatchRunner', () => {
       }),
     };
 
+    mockCharacterDeveloper = {
+      develop: vi.fn().mockResolvedValue({
+        developed: {
+          characters: [{ name: '透心', isNew: false, role: '主人公' }],
+          castingRationale: 'テスト用',
+        },
+        tokensUsed: 50,
+      }),
+    };
+
     mockPipelineFactory = vi.fn().mockReturnValue({
       generateStory: vi.fn().mockResolvedValue({
         taskId: 'mock-task-id',
@@ -105,7 +119,8 @@ describe('BatchRunner', () => {
       const deps = createMockDeps();
       const runner = new BatchRunner(mockConfig, deps, {
         themeGenerator: mockThemeGenerator as any,
-        pipelineFactory: mockPipelineFactory,
+        characterDeveloper: mockCharacterDeveloper as any,
+        pipelineFactory: mockPipelineFactory as any,
         fileWriter: mockFileWriter as any,
       });
 
@@ -119,7 +134,8 @@ describe('BatchRunner', () => {
       const deps = createMockDeps();
       const runner = new BatchRunner(mockConfig, deps, {
         themeGenerator: mockThemeGenerator as any,
-        pipelineFactory: mockPipelineFactory,
+        characterDeveloper: mockCharacterDeveloper as any,
+        pipelineFactory: mockPipelineFactory as any,
         fileWriter: mockFileWriter as any,
       });
 
@@ -133,21 +149,23 @@ describe('BatchRunner', () => {
       const deps = createMockDeps();
       const runner = new BatchRunner(mockConfig, deps, {
         themeGenerator: mockThemeGenerator as any,
-        pipelineFactory: mockPipelineFactory,
+        characterDeveloper: mockCharacterDeveloper as any,
+        pipelineFactory: mockPipelineFactory as any,
         fileWriter: mockFileWriter as any,
       });
 
       const result = await runner.run();
 
-      // 100 tokens per theme + 1000 per story = 1100 per task * 3 = 3300
-      expect(result.totalTokensUsed).toBe(3300);
+      // 100 tokens per theme + 50 per character dev + 1000 per story = 1150 per task * 3 = 3450
+      expect(result.totalTokensUsed).toBe(3450);
     });
 
     it('should return results for each task', async () => {
       const deps = createMockDeps();
       const runner = new BatchRunner(mockConfig, deps, {
         themeGenerator: mockThemeGenerator as any,
-        pipelineFactory: mockPipelineFactory,
+        characterDeveloper: mockCharacterDeveloper as any,
+        pipelineFactory: mockPipelineFactory as any,
         fileWriter: mockFileWriter as any,
       });
 
@@ -164,7 +182,8 @@ describe('BatchRunner', () => {
       const deps = createMockDeps();
       const runner = new BatchRunner(mockConfig, deps, {
         themeGenerator: mockThemeGenerator as any,
-        pipelineFactory: mockPipelineFactory,
+        characterDeveloper: mockCharacterDeveloper as any,
+        pipelineFactory: mockPipelineFactory as any,
         fileWriter: mockFileWriter as any,
       });
 
@@ -197,7 +216,8 @@ describe('BatchRunner', () => {
       const deps = createMockDeps();
       const runner = new BatchRunner(mockConfig, deps, {
         themeGenerator: mockThemeGenerator as any,
-        pipelineFactory: failingPipelineFactory,
+        characterDeveloper: mockCharacterDeveloper as any,
+        pipelineFactory: failingPipelineFactory as any,
         fileWriter: mockFileWriter as any,
       });
 
@@ -213,7 +233,8 @@ describe('BatchRunner', () => {
       const deps = createMockDeps();
       const runner = new BatchRunner(mockConfig, deps, {
         themeGenerator: mockThemeGenerator as any,
-        pipelineFactory: mockPipelineFactory,
+        characterDeveloper: mockCharacterDeveloper as any,
+        pipelineFactory: mockPipelineFactory as any,
         fileWriter: mockFileWriter as any,
       });
 
@@ -228,7 +249,8 @@ describe('BatchRunner', () => {
       const deps = createMockDeps();
       const runner = new BatchRunner(mockConfig, deps, {
         themeGenerator: mockThemeGenerator as any,
-        pipelineFactory: mockPipelineFactory,
+        characterDeveloper: mockCharacterDeveloper as any,
+        pipelineFactory: mockPipelineFactory as any,
         fileWriter: mockFileWriter as any,
       });
 
@@ -273,7 +295,8 @@ describe('BatchRunner', () => {
       const deps = createMockDeps();
       const runner = new BatchRunner(parallelConfig, deps, {
         themeGenerator: mockThemeGenerator as any,
-        pipelineFactory: slowPipelineFactory,
+        characterDeveloper: mockCharacterDeveloper as any,
+        pipelineFactory: slowPipelineFactory as any,
         fileWriter: mockFileWriter as any,
       });
 
@@ -308,7 +331,8 @@ describe('BatchRunner', () => {
       const deps = createMockDeps();
       const runner = new BatchRunner(parallelConfig, deps, {
         themeGenerator: mockThemeGenerator as any,
-        pipelineFactory: mixedPipelineFactory,
+        characterDeveloper: mockCharacterDeveloper as any,
+        pipelineFactory: mixedPipelineFactory as any,
         fileWriter: mockFileWriter as any,
       });
 
@@ -327,7 +351,8 @@ describe('BatchRunner', () => {
       const deps = createMockDeps();
       const runner = new BatchRunner(parallelConfig, deps, {
         themeGenerator: mockThemeGenerator as any,
-        pipelineFactory: mockPipelineFactory,
+        characterDeveloper: mockCharacterDeveloper as any,
+        pipelineFactory: mockPipelineFactory as any,
         fileWriter: mockFileWriter as any,
       });
 
@@ -343,14 +368,15 @@ describe('BatchRunner', () => {
       const deps = createMockDeps();
       const runner = new BatchRunner(parallelConfig, deps, {
         themeGenerator: mockThemeGenerator as any,
-        pipelineFactory: mockPipelineFactory,
+        characterDeveloper: mockCharacterDeveloper as any,
+        pipelineFactory: mockPipelineFactory as any,
         fileWriter: mockFileWriter as any,
       });
 
       const result = await runner.run();
 
-      // 100 theme + 1000 story = 1100 per task * 4 = 4400
-      expect(result.totalTokensUsed).toBe(4400);
+      // 100 theme + 50 char dev + 1000 story = 1150 per task * 4 = 4600
+      expect(result.totalTokensUsed).toBe(4600);
     });
 
     it('should behave identically with parallel=1', async () => {
@@ -358,7 +384,8 @@ describe('BatchRunner', () => {
       const deps = createMockDeps();
       const runner = new BatchRunner(sequentialConfig, deps, {
         themeGenerator: mockThemeGenerator as any,
-        pipelineFactory: mockPipelineFactory,
+        characterDeveloper: mockCharacterDeveloper as any,
+        pipelineFactory: mockPipelineFactory as any,
         fileWriter: mockFileWriter as any,
       });
 

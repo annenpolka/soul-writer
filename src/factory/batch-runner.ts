@@ -9,6 +9,7 @@ import type { FactoryConfig } from '../schemas/factory-config.js';
 import type { GeneratedTheme } from '../schemas/generated-theme.js';
 import type { FullPipelineResult } from '../agents/types.js';
 import { ThemeGeneratorAgent, type ThemeResult } from './theme-generator.js';
+import { CharacterDeveloperAgent, type CharacterDevelopResult, type DevelopedCharacters } from './character-developer.js';
 import { FullPipeline } from '../pipeline/full.js';
 import { FileWriter } from './file-writer.js';
 
@@ -54,6 +55,10 @@ export interface ThemeGenerator {
   generateTheme(recentThemes?: GeneratedTheme[]): Promise<ThemeResult>;
 }
 
+export interface CharacterDeveloper {
+  develop(theme: GeneratedTheme): Promise<CharacterDevelopResult>;
+}
+
 export interface PipelineInstance {
   generateStory(prompt: string): Promise<FullPipelineResult>;
 }
@@ -64,7 +69,8 @@ export interface StoryFileWriter {
 
 export interface BatchRunnerOptions {
   themeGenerator?: ThemeGenerator;
-  pipelineFactory?: (theme: GeneratedTheme) => PipelineInstance;
+  characterDeveloper?: CharacterDeveloper;
+  pipelineFactory?: (theme: GeneratedTheme, developed?: DevelopedCharacters) => PipelineInstance;
   fileWriter?: StoryFileWriter;
 }
 
@@ -96,10 +102,13 @@ export class BatchRunner {
     const themeGenerator = this.options.themeGenerator ??
       new ThemeGeneratorAgent(this.deps.llmClient, this.deps.soulText);
 
+    const characterDeveloper = this.options.characterDeveloper ??
+      new CharacterDeveloperAgent(this.deps.llmClient, this.deps.soulText);
+
     const fileWriter = this.options.fileWriter ??
       new FileWriter(this.config.outputDir);
 
-    const createPipeline = this.options.pipelineFactory ?? ((theme: GeneratedTheme) => {
+    const createPipeline = this.options.pipelineFactory ?? ((theme: GeneratedTheme, developed?: DevelopedCharacters) => {
       const mockSoulManager = {
         getSoulText: () => this.deps.soulText,
         getConstitution: () => this.deps.soulText.constitution,
@@ -112,7 +121,11 @@ export class BatchRunner {
         this.deps.taskRepo,
         this.deps.workRepo,
         this.deps.candidateRepo,
-        { chapterCount: this.config.chaptersPerStory }
+        {
+          chapterCount: this.config.chaptersPerStory,
+          narrativeType: theme.narrative_type,
+          developedCharacters: developed?.characters,
+        }
       );
     });
 
@@ -132,8 +145,11 @@ export class BatchRunner {
         // Generate theme with history avoidance
         const themeResult = await themeGenerator.generateTheme([...recentThemes]);
 
+        // Develop characters for this theme
+        const charResult = await characterDeveloper.develop(themeResult.theme);
+
         // Create pipeline and generate story
-        const pipeline = createPipeline(themeResult.theme);
+        const pipeline = createPipeline(themeResult.theme, charResult.developed);
         const storyResult = await pipeline.generateStory(themeResult.theme.premise);
 
         // Write to file
@@ -149,7 +165,7 @@ export class BatchRunner {
           taskId: storyResult.taskId,
           themeId,
           status: 'completed',
-          tokensUsed: themeResult.tokensUsed + storyResult.totalTokensUsed,
+          tokensUsed: themeResult.tokensUsed + charResult.tokensUsed + storyResult.totalTokensUsed,
           complianceScore: storyResult.avgComplianceScore,
           readerScore: storyResult.avgReaderScore,
           emotion: themeResult.theme.emotion,

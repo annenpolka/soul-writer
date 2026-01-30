@@ -70,14 +70,26 @@ export class PlotterAgent {
       parts.push('');
     }
 
-    // Characters
-    const characters = this.soulText.worldBible.characters;
-    if (Object.keys(characters).length > 0) {
-      parts.push('## 主要キャラクター');
-      for (const [name, char] of Object.entries(characters)) {
-        parts.push(`- ${name}: ${char.role} - ${char.description || ''}`);
+    // Characters - use developedCharacters if available, otherwise fall back to world-bible
+    if (this.config.developedCharacters && this.config.developedCharacters.length > 0) {
+      parts.push('## 登場人物（本作品用）');
+      for (const c of this.config.developedCharacters) {
+        const tag = c.isNew ? '（新規）' : '（既存）';
+        parts.push(`- ${c.name}${tag}: ${c.role}`);
+        if (c.description) parts.push(`  背景: ${c.description}`);
+        if (c.voice) parts.push(`  口調: ${c.voice}`);
       }
+      parts.push('この人物構成に基づいてプロットを設計してください。上記にない人物を追加しないこと。');
       parts.push('');
+    } else {
+      const characters = this.soulText.worldBible.characters;
+      if (Object.keys(characters).length > 0) {
+        parts.push('## 主要キャラクター');
+        for (const [name, char] of Object.entries(characters)) {
+          parts.push(`- ${name}: ${char.role} - ${char.description || ''}`);
+        }
+        parts.push('');
+      }
     }
 
     // World settings

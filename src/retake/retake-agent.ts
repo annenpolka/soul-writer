@@ -1,5 +1,6 @@
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
+import { type NarrativeRules, buildPovRules, resolveNarrativeRules } from '../factory/narrative-rules.js';
 
 export interface RetakeResult {
   retakenText: string;
@@ -15,10 +16,12 @@ export interface RetakeResult {
 export class RetakeAgent {
   private llmClient: LLMClient;
   private soulText: SoulText;
+  private narrativeRules: NarrativeRules;
 
-  constructor(llmClient: LLMClient, soulText: SoulText) {
+  constructor(llmClient: LLMClient, soulText: SoulText, narrativeRules?: NarrativeRules) {
     this.llmClient = llmClient;
     this.soulText = soulText;
+    this.narrativeRules = narrativeRules ?? resolveNarrativeRules();
   }
 
   async retake(originalText: string, feedback: string): Promise<RetakeResult> {
@@ -45,10 +48,15 @@ export class RetakeAgent {
     parts.push('提示されたテキストを、フィードバックに基づいて原作により忠実な形に書き直してください。');
     parts.push('');
     parts.push('【絶対ルール】');
-    parts.push('- 一人称は「わたし」（ひらがな）のみ');
-    parts.push('- 御鐘透心の一人称視点を厳守');
+    for (const rule of buildPovRules(this.narrativeRules)) {
+      parts.push(rule);
+    }
     parts.push('- 冷徹・簡潔・乾いた語り口');
-    parts.push('- 原作にない設定やキャラクターを捏造しない');
+    if (this.narrativeRules.isDefaultProtagonist) {
+      parts.push('- 原作にない設定やキャラクターを捏造しない');
+    } else {
+      parts.push('- この世界観に存在し得る設定・キャラクターを使用すること');
+    }
     parts.push(`- リズム: ${constitution.sentence_structure.rhythm_pattern}`);
     parts.push(`- 禁止語彙: ${constitution.vocabulary.forbidden_words.join(', ')}`);
     parts.push(`- 禁止比喩: ${constitution.rhetoric.forbidden_similes.join(', ')}`);

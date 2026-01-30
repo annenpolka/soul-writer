@@ -66,9 +66,6 @@ export class ThemeGeneratorAgent {
     const emotion = pickRandom(EMOTION_CATALOG);
     const timeline = pickRandom(TIMELINE_CATALOG);
 
-    const characters = this.soulText.worldBible.characters;
-    const charNames = Object.keys(characters).join('、');
-
     const systemPrompt = [
       'あなたは物語のアイデアを自由に発想するクリエイターです。',
       '常識的な展開や安全な選択を避け、予想外で挑発的なアイデアを出してください。',
@@ -81,8 +78,7 @@ export class ThemeGeneratorAgent {
       `「${concept}」という概念を、物語の底流に織り込んでください。`,
       '',
       `## 世界の断片`,
-      `登場人物: ${charNames}`,
-      `世界観: AR/MRテクノロジーが浸透した近未来。無関心な社会。`,
+      `世界観: AR/MRテクノロジーが浸透した近未来。無関心な社会。主要人物も無名の住人も存在する。`,
       '',
       '自由テキストで回答してください。JSON不要。3-5文程度。',
     ].join('\n');
@@ -156,20 +152,20 @@ export class ThemeGeneratorAgent {
     // Scene catalog
     parts.push('## シーン種類カタログ');
     parts.push('以下から2-4種類を選択してください。毎回異なる組み合わせを選ぶこと:');
-    parts.push('- 教室独白（授業中の透心の内面）');
-    parts.push('- 屋上会話（つるぎとの非公式な対話）');
+    parts.push('- 教室での内面描写');
+    parts.push('- 屋上での非公式な対話');
     parts.push('- 名前消去事件（ARタグの操作に関する出来事）');
-    parts.push('- 日常観察（透心が他者を観察する静かなシーン）');
-    parts.push('- MRフロアセッション（仮想殺害の場面）');
-    parts.push('- セッション後の反芻（殺害後の内省）');
+    parts.push('- 日常観察（他者を静かに観察するシーン）');
+    parts.push('- MRフロアでの仮想体験');
+    parts.push('- セッション後の反芻（体験後の内省）');
     parts.push('- 通学路・移動（物理空間での孤独）');
     parts.push('- デジタル空間探索（ARシステムの裏側）');
-    parts.push('- 他生徒との表面的交流（学級委員長としての仮面）');
-    parts.push('- 記憶・回想（孤児院や過去の断片）');
+    parts.push('- 他者との表面的交流');
+    parts.push('- 記憶・回想（過去の断片）');
     parts.push('');
     parts.push('## オリジナリティ要求');
     parts.push('- 上記カタログはあくまで参考。原作にない新しいシーン・場所・アイテムを積極的に発明すること');
-    parts.push('- 例：透心が一人で行く場所、つるぎ以外の人物との遭遇、ARシステムの予想外の挙動');
+    parts.push('- 例：主人公が一人で行く場所、意外な人物との遭遇、ARシステムの予想外の挙動');
     parts.push('- 原作の再現ではなく、原作の世界観を拡張する物語を生成すること');
     parts.push('');
 
@@ -219,7 +215,10 @@ export class ThemeGeneratorAgent {
 
     parts.push('上記の原案をベースに、この世界観に落とし込んだテーマを生成してください。');
     parts.push('感情は複合的なニュアンスを付加してよい（例：「罪悪感」→「罪悪感と微かな陶酔」）。');
-    parts.push('既存キャラクターを使いつつ、必要に応じて新規キャラクターを追加できます。');
+    parts.push('キャラクター配置は完全に自由です:');
+    parts.push('- 既存キャラクター（透心、つるぎ等）を使ってもよい');
+    parts.push('- 既存キャラクター不在で、完全に新規のキャラクターだけでもよい');
+    parts.push('- この世界観の無名の住人の物語でもよい');
     parts.push('JSON形式で回答してください。');
     return parts.join('\n');
   }

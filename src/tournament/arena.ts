@@ -3,6 +3,8 @@ import type { SoulText } from '../soul/manager.js';
 import { WriterAgent, DEFAULT_WRITERS, type WriterConfig } from '../agents/writer.js';
 import { JudgeAgent, type JudgeResult } from '../agents/judge.js';
 import type { GenerationResult } from '../agents/types.js';
+import type { NarrativeRules } from '../factory/narrative-rules.js';
+import type { DevelopedCharacter } from '../factory/character-developer.js';
 
 /**
  * Result of a single match in the tournament
@@ -33,15 +35,21 @@ export class TournamentArena {
   private llmClient: LLMClient;
   private soulText: SoulText;
   private writerConfigs: WriterConfig[];
+  private narrativeRules?: NarrativeRules;
+  private developedCharacters?: DevelopedCharacter[];
 
   constructor(
     llmClient: LLMClient,
     soulText: SoulText,
-    writerConfigs: WriterConfig[] = DEFAULT_WRITERS
+    writerConfigs: WriterConfig[] = DEFAULT_WRITERS,
+    narrativeRules?: NarrativeRules,
+    developedCharacters?: DevelopedCharacter[],
   ) {
     this.llmClient = llmClient;
     this.soulText = soulText;
     this.writerConfigs = writerConfigs;
+    this.narrativeRules = narrativeRules;
+    this.developedCharacters = developedCharacters;
   }
 
   /**
@@ -52,7 +60,7 @@ export class TournamentArena {
 
     // Create writers
     const writers = this.writerConfigs.map(
-      (config) => new WriterAgent(this.llmClient, this.soulText, config)
+      (config) => new WriterAgent(this.llmClient, this.soulText, config, this.narrativeRules, this.developedCharacters)
     );
 
     // Generate texts from all writers
@@ -114,7 +122,7 @@ export class TournamentArena {
     generationA: GenerationResult,
     generationB: GenerationResult
   ): Promise<MatchResult> {
-    const judge = new JudgeAgent(this.llmClient, this.soulText);
+    const judge = new JudgeAgent(this.llmClient, this.soulText, this.narrativeRules);
     const judgeResult = await judge.evaluate(generationA.text, generationB.text);
 
     const winner =
