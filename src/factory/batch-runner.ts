@@ -51,7 +51,7 @@ export interface BatchDependencies {
 
 // Interfaces for dependency injection (testing)
 export interface ThemeGenerator {
-  generateTheme(): Promise<ThemeResult>;
+  generateTheme(recentThemes?: GeneratedTheme[]): Promise<ThemeResult>;
 }
 
 export interface PipelineInstance {
@@ -120,13 +120,17 @@ export class BatchRunner {
     const queue: number[] = Array.from({ length: this.config.count }, (_, i) => i);
     let progressCount = 0;
 
+    // History-based avoidance: track recent themes across all workers
+    const recentThemes: GeneratedTheme[] = [];
+    const MAX_RECENT_THEMES = 10;
+
     // Execute a single task
     const executeTask = async (taskIndex: number): Promise<TaskResult> => {
       const themeId = `theme_${Date.now()}_${taskIndex}`;
 
       try {
-        // Generate theme
-        const themeResult = await themeGenerator.generateTheme();
+        // Generate theme with history avoidance
+        const themeResult = await themeGenerator.generateTheme([...recentThemes]);
 
         // Create pipeline and generate story
         const pipeline = createPipeline(themeResult.theme);
@@ -134,6 +138,12 @@ export class BatchRunner {
 
         // Write to file
         fileWriter.writeStory(storyResult, themeResult.theme);
+
+        // Track theme for history-based avoidance
+        recentThemes.push(themeResult.theme);
+        if (recentThemes.length > MAX_RECENT_THEMES) {
+          recentThemes.shift();
+        }
 
         return {
           taskId: storyResult.taskId,

@@ -223,6 +223,26 @@ describe('BatchRunner', () => {
     });
   });
 
+  describe('history avoidance', () => {
+    it('should pass recent themes to theme generator', async () => {
+      const deps = createMockDeps();
+      const runner = new BatchRunner(mockConfig, deps, {
+        themeGenerator: mockThemeGenerator as any,
+        pipelineFactory: mockPipelineFactory,
+        fileWriter: mockFileWriter as any,
+      });
+
+      await runner.run();
+
+      // First call: empty history
+      expect(mockThemeGenerator.generateTheme.mock.calls[0][0]).toEqual([]);
+      // Second call: 1 recent theme
+      expect(mockThemeGenerator.generateTheme.mock.calls[1][0]).toHaveLength(1);
+      // Third call: 2 recent themes
+      expect(mockThemeGenerator.generateTheme.mock.calls[2][0]).toHaveLength(2);
+    });
+  });
+
   describe('parallel execution', () => {
     const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

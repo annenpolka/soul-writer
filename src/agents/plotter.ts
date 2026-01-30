@@ -53,11 +53,11 @@ export class PlotterAgent {
   }
 
   private buildSystemPrompt(): string {
-    const meta = this.soulText.constitution.meta;
+
     const thematic = this.soulText.constitution.thematic_constraints;
     const parts: string[] = [];
 
-    parts.push(`あなたは「${meta.soul_name}」のプロット設計者です。`);
+    parts.push('あなたは以下の世界観に基づくプロット設計者です。');
     parts.push('物語の章構成を設計してください。');
     parts.push('');
 
@@ -139,6 +139,10 @@ export class PlotterAgent {
       if (t.scene_types && t.scene_types.length > 0) {
         parts.push(`指定シーン種類: ${t.scene_types.join(', ')}`);
         parts.push('これらのシーン種類を章に反映してください。すべてMRフロアに収束させないこと。');
+      }
+      if (t.narrative_type) {
+        parts.push(`ナラティブ型: ${t.narrative_type}`);
+        parts.push('この叙述形式に沿った章構成を設計してください。');
       }
       parts.push('');
     }

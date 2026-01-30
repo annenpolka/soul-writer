@@ -1,6 +1,15 @@
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import { GeneratedThemeSchema, type GeneratedTheme } from '../schemas/generated-theme.js';
+import {
+  EMOTION_CATALOG,
+  TIMELINE_CATALOG,
+  NARRATIVE_CATALOG,
+  OPENING_CONSTRAINTS,
+  IDEATION_STRATEGIES,
+  CONCEPT_SEEDS,
+  pickRandom,
+} from './diversity-catalog.js';
 
 export interface ThemeResult {
   theme: GeneratedTheme;
@@ -21,15 +30,22 @@ export class ThemeGeneratorAgent {
   }
 
   /**
-   * Generate a random theme based on the soul text's world
+   * Generate a random theme using two-stage ideation:
+   * Stage 1: Generate a wild, unconstrained idea
+   * Stage 2: Refine it into a structured GeneratedTheme
    */
-  async generateTheme(): Promise<ThemeResult> {
+  async generateTheme(recentThemes?: GeneratedTheme[]): Promise<ThemeResult> {
     const tokensBefore = this.llmClient.getTotalTokens();
+
+    // Stage 1: Wild idea generation (minimal world context, high creativity)
+    const wildIdea = await this.generateWildIdea();
+
+    // Stage 2: Refine into structured theme (full world context)
     const systemPrompt = this.buildSystemPrompt();
-    const userPrompt = this.buildUserPrompt();
+    const userPrompt = this.buildRefinePrompt(wildIdea, recentThemes);
 
     const response = await this.llmClient.complete(systemPrompt, userPrompt, {
-      temperature: 0.9, // Higher temperature for more variety
+      temperature: 0.9,
     });
 
     const theme = this.parseResponse(response);
@@ -41,13 +57,55 @@ export class ThemeGeneratorAgent {
     };
   }
 
+  /**
+   * Stage 1: Generate an unconstrained creative idea
+   */
+  private async generateWildIdea(): Promise<string> {
+    const strategy = pickRandom(IDEATION_STRATEGIES);
+    const concept = pickRandom(CONCEPT_SEEDS);
+    const emotion = pickRandom(EMOTION_CATALOG);
+    const timeline = pickRandom(TIMELINE_CATALOG);
+
+    const characters = this.soulText.worldBible.characters;
+    const charNames = Object.keys(characters).join('、');
+
+    const systemPrompt = [
+      'あなたは物語のアイデアを自由に発想するクリエイターです。',
+      '常識的な展開や安全な選択を避け、予想外で挑発的なアイデアを出してください。',
+      '',
+      `## 発想法`,
+      `今回は以下の方法でアイデアを出してください:`,
+      strategy,
+      '',
+      `## 隠れたモチーフ`,
+      `「${concept}」という概念を、物語の底流に織り込んでください。`,
+      '',
+      `## 世界の断片`,
+      `登場人物: ${charNames}`,
+      `世界観: AR/MRテクノロジーが浸透した近未来。無関心な社会。`,
+      '',
+      '自由テキストで回答してください。JSON不要。3-5文程度。',
+    ].join('\n');
+
+    const userPrompt = [
+      `感情の種: ${emotion}`,
+      `時間軸: ${timeline}`,
+      '',
+      'この種から、予想外の物語のアイデアを1つ生成してください。',
+      '原作をなぞらず、この世界でまだ語られていない物語を。',
+    ].join('\n');
+
+    return await this.llmClient.complete(systemPrompt, userPrompt, {
+      temperature: 1.0,
+    });
+  }
+
   private buildSystemPrompt(): string {
     const parts: string[] = [];
-    const meta = this.soulText.constitution.meta;
     const worldBible = this.soulText.worldBible;
     const thematic = this.soulText.constitution.thematic_constraints;
 
-    parts.push(`あなたは「${meta.soul_name}」の世界観内で新しい物語のテーマを生成するエージェントです。`);
+    parts.push('あなたは以下の世界観に基づいて、新しい物語のテーマを生成するエージェントです。');
     parts.push('');
 
     // Thematic constraints
@@ -127,15 +185,43 @@ export class ThemeGeneratorAgent {
     parts.push('    {"name": "新キャラ名", "isNew": true, "description": "新キャラの説明"}');
     parts.push('  ],');
     parts.push('  "premise": "物語の前提を1-2文で",');
-    parts.push('  "scene_types": ["教室独白", "通学路・移動"]');
+    parts.push('  "scene_types": ["教室独白", "通学路・移動"],');
+    parts.push('  "narrative_type": "ナラティブ型（例：一人称内面独白、時系列逆転）"');
     parts.push('}');
     parts.push('```');
 
     return parts.join('\n');
   }
 
-  private buildUserPrompt(): string {
-    return '上記の世界観に基づいて、新しい物語のテーマを1つ生成してください。既存キャラクターを使いつつ、必要に応じて新規キャラクターを追加できます。JSON形式で回答してください。';
+  private buildRefinePrompt(wildIdea: string, recentThemes?: GeneratedTheme[]): string {
+    const narrative = pickRandom(NARRATIVE_CATALOG);
+    const opening = pickRandom(OPENING_CONSTRAINTS);
+
+    const parts: string[] = [];
+
+    parts.push('## 原案（これを発展させてください）');
+    parts.push(wildIdea);
+    parts.push('');
+
+    parts.push('## 構造制約');
+    parts.push(`- ナラティブ型: ${narrative}`);
+    parts.push(`- 開始条件: ${opening}`);
+    parts.push('');
+
+    // History avoidance
+    if (recentThemes && recentThemes.length > 0) {
+      parts.push('## 既出テーマ（これらと明確に異なるテーマを生成すること）');
+      for (const t of recentThemes) {
+        parts.push(`- 感情「${t.emotion}」/ 時系列「${t.timeline}」/ 前提「${t.premise}」`);
+      }
+      parts.push('');
+    }
+
+    parts.push('上記の原案をベースに、この世界観に落とし込んだテーマを生成してください。');
+    parts.push('感情は複合的なニュアンスを付加してよい（例：「罪悪感」→「罪悪感と微かな陶酔」）。');
+    parts.push('既存キャラクターを使いつつ、必要に応じて新規キャラクターを追加できます。');
+    parts.push('JSON形式で回答してください。');
+    return parts.join('\n');
   }
 
   private parseResponse(response: string): GeneratedTheme {

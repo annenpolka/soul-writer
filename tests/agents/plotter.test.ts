@@ -156,7 +156,7 @@ describe('PlotterAgent', () => {
 
       const systemPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>).mock
         .calls[0][0];
-      expect(systemPrompt).toContain('Test Soul');
+      expect(systemPrompt).toContain('プロット設計者');
       expect(systemPrompt).toContain('存在確認');
     });
 

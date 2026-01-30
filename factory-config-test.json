@@ -1,8 +1,9 @@
 {
   "count": 10,
-  "parallel": 4,
+  "parallel": 8,
   "chaptersPerStory": 1,
   "soulPath": "soul",
   "outputDir": "output",
-  "dbPath": "factory.db"
+  "dbPath": "factory.db",
+  "taskDelayMs": 1000
 }

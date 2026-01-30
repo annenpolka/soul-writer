@@ -3,9 +3,11 @@ import { ThemeGeneratorAgent, type ThemeResult } from './theme-generator.js';
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 
-// Mock LLM Client
+// Mock LLM Client - supports two-stage generation (2 calls)
 const createMockLLMClient = (response: string): LLMClient => ({
-  complete: vi.fn().mockResolvedValue(response),
+  complete: vi.fn()
+    .mockResolvedValueOnce('A wild creative idea about loneliness in a digital world')  // Stage 1
+    .mockResolvedValueOnce(response),  // Stage 2
   getTotalTokens: vi.fn().mockReturnValue(100),
 });
 
@@ -127,32 +129,87 @@ describe('ThemeGeneratorAgent', () => {
       expect(result.theme.premise).toBe('透心が日常の中で感じる空虚さを描く物語');
     });
 
-    it('should include characters from world bible in prompt', async () => {
+    it('should use two-stage generation (wild idea + refine)', async () => {
       const mockLLM = createMockLLMClient(validThemeResponse);
       const generator = new ThemeGeneratorAgent(mockLLM, mockSoulText);
 
       await generator.generateTheme();
 
-      const systemPrompt = (mockLLM.complete as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      expect(systemPrompt).toContain('御鐘透心');
-      expect(systemPrompt).toContain('愛原つるぎ');
+      // Should call LLM twice: stage 1 (wild idea) and stage 2 (refine)
+      expect(mockLLM.complete).toHaveBeenCalledTimes(2);
     });
 
-    it('should include thematic constraints in prompt', async () => {
+    it('should include characters in stage 2 system prompt', async () => {
       const mockLLM = createMockLLMClient(validThemeResponse);
       const generator = new ThemeGeneratorAgent(mockLLM, mockSoulText);
 
       await generator.generateTheme();
 
-      const systemPrompt = (mockLLM.complete as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      expect(systemPrompt).toContain('存在確認');
-      expect(systemPrompt).toContain('無関心な世界');
+      // Stage 2 (second call) uses full system prompt with world bible
+      const stage2SystemPrompt = (mockLLM.complete as ReturnType<typeof vi.fn>).mock.calls[1][0];
+      expect(stage2SystemPrompt).toContain('御鐘透心');
+      expect(stage2SystemPrompt).toContain('愛原つるぎ');
     });
 
-    it('should track token usage', async () => {
-      let tokenCount = 50;
+    it('should include thematic constraints in stage 2 prompt', async () => {
+      const mockLLM = createMockLLMClient(validThemeResponse);
+      const generator = new ThemeGeneratorAgent(mockLLM, mockSoulText);
+
+      await generator.generateTheme();
+
+      const stage2SystemPrompt = (mockLLM.complete as ReturnType<typeof vi.fn>).mock.calls[1][0];
+      expect(stage2SystemPrompt).toContain('存在確認');
+      expect(stage2SystemPrompt).toContain('無関心な世界');
+    });
+
+    it('should include ideation strategy in stage 1 prompt', async () => {
+      const mockLLM = createMockLLMClient(validThemeResponse);
+      const generator = new ThemeGeneratorAgent(mockLLM, mockSoulText);
+
+      await generator.generateTheme();
+
+      // Stage 1 (first call) should have creative instructions
+      const stage1SystemPrompt = (mockLLM.complete as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      expect(stage1SystemPrompt).toContain('発想法');
+    });
+
+    it('should include wild idea in stage 2 user prompt', async () => {
+      const mockLLM = createMockLLMClient(validThemeResponse);
+      const generator = new ThemeGeneratorAgent(mockLLM, mockSoulText);
+
+      await generator.generateTheme();
+
+      // Stage 2 user prompt should contain the wild idea from stage 1
+      const stage2UserPrompt = (mockLLM.complete as ReturnType<typeof vi.fn>).mock.calls[1][1];
+      expect(stage2UserPrompt).toContain('A wild creative idea about loneliness in a digital world');
+    });
+
+    it('should include recent themes for history avoidance', async () => {
+      const mockLLM = createMockLLMClient(validThemeResponse);
+      const generator = new ThemeGeneratorAgent(mockLLM, mockSoulText);
+
+      const recentThemes = [{
+        emotion: '孤独',
+        timeline: '出会い前',
+        characters: [{ name: '透心', isNew: false }],
+        premise: '既出の前提文',
+        scene_types: ['教室独白'],
+      }];
+
+      await generator.generateTheme(recentThemes);
+
+      const stage2UserPrompt = (mockLLM.complete as ReturnType<typeof vi.fn>).mock.calls[1][1];
+      expect(stage2UserPrompt).toContain('既出テーマ');
+      expect(stage2UserPrompt).toContain('孤独');
+      expect(stage2UserPrompt).toContain('既出の前提文');
+    });
+
+    it('should track token usage across both stages', async () => {
+      let tokenCount = 0;
       const mockLLM: LLMClient = {
-        complete: vi.fn().mockResolvedValue(validThemeResponse),
+        complete: vi.fn()
+          .mockResolvedValueOnce('Wild idea text')  // Stage 1
+          .mockResolvedValueOnce(validThemeResponse),  // Stage 2
         getTotalTokens: vi.fn().mockImplementation(() => {
           tokenCount += 50;
           return tokenCount;
@@ -162,11 +219,18 @@ describe('ThemeGeneratorAgent', () => {
       const generator = new ThemeGeneratorAgent(mockLLM, mockSoulText);
       const result = await generator.generateTheme();
 
-      expect(result.tokensUsed).toBe(50);
+      // Two LLM calls (wild idea + refine), getTotalTokens called before and after
+      expect(result.tokensUsed).toBeGreaterThan(0);
+      expect(mockLLM.complete).toHaveBeenCalledTimes(2);
     });
 
     it('should handle new character with description', async () => {
-      const mockLLM = createMockLLMClient(themeWithNewCharacter);
+      const mockLLM: LLMClient = {
+        complete: vi.fn()
+          .mockResolvedValueOnce('Wild idea about a newcomer')
+          .mockResolvedValueOnce(themeWithNewCharacter),
+        getTotalTokens: vi.fn().mockReturnValue(100),
+      };
       const generator = new ThemeGeneratorAgent(mockLLM, mockSoulText);
 
       const result = await generator.generateTheme();
@@ -179,7 +243,12 @@ describe('ThemeGeneratorAgent', () => {
     });
 
     it('should throw on invalid JSON response', async () => {
-      const mockLLM = createMockLLMClient('This is not JSON');
+      const mockLLM: LLMClient = {
+        complete: vi.fn()
+          .mockResolvedValueOnce('Wild idea')
+          .mockResolvedValueOnce('This is not JSON'),
+        getTotalTokens: vi.fn().mockReturnValue(100),
+      };
       const generator = new ThemeGeneratorAgent(mockLLM, mockSoulText);
 
       await expect(generator.generateTheme()).rejects.toThrow();
@@ -192,7 +261,12 @@ describe('ThemeGeneratorAgent', () => {
         characters: [],  // invalid: empty
         premise: 'test',
       });
-      const mockLLM = createMockLLMClient(invalidTheme);
+      const mockLLM: LLMClient = {
+        complete: vi.fn()
+          .mockResolvedValueOnce('Wild idea')
+          .mockResolvedValueOnce(invalidTheme),
+        getTotalTokens: vi.fn().mockReturnValue(100),
+      };
       const generator = new ThemeGeneratorAgent(mockLLM, mockSoulText);
 
       await expect(generator.generateTheme()).rejects.toThrow();

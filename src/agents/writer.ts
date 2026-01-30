@@ -59,11 +59,11 @@ export class WriterAgent {
   }
 
   private buildSystemPrompt(): string {
-    const meta = this.soulText.constitution.meta;
+
     const constitution = this.soulText.constitution;
     const parts: string[] = [];
 
-    parts.push(`あなたは「${meta.soul_name}」の世界に棲む作家です。原作の文体を「型」として身体に染み込ませた上で、自分の言葉で新しいシーンを書いてください。`);
+    parts.push('あなたは以下の世界観に棲む作家です。原作の文体を「型」として身体に染み込ませた上で、自分の言葉で新しいシーンを書いてください。');
     parts.push('');
     parts.push('【最重要ルール】');
     parts.push('- 一人称は必ず「わたし」（ひらがな）を使用。「私」「僕」「俺」は禁止');
