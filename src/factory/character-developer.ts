@@ -1,7 +1,19 @@
+import { z } from 'zod';
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import type { GeneratedTheme } from '../schemas/generated-theme.js';
 import { buildPrompt } from '../template/composer.js';
+
+const LLMCharacterResponseSchema = z.object({
+  characters: z.array(z.object({
+    name: z.string().default(''),
+    isNew: z.boolean().default(false),
+    role: z.string().default(''),
+    description: z.string().optional(),
+    voice: z.string().optional(),
+  })),
+  castingRationale: z.string().default(''),
+});
 
 export interface DevelopedCharacter {
   name: string;
@@ -56,8 +68,7 @@ export class CharacterDeveloperAgent {
     const characters = this.soulText.worldBible.characters;
     if (Object.keys(characters).length > 0) {
       ctx.existingCharacters = Object.entries(characters).map(([name, char]) => {
-        const c = char as { role: string; voice?: string };
-        return { name, role: c.role, voiceSuffix: c.voice ? `（口調: ${c.voice}）` : '' };
+        return { name, role: char.role, voiceSuffix: char.voice ? `（口調: ${char.voice}）` : '' };
       });
     }
 
@@ -94,20 +105,14 @@ export class CharacterDeveloperAgent {
     }
 
     try {
-      const parsed = JSON.parse(jsonMatch[0]);
-      if (!Array.isArray(parsed.characters) || parsed.characters.length === 0) {
+      const raw = JSON.parse(jsonMatch[0]);
+      const result = LLMCharacterResponseSchema.safeParse(raw);
+      if (!result.success || result.data.characters.length === 0) {
         return this.fallback(theme);
       }
-
       return {
-        characters: parsed.characters.map((c: Record<string, unknown>) => ({
-          name: String(c.name || ''),
-          isNew: Boolean(c.isNew),
-          role: String(c.role || ''),
-          description: c.description ? String(c.description) : undefined,
-          voice: c.voice ? String(c.voice) : undefined,
-        })),
-        castingRationale: String(parsed.castingRationale || ''),
+        characters: result.data.characters,
+        castingRationale: result.data.castingRationale,
       };
     } catch {
       return this.fallback(theme);

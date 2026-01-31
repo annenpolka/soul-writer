@@ -26,7 +26,11 @@ export function loadTemplate(name: string): TemplateDocument {
   }
 
   const raw = readFileSync(filePath, 'utf-8');
-  const doc = yaml.load(raw) as TemplateDocument;
+  const rawObj = yaml.load(raw);
+  if (!rawObj || typeof rawObj !== 'object') {
+    throw new Error(`Invalid template structure in: ${filePath}`);
+  }
+  const doc = rawObj as TemplateDocument;
 
   cache.set(name, doc);
   return doc;

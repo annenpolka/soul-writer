@@ -4,6 +4,7 @@ import type { LLMClient, CompletionOptions } from '../../src/llm/types.js';
 
 // Mock SDK client
 const mockCreate = vi.fn().mockResolvedValue({
+  object: 'chat.completion',
   choices: [{ message: { content: 'Mock response' } }],
   usage: { total_tokens: 100 },
 });
@@ -24,13 +25,14 @@ describe('CerebrasClient', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCreate.mockResolvedValue({
+      object: 'chat.completion',
       choices: [{ message: { content: 'Mock response' } }],
       usage: { total_tokens: 100 },
     });
     sleepSpy = vi.spyOn(CerebrasClient.prototype as any, 'sleep').mockResolvedValue(undefined);
     client = new CerebrasClient(
       { apiKey: 'test-api-key', model: 'test-model', maxRetries: 3 },
-      mockCerebrasClient
+      mockCerebrasClient as any
     );
   });
 
@@ -77,10 +79,12 @@ describe('CerebrasClient', () => {
     // First call returns empty, second call returns valid response
     mockCreate
       .mockResolvedValueOnce({
+        object: 'chat.completion',
         choices: [{ message: { content: '' } }],
         usage: { total_tokens: 50 },
       })
       .mockResolvedValueOnce({
+        object: 'chat.completion',
         choices: [{ message: { content: 'Success after retry' } }],
         usage: { total_tokens: 100 },
       });
@@ -94,10 +98,12 @@ describe('CerebrasClient', () => {
   it('should retry when response content is null/undefined', async () => {
     mockCreate
       .mockResolvedValueOnce({
+        object: 'chat.completion',
         choices: [{ message: {} }],
         usage: { total_tokens: 50 },
       })
       .mockResolvedValueOnce({
+        object: 'chat.completion',
         choices: [{ message: { content: 'Success after null' } }],
         usage: { total_tokens: 100 },
       });
@@ -110,6 +116,7 @@ describe('CerebrasClient', () => {
 
   it('should throw after max retries exceeded', async () => {
     mockCreate.mockResolvedValue({
+      object: 'chat.completion',
       choices: [{ message: { content: '' } }],
       usage: { total_tokens: 50 },
     });
@@ -126,6 +133,7 @@ describe('CerebrasClient', () => {
     mockCreate
       .mockRejectedValueOnce(error503)
       .mockResolvedValueOnce({
+        object: 'chat.completion',
         choices: [{ message: { content: 'Success after 503' } }],
         usage: { total_tokens: 100 },
       });
@@ -142,6 +150,7 @@ describe('CerebrasClient', () => {
     mockCreate
       .mockRejectedValueOnce(error429)
       .mockResolvedValueOnce({
+        object: 'chat.completion',
         choices: [{ message: { content: 'Success after 429' } }],
         usage: { total_tokens: 100 },
       });
@@ -188,13 +197,14 @@ describe('CerebrasClient', () => {
       .mockRejectedValueOnce(error503)
       .mockRejectedValueOnce(error503)
       .mockResolvedValueOnce({
+        object: 'chat.completion',
         choices: [{ message: { content: 'Success' } }],
         usage: { total_tokens: 100 },
       });
 
     const retryClient = new CerebrasClient(
       { apiKey: 'test', model: 'test', initialRetryDelayMs: 1000, maxRetryDelayMs: 30000 },
-      mockCerebrasClient
+      mockCerebrasClient as any
     );
     await retryClient.complete('System', 'User');
 
@@ -217,7 +227,7 @@ describe('CerebrasClient', () => {
         initialRetryDelayMs: 2000,
         maxRetryDelayMs: 60000,
       },
-      mockCerebrasClient
+      mockCerebrasClient as any
     );
     expect(configClient).toBeDefined();
   });
@@ -225,10 +235,12 @@ describe('CerebrasClient', () => {
   it('should accumulate tokens across retries', async () => {
     mockCreate
       .mockResolvedValueOnce({
+        object: 'chat.completion',
         choices: [{ message: { content: '' } }],
         usage: { total_tokens: 50 },
       })
       .mockResolvedValueOnce({
+        object: 'chat.completion',
         choices: [{ message: { content: 'Success' } }],
         usage: { total_tokens: 100 },
       });

@@ -83,8 +83,7 @@ export class WriterAgent {
     } else {
       ctx.worldBibleCharacters = Object.entries(this.soulText.worldBible.characters).map(
         ([name, char]) => {
-          const c = char as { role: string; traits?: string[]; speech_pattern?: string };
-          return { name, role: c.role, traits: c.traits, speech_pattern: c.speech_pattern };
+          return { name, role: char.role, traits: char.traits, speech_pattern: char.speech_pattern };
         },
       );
     }

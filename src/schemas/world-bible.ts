@@ -17,6 +17,10 @@ export const SocietySchema = z.record(z.string(), SocietyAspectSchema);
 export const CharacterSchema = z
   .object({
     role: z.string(),
+    traits: z.array(z.string()).optional(),
+    speech_pattern: z.string().optional(),
+    voice: z.string().optional(),
+    description: z.string().optional(),
   })
   .catchall(z.unknown());
 

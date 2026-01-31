@@ -2,14 +2,16 @@ import { z } from 'zod';
 import { GeneratedThemeSchema } from '../schemas/generated-theme.js';
 import { PlotSchema } from '../schemas/plot.js';
 
-const schemaRegistry: Record<string, z.ZodType> = {
+type SomeZodType = z.core.$ZodType;
+
+const schemaRegistry: Record<string, SomeZodType> = {
   'generated-theme': GeneratedThemeSchema,
   'plot': PlotSchema,
 };
 
-function generateExample(schema: z.ZodType): unknown {
+function generateExample(schema: SomeZodType): unknown {
   if (schema instanceof z.ZodObject) {
-    const shape = schema.shape as Record<string, z.ZodType>;
+    const shape = schema.shape as Record<string, SomeZodType>;
     const obj: Record<string, unknown> = {};
     for (const [key, fieldSchema] of Object.entries(shape)) {
       obj[key] = generateExample(fieldSchema);
@@ -32,8 +34,7 @@ function generateExample(schema: z.ZodType): unknown {
     return generateExample(schema.unwrap());
   }
   if (schema instanceof z.ZodDefault) {
-    // Use removeDefault() to get inner type, generate from that
-    return generateExample(schema.removeDefault());
+    return generateExample(schema.unwrap());
   }
   return null;
 }
