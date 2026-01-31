@@ -129,6 +129,7 @@ export class WriterAgent {
     parts.push('- 文体は冷徹・簡潔・乾いた語り。装飾過多や感傷的表現を避ける');
     if (this.narrativeRules.isDefaultProtagonist) {
       parts.push('- 原作にない設定やキャラクターを捏造しない');
+      parts.push('- 「ライオン」は透心固有の内面シンボル。内面の比喩としてのみ使用可。可視的な獣・データ獣としての登場禁止');
     } else {
       parts.push('- この世界観に存在し得る設定・キャラクターを使用すること');
     }

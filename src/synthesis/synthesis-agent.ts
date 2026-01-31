@@ -98,11 +98,10 @@ export class SynthesisAgent {
   }
 
   private buildSystemPrompt(): string {
-    const meta = this.soulText.constitution.meta;
     const constitution = this.soulText.constitution;
     const parts: string[] = [];
 
-    parts.push(`あなたは「${meta.soul_name}」の合成編集者です。`);
+    parts.push('あなたは合成編集者です。');
     parts.push('トーナメントの審査員が各テキストから抽出した「優れた表現」を、勝者テキストに自然に織り込みます。');
     parts.push('');
     parts.push('【合成ルール】');
