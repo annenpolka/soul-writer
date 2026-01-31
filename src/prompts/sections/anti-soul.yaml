@@ -1,0 +1,24 @@
+meta:
+  agent: section
+  version: 1
+
+system:
+  sections:
+    - type: each
+      each: antiSoulEntries
+      as: entry
+      sections:
+        - type: heading
+          heading: "{{ entry.category }}"
+          level: 3
+        - type: each
+          each: entry.examples
+          as: ex
+          sections:
+            - type: text
+              text: "> 悪い例: {{ ex.text }}"
+            - type: text
+              text: "> 理由: {{ ex.reason }}"
+
+user:
+  sections: []

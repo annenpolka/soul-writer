@@ -1,0 +1,24 @@
+meta:
+  agent: section
+  version: 1
+
+system:
+  sections:
+    - type: each
+      each: fragmentCategories
+      as: cat
+      sections:
+        - type: text
+          text: "### {{ cat.name }}{{ cat.focusLabel }}"
+        - type: each
+          each: cat.items
+          as: frag
+          sections:
+            - type: text
+              text: |
+                ```
+                {{ frag.text }}
+                ```
+
+user:
+  sections: []

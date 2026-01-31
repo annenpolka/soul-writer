@@ -1,0 +1,13 @@
+meta:
+  agent: section
+  version: 1
+
+system:
+  sections:
+    - type: each
+      each: antiSoulCompactEntries
+      as: entry
+      template: "- {{ entry.category }}: 「{{ entry.text }}」→ {{ entry.reason }}"
+
+user:
+  sections: []

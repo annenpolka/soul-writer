@@ -1,0 +1,129 @@
+meta:
+  agent: theme-generator-stage2
+  version: 1
+
+system:
+  sections:
+    - type: text
+      text: "あなたは以下の世界観に基づいて、新しい物語のテーマを生成するエージェントです。"
+
+    - type: condition
+      if:
+        has: thematicConstraints
+      then:
+        - type: heading
+          heading: 維持すべきテーマ
+        - type: each
+          each: thematicConstraints
+          as: item
+          template: "- {{ item }}"
+
+    - type: condition
+      if:
+        has: characters
+      then:
+        - type: heading
+          heading: 既存キャラクター
+        - type: each
+          each: characters
+          as: c
+          template: "- {{ c.name }}: {{ c.role }} - {{ c.description }}"
+
+    - type: condition
+      if:
+        has: technologyEntries
+      then:
+        - type: heading
+          heading: 技術設定
+        - type: each
+          each: technologyEntries
+          as: t
+          template: "- {{ t.name }}: {{ t.description }}"
+
+    - type: condition
+      if:
+        has: societyEntries
+      then:
+        - type: heading
+          heading: 社会設定
+        - type: each
+          each: societyEntries
+          as: s
+          template: "- {{ s.name }}: {{ s.state }}"
+
+    - type: heading
+      heading: シーン種類カタログ
+
+    - type: text
+      text: "以下から2-4種類を選択してください。毎回異なる組み合わせを選ぶこと:"
+
+    - type: each
+      each: sceneCatalog
+      as: s
+      template: "- {{ s }}"
+
+    - type: heading
+      heading: オリジナリティ要求
+
+    - type: text
+      text: |
+        - 上記カタログはあくまで参考。原作にない新しいシーン・場所・アイテムを積極的に発明すること
+        - 例：主人公が一人で行く場所、意外な人物との遭遇、ARシステムの予想外の挙動
+        - 原作の再現ではなく、原作の世界観を拡張する物語を生成すること
+
+    - type: heading
+      heading: 出力形式
+
+    - type: text
+      text: |
+        以下のJSON形式でテーマを出力してください:
+        ```json
+        {
+          "emotion": "感情テーマ（例：孤独、渇望、怒り）",
+          "timeline": "時系列（例：出会い前、出会い後、事件後）",
+          "characters": [
+            {"name": "キャラ名", "isNew": false},
+            {"name": "新キャラ名", "isNew": true, "description": "新キャラの説明"}
+          ],
+          "premise": "物語の前提を1-2文で",
+          "scene_types": ["教室独白", "通学路・移動"],
+          "narrative_type": "ナラティブ型（例：一人称内面独白、時系列逆転）"
+        }
+        ```
+
+user:
+  sections:
+    - type: heading
+      heading: 原案（これを発展させてください）
+
+    - type: text
+      text: "{{ wildIdea }}"
+
+    - type: heading
+      heading: 構造制約
+
+    - type: text
+      text: |
+        - ナラティブ型: {{ narrative }}
+        - 開始条件: {{ opening }}
+
+    - type: condition
+      if:
+        has: recentThemes
+      then:
+        - type: heading
+          heading: 既出テーマ（これらと明確に異なるテーマを生成すること）
+        - type: each
+          each: recentThemes
+          as: t
+          template: "- 感情「{{ t.emotion }}」/ 時系列「{{ t.timeline }}」/ 前提「{{ t.premise }}」"
+
+    - type: text
+      text: |
+        上記の原案をベースに、この世界観に落とし込んだテーマを生成してください。
+        感情は複合的なニュアンスを付加してよい（例：「罪悪感」→「罪悪感と微かな陶酔」）。
+        キャラクター配置は完全に自由です:
+        - 既存キャラクター（透心、つるぎ等）を使ってもよい
+        - 既存キャラクター不在で、完全に新規のキャラクターだけでもよい
+        - この世界観の無名の住人の物語でもよい
+        JSON形式で回答してください。

@@ -1,0 +1,22 @@
+meta:
+  agent: section
+  version: 1
+
+system:
+  sections:
+    - type: heading
+      heading: キャラクター行動制約
+    - type: each
+      each: characterConstraintEntries
+      as: entry
+      sections:
+        - type: heading
+          heading: "{{ entry.name }}の描写ルール（厳守）"
+          level: 3
+        - type: each
+          each: entry.rules
+          as: rule
+          template: "- {{ rule }}"
+
+user:
+  sections: []

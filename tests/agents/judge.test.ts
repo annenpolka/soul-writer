@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { JudgeAgent } from '../../src/agents/judge.js';
 import type { LLMClient } from '../../src/llm/types.js';
 import type { SoulText } from '../../src/soul/manager.js';
+import { DEFAULT_PROMPT_CONFIG } from '../../src/schemas/prompt-config.js';
 
 // Mock LLM Client
 const mockLLMClient: LLMClient = {
@@ -72,6 +73,7 @@ const mockSoulText: SoulText = {
   },
   readerPersonas: { personas: [] },
   fragments: new Map(),
+  promptConfig: DEFAULT_PROMPT_CONFIG,
 };
 
 describe('JudgeAgent', () => {
@@ -110,6 +112,54 @@ describe('JudgeAgent', () => {
         expect.stringContaining('Second text'),
         expect.any(Object)
       );
+    });
+  });
+
+  describe('prompt-config integration', () => {
+    it('should use penalty_items from promptConfig', async () => {
+      const soulTextWithConfig: SoulText = {
+        ...mockSoulText,
+        promptConfig: {
+          defaults: { protagonist_short: '透心', pronoun: 'わたし' },
+          agents: {
+            judge: {
+              penalty_items: [
+                'つるぎの台詞が説明的・解説的になっている → 減点',
+                'AR/MRの設定説明が長すぎる → 減点',
+              ],
+            },
+          },
+        },
+      };
+      const judge = new JudgeAgent(mockLLMClient, soulTextWithConfig);
+      await judge.evaluate('text A', 'text B');
+
+      const systemPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+      expect(systemPrompt).toContain('つるぎの台詞が説明的・解説的になっている → 減点');
+      expect(systemPrompt).toContain('AR/MRの設定説明が長すぎる → 減点');
+    });
+
+    it('should use character_voice_rules from promptConfig instead of constitution', async () => {
+      const soulTextWithConfig: SoulText = {
+        ...mockSoulText,
+        promptConfig: {
+          defaults: { protagonist_short: '透心', pronoun: 'わたし' },
+          agents: {
+            judge: {
+              character_voice_rules: {
+                '愛原つるぎ': '短い台詞、皮肉混じり、哲学的',
+                '御鐘透心': '内面独白的、冷徹だが感受性豊か',
+              },
+            },
+          },
+        },
+      };
+      const judge = new JudgeAgent(mockLLMClient, soulTextWithConfig);
+      await judge.evaluate('text A', 'text B');
+
+      const systemPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+      expect(systemPrompt).toContain('愛原つるぎ: 短い台詞、皮肉混じり、哲学的');
+      expect(systemPrompt).toContain('御鐘透心: 内面独白的、冷徹だが感受性豊か');
     });
   });
 });

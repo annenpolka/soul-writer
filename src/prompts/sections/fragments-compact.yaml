@@ -1,0 +1,21 @@
+meta:
+  agent: section
+  version: 1
+
+system:
+  sections:
+    - type: each
+      each: fragmentCompactCategories
+      as: cat
+      sections:
+        - type: heading
+          heading: "{{ cat.name }}"
+          level: 3
+        - type: text
+          text: |
+            ```
+            {{ cat.text }}
+            ```
+
+user:
+  sections: []

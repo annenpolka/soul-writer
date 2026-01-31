@@ -2,6 +2,7 @@ import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import type { ReaderPersona } from '../schemas/reader-personas.js';
 import type { PersonaEvaluation, CategoryScores } from './types.js';
+import { buildPrompt } from '../template/composer.js';
 
 /**
  * Reader evaluator that evaluates text from a single persona's perspective
@@ -25,88 +26,20 @@ export class ReaderEvaluator {
    * Evaluate text from this persona's perspective
    */
   async evaluate(text: string): Promise<PersonaEvaluation> {
-    const systemPrompt = this.buildSystemPrompt();
-    const userPrompt = this.buildUserPrompt(text);
+    const context = {
+      personaName: this.persona.name,
+      personaDescription: this.persona.description,
+      preferencesList: this.persona.preferences.map(p => `- ${p}`).join('\n'),
+      text,
+    };
+
+    const { system: systemPrompt, user: userPrompt } = buildPrompt('reader-evaluator', context);
 
     const response = await this.llmClient.complete(systemPrompt, userPrompt, {
       temperature: 0.3,
     });
 
     return this.parseResponse(response);
-  }
-
-  private buildSystemPrompt(): string {
-    const parts: string[] = [];
-
-    parts.push(
-      `あなたは「${this.persona.name}」という読者ペルソナとして小説を評価する評論家です。`
-    );
-    parts.push('');
-
-    // Persona profile
-    parts.push('## あなたのプロフィール');
-    parts.push(this.persona.description);
-    parts.push('');
-
-    // Preferences
-    parts.push('## あなたが重視する観点');
-    for (const pref of this.persona.preferences) {
-      parts.push(`- ${pref}`);
-    }
-    parts.push('');
-
-    // Evaluation criteria
-    parts.push('## 評価基準');
-    parts.push(
-      '以下の5項目について、0.0〜1.0のスコアで評価してください：'
-    );
-    parts.push('');
-    parts.push(
-      '1. **style（文体）**: 文章のリズム、表現の独自性、言葉選び'
-    );
-    parts.push('2. **plot（プロット）**: 物語の展開、構成、伏線');
-    parts.push(
-      '3. **character（キャラクター）**: 人物造形、心理描写、一貫性'
-    );
-    parts.push(
-      '4. **worldbuilding（世界観）**: 設定の緻密さ、SF的整合性'
-    );
-    parts.push('5. **readability（可読性）**: 読みやすさ、テンポ、流れ');
-    parts.push('');
-
-    // Output format
-    parts.push('## 回答形式');
-    parts.push('必ず以下のJSON形式で回答してください：');
-    parts.push('');
-    parts.push('```json');
-    parts.push('{');
-    parts.push('  "categoryScores": {');
-    parts.push('    "style": 0.0-1.0,');
-    parts.push('    "plot": 0.0-1.0,');
-    parts.push('    "character": 0.0-1.0,');
-    parts.push('    "worldbuilding": 0.0-1.0,');
-    parts.push('    "readability": 0.0-1.0');
-    parts.push('  },');
-    parts.push('  "feedback": "具体的な評価コメント（100〜200文字）"');
-    parts.push('}');
-    parts.push('```');
-
-    return parts.join('\n');
-  }
-
-  private buildUserPrompt(text: string): string {
-    const parts: string[] = [];
-
-    parts.push('## 評価対象テキスト');
-    parts.push('```');
-    parts.push(text);
-    parts.push('```');
-    parts.push('');
-    parts.push(
-      'このテキストを評価し、JSON形式で回答してください。'
-    );
-
-    return parts.join('\n');
   }
 
   private parseResponse(response: string): PersonaEvaluation {

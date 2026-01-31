@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { resolveNarrativeRules, buildPovRules } from './narrative-rules.js';
 import type { Character } from '../schemas/generated-theme.js';
+import type { PromptConfig } from '../schemas/prompt-config.js';
 
 describe('resolveNarrativeRules', () => {
   it('defaults to first-person わたし with 透心', () => {
@@ -107,5 +108,100 @@ describe('buildPovRules', () => {
     const rules = resolveNarrativeRules(undefined, chars);
     const lines = buildPovRules(rules);
     expect(lines.every(l => !l.includes('透心'))).toBe(true);
+  });
+});
+
+describe('prompt-config integration', () => {
+  const promptConfig: PromptConfig = {
+    defaults: {
+      protagonist_short: '透心',
+      protagonist_full: '御鐘透心',
+      pronoun: 'わたし',
+      prohibited_pronouns: ['私', '僕', '俺'],
+    },
+    pov_rules: {
+      'first-person': {
+        description: '一人称（わたし）視点。御鐘透心の内面から語る',
+        rules: [
+          '一人称は必ず「わたし」（ひらがな）を使用。「私」「僕」「俺」は禁止',
+          '視点は御鐘透心の一人称のみ。三人称的な外部描写は禁止',
+        ],
+      },
+      'third-person': {
+        description: '三人称限定視点。透心を「透心」と呼び、彼女の内面に限定して描写する',
+        rules: [
+          '三人称限定視点で「透心」を中心に描写',
+          '「透心」の内面のみ描写可。他キャラの心理は行動・台詞から推測させる',
+        ],
+      },
+    },
+  };
+
+  it('should use pov_rules description from promptConfig for first-person', () => {
+    const customConfig: PromptConfig = {
+      ...promptConfig,
+      pov_rules: {
+        'first-person': {
+          description: 'カスタム一人称視点の説明',
+          rules: ['カスタムルール1'],
+        },
+      },
+    };
+    const rules = resolveNarrativeRules(undefined, undefined, customConfig);
+    expect(rules.povDescription).toBe('カスタム一人称視点の説明');
+  });
+
+  it('should use pov_rules description from promptConfig for third-person', () => {
+    const customConfig: PromptConfig = {
+      ...promptConfig,
+      pov_rules: {
+        'third-person': {
+          description: 'カスタム三人称視点の説明',
+          rules: ['カスタムルール2'],
+        },
+      },
+    };
+    const rules = resolveNarrativeRules('三人称限定視点', undefined, customConfig);
+    expect(rules.povDescription).toBe('カスタム三人称視点の説明');
+  });
+
+  it('should use protagonist_short from promptConfig defaults', () => {
+    const rules = resolveNarrativeRules('三人称限定視点', undefined, promptConfig);
+    expect(rules.protagonistName).toBe('透心');
+  });
+
+  it('should use pronoun from promptConfig defaults', () => {
+    const rules = resolveNarrativeRules(undefined, undefined, promptConfig);
+    expect(rules.pronoun).toBe('わたし');
+  });
+
+  it('should use pov_rules for buildPovRules', () => {
+    const rules = resolveNarrativeRules(undefined, undefined, promptConfig);
+    const lines = buildPovRules(rules, promptConfig);
+    expect(lines).toContain('- 一人称は必ず「わたし」（ひらがな）を使用。「私」「僕」「俺」は禁止');
+    expect(lines).toContain('- 視点は御鐘透心の一人称のみ。三人称的な外部描写は禁止');
+  });
+
+  it('should use custom pov_rules for buildPovRules', () => {
+    const customConfig: PromptConfig = {
+      ...promptConfig,
+      pov_rules: {
+        'first-person': {
+          description: 'カスタム',
+          rules: ['カスタムPOVルール1', 'カスタムPOVルール2'],
+        },
+      },
+    };
+    const rules = resolveNarrativeRules(undefined, undefined, customConfig);
+    const lines = buildPovRules(rules, customConfig);
+    expect(lines).toContain('- カスタムPOVルール1');
+    expect(lines).toContain('- カスタムPOVルール2');
+  });
+
+  it('should use pov_rules for buildPovRules with third-person', () => {
+    const rules = resolveNarrativeRules('三人称限定視点', undefined, promptConfig);
+    const lines = buildPovRules(rules, promptConfig);
+    expect(lines).toContain('- 三人称限定視点で「透心」を中心に描写');
+    expect(lines).toContain('- 「透心」の内面のみ描写可。他キャラの心理は行動・台詞から推測させる');
   });
 });

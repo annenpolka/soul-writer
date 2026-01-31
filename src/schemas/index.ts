@@ -78,3 +78,16 @@ export {
   DEFAULT_FACTORY_CONFIG,
   type FactoryConfig,
 } from './factory-config.js';
+
+// Prompt Config
+export {
+  PromptConfigSchema,
+  PromptConfigDefaultsSchema,
+  PovRulesSchema,
+  AgentPromptConfigSchema,
+  DEFAULT_PROMPT_CONFIG,
+  type PromptConfig,
+  type PromptConfigDefaults,
+  type PovRules,
+  type AgentPromptConfig,
+} from './prompt-config.js';

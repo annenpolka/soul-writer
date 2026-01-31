@@ -10,6 +10,7 @@ import {
   CONCEPT_SEEDS,
   pickRandom,
 } from './diversity-catalog.js';
+import { buildPrompt } from '../template/composer.js';
 
 export interface ThemeResult {
   theme: GeneratedTheme;
@@ -41,8 +42,8 @@ export class ThemeGeneratorAgent {
     const wildIdea = await this.generateWildIdea();
 
     // Stage 2: Refine into structured theme (full world context)
-    const systemPrompt = this.buildSystemPrompt();
-    const userPrompt = this.buildRefinePrompt(wildIdea, recentThemes);
+    const stage2Context = this.buildStage2Context(wildIdea, recentThemes);
+    const { system: systemPrompt, user: userPrompt } = buildPrompt('theme-generator-stage2', stage2Context);
 
     const response = await this.llmClient.complete(systemPrompt, userPrompt, {
       temperature: 0.9,
@@ -61,166 +62,102 @@ export class ThemeGeneratorAgent {
    * Stage 1: Generate an unconstrained creative idea
    */
   private async generateWildIdea(): Promise<string> {
-    const strategy = pickRandom(IDEATION_STRATEGIES);
+    const ideationStrategies = this.soulText.promptConfig?.ideation_strategies ?? IDEATION_STRATEGIES;
+    const timelineCatalog = this.soulText.promptConfig?.timeline_catalog ?? TIMELINE_CATALOG;
+    const strategy = pickRandom(ideationStrategies);
     const concept = pickRandom(CONCEPT_SEEDS);
     const emotion = pickRandom(EMOTION_CATALOG);
-    const timeline = pickRandom(TIMELINE_CATALOG);
+    const timeline = pickRandom(timelineCatalog);
 
-    const systemPrompt = [
-      'あなたは物語のアイデアを自由に発想するクリエイターです。',
-      '常識的な展開や安全な選択を避け、予想外で挑発的なアイデアを出してください。',
-      '',
-      `## 発想法`,
-      `今回は以下の方法でアイデアを出してください:`,
+    const worldDescription = this.soulText.promptConfig?.agents?.theme_generator?.world_description
+      ?? 'AR/MRテクノロジーが浸透した近未来。無関心な社会。主要人物も無名の住人も存在する。';
+
+    const stage1Context = {
       strategy,
-      '',
-      `## 隠れたモチーフ`,
-      `「${concept}」という概念を、物語の底流に織り込んでください。`,
-      '',
-      `## 世界の断片`,
-      `世界観: AR/MRテクノロジーが浸透した近未来。無関心な社会。主要人物も無名の住人も存在する。`,
-      '',
-      '自由テキストで回答してください。JSON不要。3-5文程度。',
-    ].join('\n');
+      concept,
+      worldDescription,
+      emotion,
+      timeline,
+    };
 
-    const userPrompt = [
-      `感情の種: ${emotion}`,
-      `時間軸: ${timeline}`,
-      '',
-      'この種から、予想外の物語のアイデアを1つ生成してください。',
-      '原作をなぞらず、この世界でまだ語られていない物語を。',
-    ].join('\n');
+    const { system: systemPrompt, user: userPrompt } = buildPrompt('theme-generator-stage1', stage1Context);
 
     return await this.llmClient.complete(systemPrompt, userPrompt, {
       temperature: 1.0,
     });
   }
 
-  private buildSystemPrompt(): string {
-    const parts: string[] = [];
+  private buildStage2Context(wildIdea: string, recentThemes?: GeneratedTheme[]): Record<string, unknown> {
     const worldBible = this.soulText.worldBible;
     const thematic = this.soulText.constitution.thematic_constraints;
+    const ctx: Record<string, unknown> = {};
 
-    parts.push('あなたは以下の世界観に基づいて、新しい物語のテーマを生成するエージェントです。');
-    parts.push('');
-
-    // Thematic constraints
+    // Thematic constraints as array
     if (thematic.must_preserve.length > 0) {
-      parts.push('## 維持すべきテーマ');
-      for (const theme of thematic.must_preserve) {
-        parts.push(`- ${theme}`);
-      }
-      parts.push('');
+      ctx.thematicConstraints = thematic.must_preserve;
     }
 
-    // Characters
-    const characters = worldBible.characters;
-    if (Object.keys(characters).length > 0) {
-      parts.push('## 既存キャラクター');
-      for (const [name, char] of Object.entries(characters)) {
-        parts.push(`- ${name}: ${char.role} - ${char.description || ''}`);
-      }
-      parts.push('');
+    // Characters as structured array
+    if (Object.keys(worldBible.characters).length > 0) {
+      ctx.characters = Object.entries(worldBible.characters).map(([name, char]) => ({
+        name,
+        role: char.role,
+        description: char.description || '',
+      }));
     }
 
-    // Technology
-    const tech = worldBible.technology;
-    if (Object.keys(tech).length > 0) {
-      parts.push('## 技術設定');
-      for (const [name, desc] of Object.entries(tech)) {
+    // Technology as structured array
+    if (Object.keys(worldBible.technology).length > 0) {
+      ctx.technologyEntries = Object.entries(worldBible.technology).map(([name, desc]) => {
         const description = typeof desc === 'object' && 'description' in desc
           ? (desc as { description: string }).description
           : String(desc);
-        parts.push(`- ${name}: ${description}`);
-      }
-      parts.push('');
+        return { name, description };
+      });
     }
 
-    // Society
-    const society = worldBible.society;
-    if (Object.keys(society).length > 0) {
-      parts.push('## 社会設定');
-      for (const [name, desc] of Object.entries(society)) {
+    // Society as structured array
+    if (Object.keys(worldBible.society).length > 0) {
+      ctx.societyEntries = Object.entries(worldBible.society).map(([name, desc]) => {
         const state = typeof desc === 'object' && 'state' in desc
           ? (desc as { state: string }).state
           : String(desc);
-        parts.push(`- ${name}: ${state}`);
-      }
-      parts.push('');
+        return { name, state };
+      });
     }
 
-    // Scene catalog
-    parts.push('## シーン種類カタログ');
-    parts.push('以下から2-4種類を選択してください。毎回異なる組み合わせを選ぶこと:');
-    parts.push('- 教室での内面描写');
-    parts.push('- 屋上での非公式な対話');
-    parts.push('- 名前消去事件（ARタグの操作に関する出来事）');
-    parts.push('- 日常観察（他者を静かに観察するシーン）');
-    parts.push('- MRフロアでの仮想体験');
-    parts.push('- セッション後の反芻（体験後の内省）');
-    parts.push('- 通学路・移動（物理空間での孤独）');
-    parts.push('- デジタル空間探索（ARシステムの裏側）');
-    parts.push('- 他者との表面的交流');
-    parts.push('- 記憶・回想（過去の断片）');
-    parts.push('');
-    parts.push('## オリジナリティ要求');
-    parts.push('- 上記カタログはあくまで参考。原作にない新しいシーン・場所・アイテムを積極的に発明すること');
-    parts.push('- 例：主人公が一人で行く場所、意外な人物との遭遇、ARシステムの予想外の挙動');
-    parts.push('- 原作の再現ではなく、原作の世界観を拡張する物語を生成すること');
-    parts.push('');
+    // Scene catalog as array
+    const sceneCatalog = this.soulText.promptConfig?.scene_catalog ?? [
+      '教室での内面描写',
+      '屋上での非公式な対話',
+      '名前消去事件（ARタグの操作に関する出来事）',
+      '日常観察（他者を静かに観察するシーン）',
+      'MRフロアでの仮想体験',
+      'セッション後の反芻（体験後の内省）',
+      '通学路・移動（物理空間での孤独）',
+      'デジタル空間探索（ARシステムの裏側）',
+      '他者との表面的交流',
+      '記憶・回想（過去の断片）',
+    ];
+    ctx.sceneCatalog = sceneCatalog;
 
-    // Output format
-    parts.push('## 出力形式');
-    parts.push('以下のJSON形式でテーマを出力してください:');
-    parts.push('```json');
-    parts.push('{');
-    parts.push('  "emotion": "感情テーマ（例：孤独、渇望、怒り）",');
-    parts.push('  "timeline": "時系列（例：出会い前、出会い後、事件後）",');
-    parts.push('  "characters": [');
-    parts.push('    {"name": "キャラ名", "isNew": false},');
-    parts.push('    {"name": "新キャラ名", "isNew": true, "description": "新キャラの説明"}');
-    parts.push('  ],');
-    parts.push('  "premise": "物語の前提を1-2文で",');
-    parts.push('  "scene_types": ["教室独白", "通学路・移動"],');
-    parts.push('  "narrative_type": "ナラティブ型（例：一人称内面独白、時系列逆転）"');
-    parts.push('}');
-    parts.push('```');
-
-    return parts.join('\n');
-  }
-
-  private buildRefinePrompt(wildIdea: string, recentThemes?: GeneratedTheme[]): string {
+    // User prompt context
     const narrative = pickRandom(NARRATIVE_CATALOG);
     const opening = pickRandom(OPENING_CONSTRAINTS);
+    ctx.wildIdea = wildIdea;
+    ctx.narrative = narrative;
+    ctx.opening = opening;
 
-    const parts: string[] = [];
-
-    parts.push('## 原案（これを発展させてください）');
-    parts.push(wildIdea);
-    parts.push('');
-
-    parts.push('## 構造制約');
-    parts.push(`- ナラティブ型: ${narrative}`);
-    parts.push(`- 開始条件: ${opening}`);
-    parts.push('');
-
-    // History avoidance
+    // History avoidance as structured array
     if (recentThemes && recentThemes.length > 0) {
-      parts.push('## 既出テーマ（これらと明確に異なるテーマを生成すること）');
-      for (const t of recentThemes) {
-        parts.push(`- 感情「${t.emotion}」/ 時系列「${t.timeline}」/ 前提「${t.premise}」`);
-      }
-      parts.push('');
+      ctx.recentThemes = recentThemes.map(t => ({
+        emotion: t.emotion,
+        timeline: t.timeline,
+        premise: t.premise,
+      }));
     }
 
-    parts.push('上記の原案をベースに、この世界観に落とし込んだテーマを生成してください。');
-    parts.push('感情は複合的なニュアンスを付加してよい（例：「罪悪感」→「罪悪感と微かな陶酔」）。');
-    parts.push('キャラクター配置は完全に自由です:');
-    parts.push('- 既存キャラクター（透心、つるぎ等）を使ってもよい');
-    parts.push('- 既存キャラクター不在で、完全に新規のキャラクターだけでもよい');
-    parts.push('- この世界観の無名の住人の物語でもよい');
-    parts.push('JSON形式で回答してください。');
-    return parts.join('\n');
+    return ctx;
   }
 
   private parseResponse(response: string): GeneratedTheme {
