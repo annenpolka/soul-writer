@@ -53,8 +53,7 @@ npm run lint:fix      # リント自動修正
 ### エントリポイント
 
 CLI (`src/main.ts`) から各コマンドを実行:
-- `generate` - 単一トーナメント生成
-- `story` - フルストーリー生成（チェックポイント対応）
+- `generate` - ストーリー生成（単一/マルチチャプター、テーマ自動生成対応、--simpleでトーナメントのみ）
 - `resume` - 中断タスク再開
 - `review` - 学習候補レビュー
 - `factory` - バッチ生成（並列実行、統計分析）
@@ -64,7 +63,7 @@ CLI (`src/main.ts`) から各コマンドを実行:
 ```
 src/
 ├── agents/        # Writer, Judge, Plotter, Corrector, ReaderEvaluator, ReaderJury
-├── cli/           # CLIコマンド (generate, story, resume, review, factory)
+├── cli/           # CLIコマンド (generate, resume, review, factory)
 ├── compliance/    # コンプライアンスチェック（禁止語彙、視点一貫性、リズム等）
 ├── correction/    # 矯正ループ
 ├── factory/       # 工場システム (BatchRunner, ThemeGenerator, Analytics等)

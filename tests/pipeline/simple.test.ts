@@ -2,69 +2,147 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SimplePipeline } from '../../src/pipeline/simple.js';
 import type { LLMClient } from '../../src/llm/types.js';
 import { SoulTextManager } from '../../src/soul/manager.js';
+import type { NarrativeRules } from '../../src/factory/narrative-rules.js';
 
-// Mock LLM Client
-let callCount = 0;
-const mockLLMClient: LLMClient = {
-  complete: vi.fn().mockImplementation(() => {
-    callCount++;
-    if (callCount <= 4) {
-      return Promise.resolve(`Generated text ${callCount}: この世界は無関心に満ちている。`);
-    }
-    return Promise.resolve(
-      JSON.stringify({
-        winner: 'A',
-        reasoning: 'Better captures the soul',
-        scores: {
-          A: { style: 0.85, compliance: 0.9, overall: 0.875 },
-          B: { style: 0.75, compliance: 0.8, overall: 0.775 },
-        },
-      })
-    );
-  }),
-  getTotalTokens: vi.fn().mockReturnValue(1000),
+// Mock LLM Client that handles all agent types
+const createMockLLMClient = (): LLMClient => {
+  let callCount = 0;
+  return {
+    complete: vi.fn().mockImplementation((systemPrompt: string) => {
+      callCount++;
+
+      // Judge response
+      if (systemPrompt.includes('審査') || systemPrompt.includes('比較')) {
+        return Promise.resolve(
+          JSON.stringify({
+            winner: 'A',
+            reasoning: 'Aの方が文体が優れている',
+            scores: {
+              A: { style: 0.9, compliance: 0.85, overall: 0.87 },
+              B: { style: 0.8, compliance: 0.82, overall: 0.81 },
+            },
+          })
+        );
+      }
+
+      // Reader evaluation response
+      if (systemPrompt.includes('評価') || systemPrompt.includes('読者')) {
+        return Promise.resolve(
+          JSON.stringify({
+            scores: {
+              style: 0.85,
+              plot: 0.82,
+              character: 0.88,
+              worldbuilding: 0.80,
+              readability: 0.90,
+            },
+            feedback: '全体的に良い作品です。',
+          })
+        );
+      }
+
+      // Corrector response
+      if (systemPrompt.includes('矯正') || systemPrompt.includes('修正')) {
+        return Promise.resolve('修正された文章です。');
+      }
+
+      // Synthesis response
+      if (systemPrompt.includes('統合') || systemPrompt.includes('融合')) {
+        return Promise.resolve(
+          JSON.stringify({
+            synthesizedText: '統合された文章です。透心は静かに窓の外を見つめていた。',
+          })
+        );
+      }
+
+      // Retake response
+      if (systemPrompt.includes('リテイク') || systemPrompt.includes('書き直')) {
+        return Promise.resolve('リテイクされた文章です。');
+      }
+
+      // Default writer response
+      return Promise.resolve('透心は静かに窓の外を見つめていた。ARタグが揺らめく朝の光の中で。');
+    }),
+    getTotalTokens: vi.fn().mockReturnValue(1000),
+  };
 };
 
 describe('SimplePipeline', () => {
   let soulManager: SoulTextManager;
 
   beforeEach(async () => {
-    vi.clearAllMocks();
-    callCount = 0;
     soulManager = await SoulTextManager.load('soul');
   });
 
   describe('constructor', () => {
-    it('should create a pipeline', () => {
-      const pipeline = new SimplePipeline(mockLLMClient, soulManager);
+    it('should create a pipeline with no options', () => {
+      const pipeline = new SimplePipeline(createMockLLMClient(), soulManager);
+      expect(pipeline).toBeInstanceOf(SimplePipeline);
+    });
+
+    it('should accept simple option', () => {
+      const pipeline = new SimplePipeline(createMockLLMClient(), soulManager, { simple: true });
+      expect(pipeline).toBeInstanceOf(SimplePipeline);
+    });
+
+    it('should accept narrativeRules option', () => {
+      const rules: NarrativeRules = {
+        pov: 'first-person',
+        pronoun: 'わたし',
+        protagonistName: null,
+        povDescription: 'テスト',
+        isDefaultProtagonist: true,
+      };
+      const pipeline = new SimplePipeline(createMockLLMClient(), soulManager, { narrativeRules: rules });
       expect(pipeline).toBeInstanceOf(SimplePipeline);
     });
   });
 
-  describe('generate', () => {
-    it('should generate text using tournament', async () => {
-      const pipeline = new SimplePipeline(mockLLMClient, soulManager);
-      const result = await pipeline.generate('Write a scene about the morning');
+  describe('generate with simple: true', () => {
+    it('should generate text using tournament only', async () => {
+      const pipeline = new SimplePipeline(createMockLLMClient(), soulManager, { simple: true });
+      const result = await pipeline.generate('Write a scene');
 
-      expect(result).toBeDefined();
       expect(result.text).toBeDefined();
       expect(result.champion).toBeDefined();
-    });
-
-    it('should include tournament details in result', async () => {
-      const pipeline = new SimplePipeline(mockLLMClient, soulManager);
-      const result = await pipeline.generate('Write a scene');
-
-      expect(result.tournamentResult).toBeDefined();
       expect(result.tournamentResult.rounds).toHaveLength(3);
+      expect(result.tokensUsed).toBeDefined();
     });
 
-    it('should track token usage', async () => {
-      const pipeline = new SimplePipeline(mockLLMClient, soulManager);
+    it('should not include post-processing results', async () => {
+      const pipeline = new SimplePipeline(createMockLLMClient(), soulManager, { simple: true });
       const result = await pipeline.generate('Write a scene');
 
-      // Token usage comes from the arena which tracks totalTokensUsed
-      expect(result.tokensUsed).toBeDefined();
+      expect(result.complianceResult).toBeUndefined();
+      expect(result.readerJuryResult).toBeUndefined();
+      expect(result.synthesized).toBeUndefined();
+    });
+  });
+
+  describe('generate with default (full) mode', () => {
+    it('should include compliance result', async () => {
+      const pipeline = new SimplePipeline(createMockLLMClient(), soulManager);
+      const result = await pipeline.generate('Write a scene');
+
+      expect(result.complianceResult).toBeDefined();
+      expect(typeof result.complianceResult!.score).toBe('number');
+      expect(typeof result.complianceResult!.isCompliant).toBe('boolean');
+    });
+
+    it('should include reader jury result', async () => {
+      const pipeline = new SimplePipeline(createMockLLMClient(), soulManager);
+      const result = await pipeline.generate('Write a scene');
+
+      expect(result.readerJuryResult).toBeDefined();
+      expect(typeof result.readerJuryResult!.aggregatedScore).toBe('number');
+    });
+
+    it('should have synthesized flag', async () => {
+      const pipeline = new SimplePipeline(createMockLLMClient(), soulManager);
+      const result = await pipeline.generate('Write a scene');
+
+      expect(result.synthesized).toBeDefined();
+      expect(typeof result.synthesized).toBe('boolean');
     });
   });
 });

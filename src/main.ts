@@ -1,5 +1,4 @@
 import { generate } from './cli/generate.js';
-import { story } from './cli/story.js';
 import { resume } from './cli/resume.js';
 import { review } from './cli/review.js';
 import { factory } from './cli/factory.js';
@@ -14,19 +13,18 @@ Usage:
   npx tsx src/main.ts <command> [options]
 
 Commands:
-  generate    Run single tournament generation (simple pipeline)
-  story       Generate a full story with all features
+  generate    Generate a story (single or multi-chapter, with optional auto-theme)
   resume      Resume an interrupted story generation
   review      Review and approve learning candidates
   factory     Run batch generation with random themes
 
-Common Options:
-  --soul      Path to soul text directory (default: "soul")
-  --db        Path to SQLite database (default: "soul-writer.db")
-
-story Options:
-  --prompt    Generation prompt (required)
-  --chapters  Number of chapters (default: 5)
+generate Options:
+  --prompt       Generation prompt (required unless --auto-theme)
+  --auto-theme   Auto-generate theme and characters (no --prompt needed)
+  --chapters     Number of chapters (default: 5)
+  --simple       Tournament only, no post-processing, no DB
+  --soul         Path to soul text directory (default: "soul")
+  --db           Path to SQLite database (default: "soul-writer.db")
 
 resume Options:
   --task-id   Task ID to resume (required)
@@ -36,11 +34,14 @@ factory Options:
   --resume    Resume interrupted batch generation
 
 Examples:
-  # Simple tournament generation
-  npx tsx src/main.ts generate --soul soul --prompt "透心の朝の独白を書いてください"
+  # Simple tournament generation (no DB)
+  npx tsx src/main.ts generate --simple --prompt "透心の朝の独白を書いてください"
 
-  # Full story generation (5 chapters)
-  npx tsx src/main.ts story --soul soul --prompt "透心とつるぎの出会い" --chapters 5
+  # Full story generation (5 chapters, with DB)
+  npx tsx src/main.ts generate --prompt "透心とつるぎの出会い" --chapters 5
+
+  # Auto-theme generation (theme + characters auto-generated)
+  npx tsx src/main.ts generate --auto-theme --chapters 3
 
   # Resume interrupted task
   npx tsx src/main.ts resume --task-id <id> --soul soul
@@ -61,10 +62,13 @@ function parseArgs(args: string[]): { command: string; options: Record<string, s
     const arg = args[i];
     if (arg.startsWith('--')) {
       const key = arg.slice(2);
-      const value = args[i + 1] || '';
-      if (!value.startsWith('--')) {
-        options[key] = value;
+      const nextArg = args[i + 1];
+      if (nextArg && !nextArg.startsWith('--')) {
+        options[key] = nextArg;
         i++;
+      } else {
+        // Boolean flag (no value)
+        options[key] = 'true';
       }
     }
   }
@@ -84,30 +88,18 @@ async function main(): Promise<void> {
     case 'generate': {
       const soul = options.soul || 'soul';
       const prompt = options.prompt;
-
-      if (!prompt) {
-        console.error('Error: --prompt is required');
-        printUsage();
-        process.exit(1);
-      }
-
-      await generate({ soul, prompt });
-      break;
-    }
-
-    case 'story': {
-      const soul = options.soul || 'soul';
-      const prompt = options.prompt;
-      const chapters = options.chapters ? parseInt(options.chapters, 10) : 5;
+      const autoTheme = options['auto-theme'] === 'true';
+      const chapters = options.chapters ? parseInt(options.chapters, 10) : undefined;
       const dbPath = options.db || 'soul-writer.db';
+      const simple = options.simple === 'true';
 
-      if (!prompt) {
-        console.error('Error: --prompt is required');
+      if (!prompt && !autoTheme) {
+        console.error('Error: --prompt or --auto-theme is required');
         printUsage();
         process.exit(1);
       }
 
-      await story({ soul, prompt, chapters, dbPath });
+      await generate({ soul, prompt, autoTheme, chapters, dbPath, simple });
       break;
     }
 
