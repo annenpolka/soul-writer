@@ -1,0 +1,62 @@
+meta:
+  agent: section
+  version: 1
+
+system:
+  sections:
+    - type: condition
+      if:
+        has: developedCharacters
+      then:
+        - type: heading
+          heading: 登場人物（本作品用）
+        - type: each
+          each: developedCharacters
+          as: char
+          sections:
+            - type: heading
+              heading: "{{ char.displayName }}"
+              level: 3
+            - type: text
+              text: "- 役割: {{ char.role }}"
+            - type: condition
+              if:
+                has: char.description
+              then:
+                - type: text
+                  text: "- 背景: {{ char.description }}"
+            - type: condition
+              if:
+                has: char.voice
+              then:
+                - type: text
+                  text: "- 口調: {{ char.voice }}"
+        - type: text
+          text: "この人物のみで執筆すること。上記にない人物を登場させないこと。"
+      else:
+        - type: heading
+          heading: キャラクター
+        - type: each
+          each: worldBibleCharacters
+          as: char
+          sections:
+            - type: heading
+              heading: "{{ char.name }}"
+              level: 3
+            - type: text
+              text: "- 役割: {{ char.role }}"
+            - type: condition
+              if:
+                has: char.traits
+              then:
+                - type: text
+                  text: "- 特徴: {{ char.traits | join: \", \" }}"
+            - type: condition
+              if:
+                has: char.speech_pattern
+              then:
+                - type: text
+                  text: "- 話し方: {{ char.speech_pattern }}"
+
+user:
+  sections: []

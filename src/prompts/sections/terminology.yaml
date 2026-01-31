@@ -1,0 +1,13 @@
+meta:
+  agent: section
+  version: 1
+
+system:
+  sections:
+    - type: each
+      each: terminologyEntries
+      as: entry
+      template: "- {{ entry.term }}: {{ entry.definition }}"
+
+user:
+  sections: []

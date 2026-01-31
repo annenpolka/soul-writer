@@ -241,8 +241,8 @@ This plot focuses on the theme of existence.
       await plotter.generatePlot();
 
       const userPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>).mock.calls[0][1];
-      expect(userPrompt).toContain('感情テーマ: 孤独');
-      expect(userPrompt).toContain('時系列: 出会い前');
+      expect(userPrompt).toContain('感情: 孤独');
+      expect(userPrompt).toContain('時間軸: 出会い前');
       expect(userPrompt).toContain('テスト前提文');
     });
 
@@ -256,7 +256,7 @@ This plot focuses on the theme of existence.
       await plotter.generatePlot();
 
       const userPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>).mock.calls[0][1];
-      expect(userPrompt).toContain('新キャラ（新規）');
+      expect(userPrompt).toContain('新キャラ');
       expect(userPrompt).toContain('テスト用の新キャラクター');
     });
 

@@ -2,6 +2,7 @@ import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import type { JudgeResult, ScoreBreakdown } from './types.js';
 import { type NarrativeRules, resolveNarrativeRules } from '../factory/narrative-rules.js';
+import { buildPrompt } from '../template/composer.js';
 
 export type { JudgeResult };
 
@@ -23,145 +24,104 @@ export class JudgeAgent {
    * Evaluate two texts and determine the winner
    */
   async evaluate(textA: string, textB: string): Promise<JudgeResult> {
-    const systemPrompt = this.buildSystemPrompt();
-    const userPrompt = this.buildUserPrompt(textA, textB);
+    const context = this.buildContext(textA, textB);
+    const { system: systemPrompt, user: userPrompt } = buildPrompt('judge', context);
 
     const response = await this.llmClient.complete(systemPrompt, userPrompt, {
-      temperature: 0.3, // Low temperature for consistent judging
+      temperature: 0.3,
     });
 
     return this.parseResponse(response);
   }
 
-  private buildSystemPrompt(): string {
+  private buildContext(textA: string, textB: string): Record<string, unknown> {
     const meta = this.soulText.constitution.meta;
     const constitution = this.soulText.constitution;
-    const parts: string[] = [];
     const { isDefaultProtagonist, pov } = this.narrativeRules;
 
-    parts.push(`あなたは「${meta.soul_name}」の厳格な審査員です。`);
-    parts.push('2つのテキストを比較し、原作の文体・語り口・世界観により忠実な方を選んでください。');
-    parts.push('');
-    parts.push('## 評価基準（重要度順）');
+    // Evaluation criteria
+    const criteriaEntries: Array<{ text: string }> = [];
     if (isDefaultProtagonist && pov === 'first-person') {
-      parts.push('1. **語り声の再現** (voice_accuracy): 一人称「わたし」、冷徹で乾いた語り口、短文リズム');
-      parts.push('2. **原作忠実度** (originality_fidelity): 原作の設定・キャラクター造形を捏造せず忠実に再現');
+      criteriaEntries.push({ text: '1. **語り声の再現** (voice_accuracy): 一人称「わたし」、冷徹で乾いた語り口、短文リズム' });
+      criteriaEntries.push({ text: '2. **原作忠実度** (originality_fidelity): 原作の設定・キャラクター造形を捏造せず忠実に再現' });
     } else {
-      parts.push(`1. **語り声の一貫性** (voice_accuracy): ${this.narrativeRules.povDescription}。冷徹で乾いた語り口、短文リズム`);
-      parts.push('2. **世界観忠実度** (originality_fidelity): この世界観に存在し得る設定・キャラクターを使用しているか');
+      criteriaEntries.push({ text: `1. **語り声の一貫性** (voice_accuracy): ${this.narrativeRules.povDescription}。冷徹で乾いた語り口、短文リズム` });
+      criteriaEntries.push({ text: '2. **世界観忠実度** (originality_fidelity): この世界観に存在し得る設定・キャラクターを使用しているか' });
     }
-    parts.push('3. **文体の一貫性** (style): 短-短-長(内省)-短(断定)のリズム、体言止め、比喩密度low');
-    parts.push('4. **禁止パターンの回避** (compliance): 禁止語彙、禁止比喩、「×」の正しい用法');
-    parts.push('');
-    parts.push('## 具体的な減点対象');
+    criteriaEntries.push({ text: '3. **文体の一貫性** (style): 短-短-長(内省)-短(断定)のリズム、体言止め、比喩密度low' });
+    criteriaEntries.push({ text: '4. **禁止パターンの回避** (compliance): 禁止語彙、禁止比喩、「×」の正しい用法' });
+
+    // Penalty items
+    const penaltyEntries: Array<{ text: string }> = [];
     if (isDefaultProtagonist && pov === 'first-person') {
-      parts.push('- 「私」表記（「わたし」でなければならない）→ 大幅減点');
-      parts.push('- 三人称的な外部描写の混入 → 大幅減点');
-      parts.push('- 原作にない設定やキャラクターの捏造 → 大幅減点');
+      penaltyEntries.push({ text: '「私」表記（「わたし」でなければならない）→ 大幅減点' });
+      penaltyEntries.push({ text: '三人称的な外部描写の混入 → 大幅減点' });
+      penaltyEntries.push({ text: '原作にない設定やキャラクターの捏造 → 大幅減点' });
     } else {
-      parts.push('- 視点の一貫性が崩れている → 大幅減点');
-      parts.push('- 世界観に存在し得ない設定の捏造 → 大幅減点');
+      penaltyEntries.push({ text: '視点の一貫性が崩れている → 大幅減点' });
+      penaltyEntries.push({ text: '世界観に存在し得ない設定の捏造 → 大幅減点' });
     }
-    // Soul-specific penalty items from prompt-config
     const judgeConfig = this.soulText.promptConfig?.agents?.judge;
     if (judgeConfig?.penalty_items) {
       for (const item of judgeConfig.penalty_items) {
-        parts.push(`- ${item}`);
+        penaltyEntries.push({ text: item });
       }
     }
-    parts.push('- 陳腐な比喩の多用（「死んだ魚のような」「井戸の底のような」等） → 減点');
-    parts.push('- 装飾過多な長文の連続 → 減点');
-    parts.push('');
+    penaltyEntries.push({ text: '陳腐な比喩の多用（「死んだ魚のような」「井戸の底のような」等） → 減点' });
+    penaltyEntries.push({ text: '装飾過多な長文の連続 → 減点' });
 
-    // Key constitution rules
-    parts.push('## 憲法の要点');
-    parts.push(`- リズム: ${constitution.sentence_structure.rhythm_pattern}`);
-    parts.push(`- 禁止語彙: ${constitution.vocabulary.forbidden_words.join(', ')}`);
-    parts.push(`- 特殊記号「${constitution.vocabulary.special_marks.mark}」: ${constitution.vocabulary.special_marks.usage}`);
-    parts.push(`- 禁止比喩: ${constitution.rhetoric.forbidden_similes.join(', ')}`);
-    parts.push(`- 視点: ${this.narrativeRules.povDescription}`);
-    parts.push(`- 対話比率: ${constitution.narrative.dialogue_ratio}`);
-    parts.push('');
-
-    // Character voice references - prefer prompt-config, fallback to constitution
-    parts.push('## キャラクター別の口調');
+    // Character voice
+    const voiceEntries: Array<{ name: string; style: string }> = [];
     const voiceRules = judgeConfig?.character_voice_rules;
     if (voiceRules && Object.keys(voiceRules).length > 0) {
       for (const [charName, style] of Object.entries(voiceRules)) {
-        parts.push(`- ${charName}: ${style}`);
+        voiceEntries.push({ name: charName, style: style as string });
       }
     } else {
       for (const [charName, style] of Object.entries(constitution.narrative.dialogue_style_by_character)) {
-        parts.push(`- ${charName}: ${style}`);
+        voiceEntries.push({ name: charName, style: style as string });
       }
     }
-    parts.push('');
 
-    // Anti-soul examples
-    parts.push('## 反魂（こういう文章を選ぶな）');
+    // Anti-soul (compact: 1 per category, 100 char limit)
+    const antiSoulCompactEntries: Array<{ category: string; text: string; reason: string }> = [];
     for (const [category, entries] of Object.entries(this.soulText.antiSoul.categories)) {
       for (const entry of entries.slice(0, 1)) {
-        parts.push(`- ${category}: 「${entry.text.slice(0, 100)}」→ ${entry.reason}`);
+        antiSoulCompactEntries.push({
+          category,
+          text: entry.text.slice(0, 100),
+          reason: entry.reason,
+        });
       }
     }
-    parts.push('');
 
-    // Reference fragments for comparison
-    parts.push('## 原作の参考断片（この文体が正解）');
+    // Fragments (compact: max 4 categories, 1 per category)
+    const fragmentCompactCategories: Array<{ name: string; text: string }> = [];
     let fragmentCount = 0;
     for (const [category, fragments] of this.soulText.fragments) {
       if (fragments.length > 0 && fragmentCount < 4) {
-        parts.push(`### ${category}`);
-        parts.push('```');
-        parts.push(fragments[0].text);
-        parts.push('```');
+        fragmentCompactCategories.push({ name: category, text: fragments[0].text });
         fragmentCount++;
       }
     }
-    parts.push('');
 
-    parts.push('回答はJSON形式で返してください:');
-    parts.push('```json');
-    parts.push('{');
-    parts.push('  "winner": "A" または "B",');
-    parts.push('  "reasoning": "選択理由（具体的にどの点が優れていたか）",');
-    parts.push('  "scores": {');
-    parts.push('    "A": { "style": 0-1, "compliance": 0-1, "voice_accuracy": 0-1, "originality_fidelity": 0-1, "overall": 0-1 },');
-    parts.push('    "B": { "style": 0-1, "compliance": 0-1, "voice_accuracy": 0-1, "originality_fidelity": 0-1, "overall": 0-1 }');
-    parts.push('  },');
-    parts.push('  "praised_excerpts": {');
-    parts.push('    "A": ["テキストAで特に優れていた表現・描写の引用（原文ママ、各50字以内、最大3つ）"],');
-    parts.push('    "B": ["テキストBで特に優れていた表現・描写の引用（原文ママ、各50字以内、最大3つ）"]');
-    parts.push('  }');
-    parts.push('}');
-    parts.push('```');
-
-    return parts.join('\n');
-  }
-
-  private buildUserPrompt(textA: string, textB: string): string {
-    const parts: string[] = [];
-
-    parts.push('## テキストA');
-    parts.push('```');
-    parts.push(textA);
-    parts.push('```');
-    parts.push('');
-    parts.push('## テキストB');
-    parts.push('```');
-    parts.push(textB);
-    parts.push('```');
-    parts.push('');
-    parts.push('どちらがソウルテキストにより忠実ですか？JSON形式で回答してください。');
-
-    return parts.join('\n');
+    return {
+      soulName: meta.soul_name,
+      criteriaEntries,
+      penaltyEntries,
+      constitution,
+      narrativeRules: this.narrativeRules,
+      voiceEntries,
+      antiSoulCompactEntries: antiSoulCompactEntries.length > 0 ? antiSoulCompactEntries : undefined,
+      fragmentCompactCategories: fragmentCompactCategories.length > 0 ? fragmentCompactCategories : undefined,
+      textA,
+      textB,
+    };
   }
 
   private parseResponse(response: string): JudgeResult {
-    // Extract JSON from response
     const jsonMatch = response.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      // Fallback if no JSON found
       return this.createFallbackResult(response);
     }
 
@@ -195,7 +155,6 @@ export class JudgeAgent {
   }
 
   private createFallbackResult(response: string): JudgeResult {
-    // Simple heuristic: check if response mentions A or B more favorably
     const mentionsA = (response.match(/[Aa].*better|prefer.*[Aa]|choose.*[Aa]/gi) || []).length;
     const mentionsB = (response.match(/[Bb].*better|prefer.*[Bb]|choose.*[Bb]/gi) || []).length;
 

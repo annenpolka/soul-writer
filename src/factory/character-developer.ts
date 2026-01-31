@@ -1,6 +1,7 @@
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import type { GeneratedTheme } from '../schemas/generated-theme.js';
+import { buildPrompt } from '../template/composer.js';
 
 export interface DevelopedCharacter {
   name: string;
@@ -35,9 +36,9 @@ export class CharacterDeveloperAgent {
 
   async develop(theme: GeneratedTheme): Promise<CharacterDevelopResult> {
     const tokensBefore = this.llmClient.getTotalTokens();
-    const systemPrompt = this.buildSystemPrompt();
-    const userPrompt = this.buildUserPrompt(theme);
 
+    const context = this.buildContext(theme);
+    const { system: systemPrompt, user: userPrompt } = buildPrompt('character-developer', context);
     const response = await this.llmClient.complete(systemPrompt, userPrompt, {
       temperature: 0.8,
     });
@@ -48,81 +49,42 @@ export class CharacterDeveloperAgent {
     return { developed, tokensUsed };
   }
 
-  private buildSystemPrompt(): string {
-    const worldBible = this.soulText.worldBible;
-    const parts: string[] = [];
+  private buildContext(theme: GeneratedTheme): Record<string, unknown> {
+    const ctx: Record<string, unknown> = {};
 
-    parts.push('あなたはキャラクターキャスティングの専門家です。');
-    parts.push('物語のテーマに最適なキャラクター構成を設計してください。');
-    parts.push('');
-    parts.push('## 世界観の既存キャラクター（参考）');
-
-    for (const [name, char] of Object.entries(worldBible.characters)) {
-      const c = char as { role: string; voice?: string; background?: string };
-      parts.push(`- ${name}: ${c.role}${c.voice ? `（口調: ${c.voice}）` : ''}`);
+    // Existing characters as structured array
+    const characters = this.soulText.worldBible.characters;
+    if (Object.keys(characters).length > 0) {
+      ctx.existingCharacters = Object.entries(characters).map(([name, char]) => {
+        const c = char as { role: string; voice?: string };
+        return { name, role: c.role, voiceSuffix: c.voice ? `（口調: ${c.voice}）` : '' };
+      });
     }
-    parts.push('');
 
-    parts.push('## キャスティングルール');
-    parts.push('- 既存キャラクターを使う義務はない。テーマに合うなら新規キャラクターだけでもよい');
-    // Soul-specific casting rules from prompt-config
+    // Casting rules as structured array
     const castingRules = this.soulText.promptConfig?.agents?.character_developer?.casting_rules;
     if (castingRules) {
-      for (const rule of castingRules) {
-        parts.push(`- ${rule}`);
-      }
-    } else {
-      parts.push('- 「叔父」は物語に不可欠な場合（MRフロアの設定に直接関わる等）のみ登場させる。装飾的な登場は避ける');
+      ctx.castingRules = castingRules.map(r => ({ text: r }));
     }
-    parts.push('- 新規キャラクターには必ず name, role, voice, description を付与する');
-    parts.push('- キャラクター数は2-4名が目安。多すぎても少なすぎても物語の質が下がる');
-    parts.push('- narrative_typeに応じた配置:');
-    parts.push('  - モブ/システム視点系 → 新規キャラを主軸に');
-    parts.push('  - 群像劇 → 既存+新規をミックス');
-    parts.push('  - 一人称内面独白 → 主人公1名を中心に（既存でも新規でも可）');
-    parts.push('');
+    // If no castingRules, YAML will use default rules via condition
 
-    parts.push('## 出力形式');
-    parts.push('```json');
-    parts.push('{');
-    parts.push('  "characters": [');
-    parts.push('    { "name": "名前", "isNew": false, "role": "この物語での役割", "voice": "口調" },');
-    parts.push('    { "name": "新キャラ名", "isNew": true, "role": "役割", "description": "外見や背景", "voice": "口調の特徴" }');
-    parts.push('  ],');
-    parts.push('  "castingRationale": "なぜこの組み合わせか（1-2文）"');
-    parts.push('}');
-    parts.push('```');
+    // Theme info as structured object
+    ctx.themeInfo = {
+      emotion: theme.emotion,
+      timeline: theme.timeline,
+      premise: theme.premise,
+      narrative_type: theme.narrative_type || '',
+    };
 
-    return parts.join('\n');
-  }
+    // Theme characters as structured array
+    ctx.themeCharacters = theme.characters.map(c => ({
+      name: c.name,
+      isNew: c.isNew,
+      tag: c.isNew ? '（新規）' : '（既存）',
+      descSuffix: c.description ? `: ${c.description}` : '',
+    }));
 
-  private buildUserPrompt(theme: GeneratedTheme): string {
-    const parts: string[] = [];
-
-    parts.push('## テーマ');
-    parts.push(`感情: ${theme.emotion}`);
-    parts.push(`時間軸: ${theme.timeline}`);
-    parts.push(`前提: ${theme.premise}`);
-    if (theme.narrative_type) {
-      parts.push(`ナラティブ型: ${theme.narrative_type}`);
-    }
-    parts.push('');
-
-    parts.push('## テーマ生成時のキャラクター案');
-    for (const c of theme.characters) {
-      if (c.isNew) {
-        parts.push(`- ${c.name}（新規）: ${c.description || '未定義'}`);
-      } else {
-        parts.push(`- ${c.name}（既存）`);
-      }
-    }
-    parts.push('');
-
-    parts.push('上記のテーマに最適なキャラクター構成を設計してください。');
-    parts.push('テーマ生成時の案を参考にしつつ、改善・変更してもよいです。');
-    parts.push('JSON形式で回答してください。');
-
-    return parts.join('\n');
+    return ctx;
   }
 
   private parseResponse(response: string, theme: GeneratedTheme): DevelopedCharacters {

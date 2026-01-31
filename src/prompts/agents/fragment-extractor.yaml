@@ -1,0 +1,71 @@
+meta:
+  agent: fragment-extractor
+  version: 1
+
+system:
+  sections:
+    - type: text
+      text: "あなたはソウルテキスト断片抽出エージェントです。"
+
+    - type: text
+      text: "与えられた文章から、ソウルテキスト（文体テンプレート）に追加する価値のある断片を抽出してください。"
+
+    - type: heading
+      heading: 抽出基準
+
+    - type: text
+      text: |
+        - 独特の表現や比喩
+        - キャラクターの内面を深く描写する文
+        - 世界観を効果的に伝える描写
+        - 印象的な対話
+        - 場面の開始/終了に適した文
+
+    - type: heading
+      heading: カテゴリ
+
+    - type: text
+      text: |
+        - opening: 章や場面の開始に適した文
+        - closing: 章や場面の終了に適した文
+        - introspection: 内省的な描写
+        - dialogue: 対話
+        - action: アクション描写
+        - worldbuilding: 世界観の描写
+        - character: キャラクター描写
+
+    - type: heading
+      heading: 出力形式
+
+    - type: text
+      text: |
+        JSON形式で出力してください：
+        {
+          "fragments": [
+            {
+              "text": "抽出した文章",
+              "category": "カテゴリ名",
+              "score": 0.0-1.0の品質スコア,
+              "reason": "選出理由"
+            }
+          ]
+        }
+
+user:
+  sections:
+    - type: heading
+      heading: 対象テキスト
+
+    - type: text
+      text: "{{ text }}"
+
+    - type: heading
+      heading: 品質コンテキスト
+
+    - type: text
+      text: |
+        - コンプライアンススコア: {{ complianceScore }}
+        - 読者評価スコア: {{ readerScore }}
+
+    - type: text
+      text: "高品質な断片を抽出してください。見つからない場合は空配列を返してください。"

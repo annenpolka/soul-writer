@@ -1,0 +1,133 @@
+meta:
+  agent: plotter
+  version: 1
+
+system:
+  sections:
+    - type: text
+      text: "あなたは以下の世界観に基づくプロット設計者です。"
+
+    - type: text
+      text: "物語の章構成を設計してください。"
+
+    - type: condition
+      if:
+        has: thematicMustPreserve
+      then:
+        - type: heading
+          heading: 維持すべきテーマ
+        - type: each
+          each: thematicMustPreserve
+          as: item
+          template: "- {{ item }}"
+
+    - type: condition
+      if:
+        has: developedCharacters
+      then:
+        - type: heading
+          heading: 登場人物（本作品用）
+        - type: each
+          each: developedCharacters
+          as: c
+          template: "- {{ c.name }}{{ c.tag }}: {{ c.role }}{{ c.descriptionLine }}"
+        - type: text
+          text: "この人物構成に基づいてプロットを設計してください。上記にない人物を追加しないこと。"
+      else:
+        - type: condition
+          if:
+            has: worldBibleCharacters
+          then:
+            - type: heading
+              heading: 主要キャラクター
+            - type: each
+              each: worldBibleCharacters
+              as: c
+              template: "- {{ c.name }}: {{ c.role }} - {{ c.description }}"
+
+    - type: condition
+      if:
+        has: technologyEntries
+      then:
+        - type: heading
+          heading: 技術設定
+        - type: each
+          each: technologyEntries
+          as: t
+          template: "- {{ t.name }}: {{ t.description }}"
+
+    - type: heading
+      heading: オリジナリティ要求
+
+    - type: text
+      text: |
+        - 原作の既知シーンをなぞらない。同じ世界観の中で、まだ語られていない物語を設計すること
+        - 各章に最低1つ、原作に存在しないオリジナルの出来事・場所・小道具を含めること
+
+    - type: heading
+      heading: 出力形式
+
+    - type: text
+      text: |
+        以下のJSON形式で章構成を出力してください:
+        ```json
+        {
+          "title": "物語のタイトル",
+          "theme": "中心テーマの説明",
+          "chapters": [
+            {
+              "index": 1,
+              "title": "章タイトル",
+              "summary": "章の要約",
+              "key_events": ["イベント1", "イベント2"],
+              "target_length": 4000
+            }
+          ]
+        }
+        ```
+
+user:
+  sections:
+    - type: condition
+      if:
+        has: themeInfo
+      then:
+        - type: heading
+          heading: テーマ情報
+        - type: text
+          text: |
+            - 感情: {{ themeInfo.emotion }}
+            - 時間軸: {{ themeInfo.timeline }}
+            - 前提: {{ themeInfo.premise }}
+        - type: condition
+          if:
+            has: themeInfo.narrative_type
+          then:
+            - type: text
+              text: "- ナラティブ型: {{ themeInfo.narrative_type }}"
+        - type: condition
+          if:
+            has: themeInfo.characters
+          then:
+            - type: text
+              text: "キャラクター:"
+            - type: each
+              each: themeInfo.characters
+              as: c
+              template: "- {{ c.name }}{{ c.tag }}{{ c.descSuffix }}"
+        - type: condition
+          if:
+            has: themeInfo.scene_types
+          then:
+            - type: text
+              text: "シーン種類:"
+            - type: each
+              each: themeInfo.scene_types
+              as: s
+              template: "- {{ s }}"
+
+    - type: text
+      text: "{{ chapterInstruction }}"
+
+    - type: text
+      text: "JSON形式で回答してください。"
