@@ -50,6 +50,15 @@ system:
     - type: include
       include: fragments
 
+    - type: condition
+      if:
+        has: rawSoultext
+      then:
+        - type: heading
+          heading: 原典メモ（ソウルテキスト原文）
+        - type: include
+          include: raw-soultext
+
 user:
   sections:
     - type: text

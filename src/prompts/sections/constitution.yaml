@@ -4,22 +4,26 @@ meta:
 
 system:
   sections:
-    - type: heading
-      heading: 文構造
-      level: 3
+    - type: condition
+      if:
+        has: isDefaultProtagonist
+      then:
+        - type: heading
+          heading: 文構造
+          level: 3
 
-    - type: text
-      text: |
-        - 基本傾向: {{ constitution.sentence_structure.rhythm_pattern }}
-          ただしこれは大まかな傾向であり、毎段落に機械的に適用するものではない。
-          場面の緊張度や感情の流れに応じてリズムを自然に変化させること。
-          - 緊迫した場面: 短文が連なり、息を詰める
-          - 内省が深まる場面: 文が伸び、思考が蛇行する
-          - 日常の描写: 短文と中文が交互に、淡々と
-          「体言止め。体言止め。長文。」の繰り返しは単調になるので避けること。
-        - 体言止め: {{ constitution.sentence_structure.taigendome.usage }}（頻度: {{ constitution.sentence_structure.taigendome.frequency }}）
-        - 文長の目安: 短文{{ constitution.sentence_structure.typical_lengths.short }} / 長文{{ constitution.sentence_structure.typical_lengths.long }}
-        - 禁止: {{ constitution.sentence_structure.typical_lengths.forbidden }}
+        - type: text
+          text: |
+            - 基本傾向: {{ constitution.sentence_structure.rhythm_pattern }}
+              ただしこれは大まかな傾向であり、毎段落に機械的に適用するものではない。
+              場面の緊張度や感情の流れに応じてリズムを自然に変化させること。
+              - 緊迫した場面: 短文が連なり、息を詰める
+              - 内省が深まる場面: 文が伸び、思考が蛇行する
+              - 日常の描写: 短文と中文が交互に、淡々と
+              「体言止め。体言止め。長文。」の繰り返しは単調になるので避けること。
+            - 体言止め: {{ constitution.sentence_structure.taigendome.usage }}（頻度: {{ constitution.sentence_structure.taigendome.frequency }}）
+            - 文長の目安: 短文{{ constitution.sentence_structure.typical_lengths.short }} / 長文{{ constitution.sentence_structure.typical_lengths.long }}
+            - 禁止: {{ constitution.sentence_structure.typical_lengths.forbidden }}
 
     - type: heading
       heading: 語彙
@@ -48,21 +52,64 @@ system:
         - 禁止比喩: {{ constitution.rhetoric.forbidden_similes | join: ", " }}
         - 擬人化許可対象: {{ constitution.rhetoric.personification_allowed_for | join: ", " }}
 
-    - type: heading
-      heading: 語り
-      level: 3
+    - type: condition
+      if:
+        has: isDefaultProtagonist
+      then:
+        - type: heading
+          heading: 語り
+          level: 3
 
-    - type: text
-      text: |
-        - 視点: {{ narrativeRules.povDescription }}
-        - 時制: {{ constitution.narrative.default_tense }}（{{ constitution.narrative.tense_shift_allowed }}）
-        - 対話比率: {{ constitution.narrative.dialogue_ratio }}
-        - キャラクター別対話スタイル:
+        - type: text
+          text: |
+            - 視点: {{ narrativeRules.povDescription }}
+            - 時制: {{ constitution.narrative.default_tense }}（{{ constitution.narrative.tense_shift_allowed }}）
+            - 対話比率: {{ constitution.narrative.dialogue_ratio }}
+            - キャラクター別対話スタイル:
 
-    - type: each
-      each: constitution.narrative.dialogue_style_entries
-      as: entry
-      template: "  - {{ entry.name }}: {{ entry.style }}"
+        - type: each
+          each: constitution.narrative.dialogue_style_entries
+          as: entry
+          template: "  - {{ entry.name }}: {{ entry.style }}"
+
+        - type: heading
+          heading: シーンモード
+          level: 3
+
+        - type: text
+          text: |
+            - 日常描写: {{ constitution.scene_modes.mundane.description }}
+              スタイル: {{ constitution.scene_modes.mundane.style }}
+            - 緊迫シーン: {{ constitution.scene_modes.tension.description }}
+              スタイル: {{ constitution.scene_modes.tension.style }}
+
+        - type: heading
+          heading: 乾いたユーモア
+          level: 3
+
+        - type: text
+          text: |
+            {{ constitution.dry_humor.description }}
+            テクニック:
+            {{ constitution.dry_humor.techniques | join: "\n" }}
+            頻度: {{ constitution.dry_humor.frequency }}
+
+    - type: condition
+      if:
+        has: constitution.new_character_guide
+      then:
+        - type: heading
+          heading: 新キャラクターガイド
+          level: 3
+
+        - type: text
+          text: |
+            {{ constitution.new_character_guide.description }}
+
+        - type: each
+          each: constitution.new_character_guide.rules
+          as: rule
+          template: "- {{ rule }}"
 
     - type: heading
       heading: テーマ制約

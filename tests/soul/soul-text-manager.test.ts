@@ -89,5 +89,26 @@ describe('SoulTextManager', () => {
       expect(soulText.readerPersonas).toBeDefined();
       expect(soulText.fragments).toBeDefined();
     });
+
+    it('should include rawSoultext in soul text object', () => {
+      const soulText = manager.getSoulText();
+      expect(soulText.rawSoultext).toBeDefined();
+      expect(soulText.rawSoultext).toContain('御鐘透心');
+    });
+  });
+
+  describe('getRawSoultext', () => {
+    it('should return raw soultext content', () => {
+      const rawSoultext = manager.getRawSoultext();
+      expect(rawSoultext).toBeDefined();
+      expect(typeof rawSoultext).toBe('string');
+      expect(rawSoultext).toContain('御鐘透心');
+      expect(rawSoultext).toContain('愛原つるぎ');
+    });
+
+    it('should not contain the instruction header', () => {
+      const rawSoultext = manager.getRawSoultext();
+      expect(rawSoultext).not.toContain('以下は執筆中の小説のメモ');
+    });
   });
 });

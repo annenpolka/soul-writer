@@ -105,6 +105,16 @@ export class WriterAgent {
     // Fragments (structured data for include)
     ctx.fragmentCategories = this.buildFragmentCategories();
 
+    // isDefaultProtagonist flag for template conditions
+    if (this.narrativeRules.isDefaultProtagonist) {
+      ctx.isDefaultProtagonist = true;
+    }
+
+    // Raw soultext (optional)
+    if (this.soulText.rawSoultext) {
+      ctx.rawSoultext = this.soulText.rawSoultext;
+    }
+
     ctx.prompt = prompt;
 
     return ctx;
@@ -140,21 +150,39 @@ export class WriterAgent {
 
   private buildConstitutionData(): Record<string, unknown> {
     const c = this.soulText.constitution;
-    return {
-      ...c,
+    const u = c.universal;
+    const ps = c.protagonist_specific;
+    const isDefault = this.narrativeRules.isDefaultProtagonist;
+
+    const result: Record<string, unknown> = {
+      // Always include universal
       vocabulary: {
-        ...c.vocabulary,
-        bracket_notations_required: c.vocabulary.bracket_notations.filter(
+        ...u.vocabulary,
+        bracket_notations_required: u.vocabulary.bracket_notations.filter(
           (b: { required: boolean }) => b.required,
         ),
       },
-      narrative: {
-        ...c.narrative,
-        dialogue_style_entries: Object.entries(c.narrative.dialogue_style_by_character).map(
+      rhetoric: u.rhetoric,
+      thematic_constraints: u.thematic_constraints,
+    };
+
+    if (isDefault) {
+      // Include protagonist-specific for default protagonist
+      result.sentence_structure = ps.sentence_structure;
+      result.narrative = {
+        ...ps.narrative,
+        dialogue_style_entries: Object.entries(ps.narrative.dialogue_style_by_character).map(
           ([name, style]) => ({ name, style }),
         ),
-      },
-    };
+      };
+      result.scene_modes = ps.scene_modes;
+      result.dry_humor = ps.dry_humor;
+    } else {
+      // Include new character guide for non-default protagonist
+      result.new_character_guide = u.new_character_guide;
+    }
+
+    return result;
   }
 
   private buildCharacterConstraintEntries(): Array<{ name: string; rules: string[] }> {

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ThemeGeneratorAgent, type ThemeResult } from './theme-generator.js';
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
-import { DEFAULT_PROMPT_CONFIG } from '../schemas/prompt-config.js';
+import { createMockSoulText } from '../../tests/helpers/mock-soul-text.js';
 
 // Mock LLM Client - supports two-stage generation (2 calls)
 const createMockLLMClient = (response: string): LLMClient => ({
@@ -12,75 +12,23 @@ const createMockLLMClient = (response: string): LLMClient => ({
   getTotalTokens: vi.fn().mockReturnValue(100),
 });
 
-// Minimal mock SoulText
-const mockSoulText: SoulText = {
-  constitution: {
-    meta: {
-      soul_id: 'test',
-      soul_name: 'わたしのライオン',
-      version: '1.0.0',
-      created_at: '',
-      updated_at: '',
-    },
-    sentence_structure: {
-      rhythm_pattern: 'test',
-      taigendome: { usage: 'test', frequency: 'test', forbidden_context: [] },
-      typical_lengths: { short: 'test', long: 'test', forbidden: 'test' },
-    },
-    vocabulary: {
-      bracket_notations: [],
-      forbidden_words: [],
-      characteristic_expressions: [],
-      special_marks: { mark: '×', usage: 'test', forms: [] },
-    },
-    rhetoric: {
-      simile_base: 'test',
-      metaphor_density: 'low',
-      forbidden_similes: [],
-      personification_allowed_for: [],
-    },
-    narrative: {
-      default_pov: 'test',
-      pov_by_character: {},
-      default_tense: 'test',
-      tense_shift_allowed: 'test',
-      dialogue_ratio: 'test',
-      dialogue_style_by_character: {},
-    },
-    thematic_constraints: {
-      must_preserve: ['存在確認', '無関心な世界'],
-      forbidden_resolutions: [],
-    },
+const mockSoulText = createMockSoulText({
+  thematicMustPreserve: ['存在確認', '無関心な世界'],
+  characters: {
+    御鐘透心: { role: 'protagonist', description: '孤児の学級委員長' },
+    愛原つるぎ: { role: 'deuteragonist', description: 'ハッカー' },
   },
-  worldBible: {
-    technology: {
-      ar_contact: { description: 'ARコンタクト' },
+  deep: {
+    worldBible: {
+      technology: {
+        ar_contact: { description: 'ARコンタクト' },
+      },
+      society: {
+        interpersonal: { state: '無関心', implications: [] },
+      },
     },
-    society: {
-      interpersonal: { state: '無関心', implications: [] },
-    },
-    characters: {
-      御鐘透心: { role: 'protagonist', description: '孤児の学級委員長' },
-      愛原つるぎ: { role: 'deuteragonist', description: 'ハッカー' },
-    },
-    terminology: {},
-    locations: {},
-  },
-  antiSoul: {
-    categories: {
-      excessive_sentiment: [],
-      explanatory_worldbuilding: [],
-      character_normalization: [],
-      cliche_simile: [],
-      theme_violation: [],
-      mentor_tsurgi: [],
-      lion_concretization: [],
-    },
-  },
-  readerPersonas: { personas: [] },
-  fragments: new Map(),
-  promptConfig: DEFAULT_PROMPT_CONFIG,
-};
+  } as never,
+});
 
 // Valid theme JSON response
 const validThemeResponse = JSON.stringify({

@@ -12,6 +12,7 @@ import { CheckpointManager } from '../../src/storage/checkpoint-manager.js';
 import { SoulCandidateRepository } from '../../src/storage/soul-candidate-repository.js';
 import type { LLMClient } from '../../src/llm/types.js';
 import type { SoulText } from '../../src/soul/manager.js';
+import { createMockSoulText } from '../helpers/mock-soul-text.js';
 
 // Mock LLM client that returns appropriate responses for each agent type
 const createMockLLMClient = (): LLMClient => {
@@ -102,62 +103,10 @@ const createMockLLMClient = (): LLMClient => {
 };
 
 const mockSoulText: SoulText = {
-  constitution: {
-    meta: {
-      soul_id: 'full-pipeline-test',
-      soul_name: 'Full Pipeline Test Soul',
-      version: '1.0.0',
-      created_at: '',
-      updated_at: '',
-    },
-    sentence_structure: {
-      rhythm_pattern: 'test',
-      taigendome: { usage: 'test', frequency: 'test', forbidden_context: [] },
-      typical_lengths: { short: 'test', long: 'test', forbidden: 'test' },
-    },
-    vocabulary: {
-      bracket_notations: [],
-      forbidden_words: ['とても', '非常に'],
-      characteristic_expressions: [],
-      special_marks: { mark: '×', usage: 'test', forms: ['×した', '×される'] },
-    },
-    rhetoric: {
-      simile_base: 'test',
-      metaphor_density: 'low',
-      forbidden_similes: ['天使のような'],
-      personification_allowed_for: [],
-    },
-    narrative: {
-      default_pov: 'test',
-      pov_by_character: {},
-      default_tense: 'test',
-      tense_shift_allowed: 'test',
-      dialogue_ratio: 'test',
-      dialogue_style_by_character: {},
-    },
-    thematic_constraints: {
-      must_preserve: [],
-      forbidden_resolutions: [],
-    },
-  },
-  worldBible: {
-    technology: {},
-    society: {},
-    characters: {},
-    terminology: {},
-    locations: {},
-  },
-  antiSoul: {
-    categories: {
-      theme_violation: [],
-      mentor_tsurgi: [],
-      lion_concretization: [],
-      excessive_sentiment: [],
-      explanatory_worldbuilding: [],
-      character_normalization: [],
-      cliche_simile: [],
-    },
-  },
+  ...createMockSoulText({
+    forbiddenWords: ['とても', '非常に'],
+    forbiddenSimiles: ['天使のような'],
+  }),
   readerPersonas: {
     personas: [
       {
@@ -175,9 +124,6 @@ const mockSoulText: SoulText = {
       },
     ],
   },
-  promptConfig: { defaults: { protagonist_short: '', pronoun: '' } },
-
-  fragments: new Map(),
 };
 
 // Mock SoulTextManager
@@ -355,7 +301,7 @@ describe('FullPipeline', () => {
 
       await pipeline.generateStory('テスト生成');
 
-      const works = await workRepo.findBySoulId('full-pipeline-test');
+      const works = await workRepo.findBySoulId('test');
       expect(works.length).toBeGreaterThan(0);
       expect(works[0].title).toBe('テスト小説');
     });

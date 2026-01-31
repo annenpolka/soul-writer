@@ -55,7 +55,7 @@ export class PlotterAgent {
   }
 
   private buildContext(): Record<string, unknown> {
-    const thematic = this.soulText.constitution.thematic_constraints;
+    const thematic = this.soulText.constitution.universal.thematic_constraints;
     const ctx: Record<string, unknown> = {};
 
     // Thematic constraints

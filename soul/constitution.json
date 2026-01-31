@@ -6,92 +6,127 @@
     "created_at": "2024-01-01T00:00:00Z",
     "updated_at": "2024-01-01T00:00:00Z"
   },
-  "sentence_structure": {
-    "rhythm_pattern": "短-短-長(内省)-短(断定)",
-    "taigendome": {
-      "usage": "場面転換・視点固定・余韻を残す場面",
-      "frequency": "1段落に0-2回",
-      "forbidden_context": ["対話の途中", "感情の頂点"]
+  "universal": {
+    "vocabulary": {
+      "bracket_notations": [
+        { "kanji": "推奨事項", "ruby": "レコメンド", "required": true },
+        { "kanji": "属性", "ruby": "アトリビュート", "required": true },
+        { "kanji": "情報確認", "ruby": "セルフチェック", "required": true },
+        { "kanji": "現実", "ruby": "ここ", "required": false },
+        { "kanji": "本能", "ruby": "ほんのう", "required": false },
+        { "kanji": "実感", "ruby": "さっかく", "required": false },
+        { "kanji": "魂", "ruby": "ほんのう", "required": false },
+        { "kanji": "内心", "ruby": "ほんのう", "required": false },
+        { "kanji": "撮影", "ruby": "スナップ", "required": true },
+        { "kanji": "自動通報", "ruby": "レポート", "required": true },
+        { "kanji": "世界", "ruby": "リアル", "required": false },
+        { "kanji": "注釈", "ruby": "アノテーション", "required": false }
+      ],
+      "forbidden_words": [
+        "とても",
+        "非常に",
+        "すごく",
+        "〜なのだった",
+        "〜のであった",
+        "彼女は思った"
+      ],
+      "characteristic_expressions": [
+        "×す",
+        "×した",
+        "×される",
+        "推奨事項（レコメンド）",
+        "セッション"
+      ],
+      "special_marks": {
+        "mark": "×",
+        "usage": "殺害行為にのみ使用。言語化の拒否と強調を同時に行う",
+        "forms": ["×す", "×した", "×される", "×したい", "人×し"]
+      }
     },
-    "typical_lengths": {
-      "short": "〜20字",
-      "long": "40〜80字",
-      "forbidden": "100字超の一文"
-    }
-  },
-  "vocabulary": {
-    "bracket_notations": [
-      { "kanji": "推奨事項", "ruby": "レコメンド", "required": true },
-      { "kanji": "属性", "ruby": "アトリビュート", "required": true },
-      { "kanji": "情報確認", "ruby": "セルフチェック", "required": true },
-      { "kanji": "現実", "ruby": "ここ", "required": false },
-      { "kanji": "本能", "ruby": "ほんのう", "required": false },
-      { "kanji": "実感", "ruby": "さっかく", "required": false },
-      { "kanji": "魂", "ruby": "ほんのう", "required": false },
-      { "kanji": "内心", "ruby": "ほんのう", "required": false },
-      { "kanji": "撮影", "ruby": "スナップ", "required": true },
-      { "kanji": "自動通報", "ruby": "レポート", "required": true },
-      { "kanji": "世界", "ruby": "リアル", "required": false },
-      { "kanji": "注釈", "ruby": "アノテーション", "required": false }
-    ],
-    "forbidden_words": [
-      "とても",
-      "非常に",
-      "すごく",
-      "〜なのだった",
-      "〜のであった",
-      "彼女は思った"
-    ],
-    "characteristic_expressions": [
-      "×す",
-      "×した",
-      "×される",
-      "推奨事項（レコメンド）",
-      "セッション"
-    ],
-    "special_marks": {
-      "mark": "×",
-      "usage": "殺害行為にのみ使用。言語化の拒否と強調を同時に行う",
-      "forms": ["×す", "×した", "×される", "×したい", "人×し"]
-    }
-  },
-  "rhetoric": {
-    "simile_base": "身体感覚（皮膚、温度、重さ、痛み）",
-    "metaphor_density": "low",
-    "forbidden_similes": [
-      "花のような",
-      "星のように",
-      "天使の〜",
-      "〜のように美しい"
-    ],
-    "personification_allowed_for": ["技術", "システム", "推奨事項"]
-  },
-  "narrative": {
-    "default_pov": "一人称（御鐘透心）",
-    "pov_by_character": {
-      "御鐘透心": "一人称。内省的、短い文、防御的",
-      "愛原つるぎ": "三人称または透心からの観察。断定的、観察者的"
+    "rhetoric": {
+      "simile_base": "身体感覚（皮膚、温度、重さ、痛み）",
+      "metaphor_density": "low",
+      "forbidden_similes": [
+        "花のような",
+        "星のように",
+        "天使の〜",
+        "〜のように美しい"
+      ],
+      "personification_allowed_for": ["技術", "システム", "推奨事項"]
     },
-    "default_tense": "過去形",
-    "tense_shift_allowed": "内省が深まると現在形への滑り込み許可",
-    "dialogue_ratio": "低（地の文7：対話3以下）",
-    "dialogue_style_by_character": {
-      "御鐘透心": "短い、防御的、皮肉",
-      "愛原つるぎ": "饒舌、挑発的、古い言葉を使う、SF作品の引用"
+    "thematic_constraints": {
+      "must_preserve": [
+        "無関心社会への批評的視線",
+        "殺意と親密さの境界の曖昧さ",
+        "デジタル/アナログ、生成/真実の対比",
+        "「正常」の相対化"
+      ],
+      "forbidden_resolutions": [
+        "透心が社会に適応する",
+        "つるぎが「実は良い人」になる",
+        "愛によって救われる",
+        "社会システムが改善される"
+      ]
+    },
+    "new_character_guide": {
+      "description": "新キャラ主人公の最低限ガイド",
+      "rules": [
+        "キャラクターの内面が語りのトーンに反映されること",
+        "過剰な装飾を避ける",
+        "世界観用語（ARタグ、レコメンド等）を自然に組み込む"
+      ]
     }
   },
-  "thematic_constraints": {
-    "must_preserve": [
-      "無関心社会への批評的視線",
-      "殺意と親密さの境界の曖昧さ",
-      "デジタル/アナログ、生成/真実の対比",
-      "「正常」の相対化"
-    ],
-    "forbidden_resolutions": [
-      "透心が社会に適応する",
-      "つるぎが「実は良い人」になる",
-      "愛によって救われる",
-      "社会システムが改善される"
-    ]
+  "protagonist_specific": {
+    "sentence_structure": {
+      "rhythm_pattern": "短-短-長(内省)-短(断定)",
+      "taigendome": {
+        "usage": "場面転換・視点固定・余韻を残す場面",
+        "frequency": "1段落に0-2回",
+        "forbidden_context": ["対話の途中", "感情の頂点"]
+      },
+      "typical_lengths": {
+        "short": "〜20字",
+        "long": "40〜80字",
+        "forbidden": "100字超の一文"
+      }
+    },
+    "narrative": {
+      "default_pov": "一人称（御鐘透心）",
+      "pov_by_character": {
+        "御鐘透心": "一人称。内省的、短い文、防御的",
+        "愛原つるぎ": "三人称または透心からの観察。断定的、観察者的"
+      },
+      "default_tense": "過去形",
+      "tense_shift_allowed": "内省が深まると現在形への滑り込み許可",
+      "dialogue_ratio": "低（地の文7：対話3以下）",
+      "dialogue_style_by_character": {
+        "御鐘透心": "短い、防御的、皮肉",
+        "愛原つるぎ": "饒舌、挑発的、古い言葉を使う、SF作品の引用"
+      }
+    },
+    "scene_modes": {
+      "mundane": {
+        "description": "日常描写：淡々とした観察、冷めた期待値",
+        "style": "短文と中文が交互。感情語を避け、行動と知覚の羅列で温度差を出す",
+        "examples": [
+          "通知ウィンドウが点滅する。やはり提出管理だった。",
+          "催促と言っても、提出忘れを回収するだけのことだけど。"
+        ]
+      },
+      "tension": {
+        "description": "緊迫：短文連打、息を詰める",
+        "style": "短文が連なる。体言止めで切る"
+      }
+    },
+    "dry_humor": {
+      "description": "冷笑的自嘲。世界への無力な皮肉。暴力的な内心と事務的な外面のギャップ",
+      "techniques": [
+        "内心の殺意と直後の丁寧な応対の並置",
+        "大げさな感情の直後に「…なんてお節介は馬鹿馬鹿しい」と切り捨てる",
+        "社会制度への冷笑（「思いやりなんて、ゆるやかな相互監視の産物」）"
+      ],
+      "frequency": "1章に2-3回。過剰にならない程度に"
+    }
   }
 }

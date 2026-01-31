@@ -26,13 +26,13 @@ export class CorrectorAgent {
       )
       .join('\n');
 
-    const constitution = this.soulText.constitution;
+    const u = this.soulText.constitution.universal;
 
     const context = {
-      forbiddenWords: constitution.vocabulary.forbidden_words,
-      forbiddenSimiles: constitution.rhetoric.forbidden_similes,
-      specialMark: constitution.vocabulary.special_marks.mark,
-      specialMarkForms: constitution.vocabulary.special_marks.forms,
+      forbiddenWords: u.vocabulary.forbidden_words,
+      forbiddenSimiles: u.rhetoric.forbidden_similes,
+      specialMark: u.vocabulary.special_marks.mark,
+      specialMarkForms: u.vocabulary.special_marks.forms,
       text,
       violationList,
     };

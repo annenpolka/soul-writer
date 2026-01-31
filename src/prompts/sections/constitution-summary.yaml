@@ -6,12 +6,19 @@ system:
   sections:
     - type: text
       text: |
-        - リズム: {{ constitution.sentence_structure.rhythm_pattern }}
         - 禁止語彙: {{ constitution.vocabulary.forbidden_words | join: ", " }}
         - 特殊記号「{{ constitution.vocabulary.special_marks.mark }}」: {{ constitution.vocabulary.special_marks.usage }}
         - 禁止比喩: {{ constitution.rhetoric.forbidden_similes | join: ", " }}
         - 視点: {{ narrativeRules.povDescription }}
-        - 対話比率: {{ constitution.narrative.dialogue_ratio }}
+
+    - type: condition
+      if:
+        has: isDefaultProtagonist
+      then:
+        - type: text
+          text: |
+            - リズム: {{ constitution.sentence_structure.rhythm_pattern }}
+            - 対話比率: {{ constitution.narrative.dialogue_ratio }}
 
 user:
   sections: []

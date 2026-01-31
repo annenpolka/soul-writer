@@ -9,13 +9,6 @@ import { buildPrompt } from '../../src/template/composer.js';
 
 // Shared mock data
 const mockConstitution = {
-  meta: {
-    soul_id: 'test',
-    soul_name: 'テストソウル',
-    version: '1.0.0',
-    created_at: '',
-    updated_at: '',
-  },
   sentence_structure: {
     rhythm_pattern: '短-短-長(内省)-短(断定)',
     taigendome: { usage: 'test', frequency: 'test', forbidden_context: [] },
@@ -23,6 +16,7 @@ const mockConstitution = {
   },
   vocabulary: {
     bracket_notations: [],
+    bracket_notations_required: [],
     forbidden_words: ['絆', '希望の光'],
     characteristic_expressions: [],
     special_marks: { mark: '×', usage: '否定・拒絶の記号', forms: ['×。', '×、'] },
@@ -43,10 +37,33 @@ const mockConstitution = {
       透心: '短文、断定的',
       つるぎ: '挑発的、ハッカー口調',
     },
+    dialogue_style_entries: [
+      { name: '透心', style: '短文、断定的' },
+      { name: 'つるぎ', style: '挑発的、ハッカー口調' },
+    ],
   },
   thematic_constraints: {
     must_preserve: ['無関心な世界での存在確認', 'ARと現実の境界'],
     forbidden_resolutions: [],
+  },
+  scene_modes: {
+    mundane: {
+      description: '日常描写：淡々とした観察',
+      style: '短文と中文が交互',
+    },
+    tension: {
+      description: '緊迫：短文連打',
+      style: '短文が連なる。体言止めで切る',
+    },
+  },
+  dry_humor: {
+    description: '冷笑的自嘲',
+    techniques: ['内心の殺意と直後の丁寧な応対の並置'],
+    frequency: '1章に2-3回',
+  },
+  new_character_guide: {
+    description: '新キャラ主人公の最低限ガイド',
+    rules: ['キャラクターの内面が語りのトーンに反映されること'],
   },
 };
 

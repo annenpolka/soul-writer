@@ -29,23 +29,26 @@ export class ComplianceChecker {
     const rules: ComplianceRule[] = [];
 
     const { constitution } = soulText;
+    const u = constitution.universal;
+    const ps = constitution.protagonist_specific;
+    const isDefault = narrativeRules?.isDefaultProtagonist ?? true;
 
-    // Add forbidden words rule
-    if (constitution.vocabulary.forbidden_words.length > 0) {
-      rules.push(new ForbiddenWordsRule(constitution.vocabulary.forbidden_words));
+    // Add forbidden words rule (universal)
+    if (u.vocabulary.forbidden_words.length > 0) {
+      rules.push(new ForbiddenWordsRule(u.vocabulary.forbidden_words));
     }
 
-    // Add forbidden similes rule
-    if (constitution.rhetoric.forbidden_similes.length > 0) {
-      rules.push(new ForbiddenSimilesRule(constitution.rhetoric.forbidden_similes));
+    // Add forbidden similes rule (universal)
+    if (u.rhetoric.forbidden_similes.length > 0) {
+      rules.push(new ForbiddenSimilesRule(u.rhetoric.forbidden_similes));
     }
 
-    // Add special marks rule
-    if (constitution.vocabulary.special_marks.mark) {
+    // Add special marks rule (universal)
+    if (u.vocabulary.special_marks.mark) {
       rules.push(
         new SpecialMarksRule(
-          constitution.vocabulary.special_marks.mark,
-          constitution.vocabulary.special_marks.forms
+          u.vocabulary.special_marks.mark,
+          u.vocabulary.special_marks.forms
         )
       );
     }
@@ -53,9 +56,11 @@ export class ComplianceChecker {
     // Add POV consistency rule
     rules.push(new PovConsistencyRule(narrativeRules));
 
-    // Add rhythm check rule
-    const maxLen = parseInt(constitution.sentence_structure.typical_lengths.forbidden.replace(/[^0-9]/g, '')) || 100;
-    rules.push(new RhythmCheckRule(maxLen));
+    // Add rhythm check rule (protagonist-specific: skip for new characters)
+    if (isDefault) {
+      const maxLen = parseInt(ps.sentence_structure.typical_lengths.forbidden.replace(/[^0-9]/g, '')) || 100;
+      rules.push(new RhythmCheckRule(maxLen));
+    }
 
     // Add markdown contamination rule
     rules.push(new MarkdownContaminationRule());
