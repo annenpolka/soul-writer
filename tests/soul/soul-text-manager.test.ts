@@ -67,7 +67,7 @@ describe('SoulTextManager', () => {
     it('should build system prompt with all soul text components', () => {
       const prompt = manager.buildSystemPrompt();
 
-      expect(prompt).toContain('わたしのライオン');
+      expect(prompt).toContain('# ソウルテキスト');
       expect(prompt).toContain('御鐘透心');
       expect(prompt).toContain('×');
     });

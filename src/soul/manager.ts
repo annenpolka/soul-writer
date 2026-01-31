@@ -179,10 +179,9 @@ export class SoulTextManager {
    */
   buildSystemPrompt(category?: string): string {
     const parts: string[] = [];
-    const meta = this.constitution.meta;
 
     // Header
-    parts.push(`# ソウルテキスト: ${meta.soul_name}`);
+    parts.push('# ソウルテキスト');
     parts.push('');
 
     // Constitution - universal

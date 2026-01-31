@@ -40,11 +40,10 @@ export class RetakeAgent {
   }
 
   private buildSystemPrompt(): string {
-    const meta = this.soulText.constitution.meta;
     const constitution = this.soulText.constitution;
     const parts: string[] = [];
 
-    parts.push(`あなたは「${meta.soul_name}」のリテイク専門家です。`);
+    parts.push('あなたはリテイク専門家です。');
     parts.push('提示されたテキストを、フィードバックに基づいて原作により忠実な形に書き直してください。');
     parts.push('');
     parts.push('【絶対ルール】');

@@ -35,7 +35,6 @@ export class JudgeAgent {
   }
 
   private buildContext(textA: string, textB: string): Record<string, unknown> {
-    const meta = this.soulText.constitution.meta;
     const constitution = this.soulText.constitution;
     const { isDefaultProtagonist, pov } = this.narrativeRules;
 
@@ -106,7 +105,6 @@ export class JudgeAgent {
     }
 
     return {
-      soulName: meta.soul_name,
       criteriaEntries,
       penaltyEntries,
       constitution,
