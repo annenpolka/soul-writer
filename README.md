@@ -40,11 +40,14 @@ npm install
 ### CLIコマンド
 
 ```bash
-# 単一トーナメント生成
-npx tsx src/main.ts generate --soul soul --prompt "透心の朝の独白を書いてください"
+# シンプル生成（トーナメントのみ、DB不要）
+npx tsx src/main.ts generate --simple --prompt "透心の朝の独白を書いてください"
 
-# フルストーリー生成（5章）
-npx tsx src/main.ts story --soul soul --prompt "透心とつるぎの出会い" --chapters 5
+# フルストーリー生成（5章、DB使用）
+npx tsx src/main.ts generate --prompt "透心とつるぎの出会い" --chapters 5
+
+# テーマ自動生成（テーマ・キャラクター自動生成→ストーリー生成）
+npx tsx src/main.ts generate --auto-theme --chapters 3
 
 # 中断タスク再開
 npx tsx src/main.ts resume --task-id <uuid> --soul soul
