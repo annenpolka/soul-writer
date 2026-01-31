@@ -72,6 +72,14 @@ system:
           as: entry
           template: "  - {{ entry.name }}: {{ entry.style }}"
 
+        - type: condition
+          if:
+            has: constitution.narrative.quotation_rule
+          then:
+            - type: text
+              text: |
+                - 引用ルール: {{ constitution.narrative.quotation_rule }}
+
         - type: heading
           heading: シーンモード
           level: 3

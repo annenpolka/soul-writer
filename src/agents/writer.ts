@@ -135,8 +135,6 @@ export class WriterAgent {
     parts.push('- 参考断片の表現をそのままコピーしない。文体の「質感」を吸収し、独自の描写で新しいシーンを構築すること');
     parts.push('- 参考断片は文体の質感を学ぶためのもの。シーンやプロットを再現してはならない');
     parts.push('- 原作に存在しない新しい描写・比喩・状況を積極的に創作すること');
-    parts.push('- 原典のセリフを直接引用しない。キャラクターの口調を再現しつつ、新しいセリフを創作すること');
-    parts.push('- 例外：回想シーンで過去の会話を思い出す場合のみ、短い引用を許可');
     const writerConfig = this.soulText.promptConfig?.agents?.writer;
     if (writerConfig?.critical_rules) {
       for (const rule of writerConfig.critical_rules) {

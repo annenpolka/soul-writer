@@ -143,16 +143,17 @@ describe('PromptConfigSchema', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
+      // 基本構造の存在確認のみ（要素数はsoul設定の変更に伴い変わるためチェックしない）
       expect(result.data.defaults.protagonist_short).toBe('透心');
       expect(result.data.defaults.pronoun).toBe('わたし');
-      expect(result.data.character_constraints?.['愛原つるぎ']).toHaveLength(6);
-      expect(result.data.scene_catalog).toHaveLength(10);
-      expect(result.data.timeline_catalog).toHaveLength(12);
-      expect(result.data.ideation_strategies).toHaveLength(13);
-      expect(result.data.pov_rules?.['first-person']?.rules).toHaveLength(2);
-      expect(result.data.agents?.writer?.critical_rules).toHaveLength(2);
-      expect(result.data.agents?.judge?.penalty_items).toHaveLength(2);
-      expect(result.data.agents?.character_developer?.casting_rules).toHaveLength(1);
+      expect(result.data.character_constraints?.['愛原つるぎ']?.length).toBeGreaterThan(0);
+      expect(result.data.scene_catalog?.length).toBeGreaterThan(0);
+      expect(result.data.timeline_catalog?.length).toBeGreaterThan(0);
+      expect(result.data.ideation_strategies?.length).toBeGreaterThan(0);
+      expect(result.data.pov_rules?.['first-person']?.rules?.length).toBeGreaterThan(0);
+      expect(result.data.agents?.writer?.critical_rules?.length).toBeGreaterThan(0);
+      expect(result.data.agents?.judge?.penalty_items?.length).toBeGreaterThan(0);
+      expect(result.data.agents?.character_developer?.casting_rules?.length).toBeGreaterThan(0);
     }
   });
 });
