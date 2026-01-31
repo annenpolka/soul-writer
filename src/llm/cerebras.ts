@@ -1,42 +1,30 @@
 import Cerebras from '@cerebras/cerebras_cloud_sdk';
+import type { ChatCompletion } from '@cerebras/cerebras_cloud_sdk/resources/chat/completions.js';
 import type { LLMClient, CompletionOptions, CerebrasConfig } from './types.js';
-
-interface CerebrasResponse {
-  choices: Array<{
-    message?: {
-      content?: string;
-    };
-  }>;
-  usage?: {
-    total_tokens?: number;
-  };
-}
-
-interface CerebrasSDK {
-  chat: {
-    completions: {
-      create: (params: unknown) => Promise<CerebrasResponse>;
-    };
-  };
-}
 
 const DEFAULT_MAX_RETRIES = 5;
 const DEFAULT_INITIAL_RETRY_DELAY_MS = 1000;
 const DEFAULT_MAX_RETRY_DELAY_MS = 30000;
 
+function isCompletionResponse(
+  response: ChatCompletion,
+): response is ChatCompletion.ChatCompletionResponse {
+  return 'choices' in response && 'object' in response && response.object === 'chat.completion';
+}
+
 /**
  * Cerebras LLM Client implementation
  */
 export class CerebrasClient implements LLMClient {
-  private client: CerebrasSDK;
+  private client: Cerebras;
   private model: string;
   private totalTokens: number = 0;
   private maxRetries: number;
   private initialRetryDelayMs: number;
   private maxRetryDelayMs: number;
 
-  constructor(config: CerebrasConfig, client?: CerebrasSDK) {
-    this.client = client ?? (new Cerebras({ apiKey: config.apiKey }) as unknown as CerebrasSDK);
+  constructor(config: CerebrasConfig, client?: Cerebras) {
+    this.client = client ?? new Cerebras({ apiKey: config.apiKey });
     this.model = config.model;
     this.maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
     this.initialRetryDelayMs = config.initialRetryDelayMs ?? DEFAULT_INITIAL_RETRY_DELAY_MS;
@@ -50,16 +38,20 @@ export class CerebrasClient implements LLMClient {
   ): Promise<string> {
     for (let attempt = 0; attempt < this.maxRetries; attempt++) {
       try {
-        const response = (await this.client.chat.completions.create({
+        const response = await this.client.chat.completions.create({
           model: this.model,
           messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
+            { role: 'system' as const, content: systemPrompt },
+            { role: 'user' as const, content: userPrompt },
           ],
           temperature: options?.temperature,
           max_tokens: options?.maxTokens,
           top_p: options?.topP,
-        })) as CerebrasResponse;
+        });
+
+        if (!isCompletionResponse(response)) {
+          continue;
+        }
 
         // Track token usage
         if (response.usage?.total_tokens) {

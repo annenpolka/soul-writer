@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import Cerebras from '@cerebras/cerebras_cloud_sdk';
+import type { ChatCompletion } from '@cerebras/cerebras_cloud_sdk/resources/chat/completions.js';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -44,9 +45,10 @@ ${soultext}
     console.log('API呼び出し成功');
     console.log('---');
     console.log('生成結果:');
-    console.log(response.choices[0]?.message?.content);
+    const r = response as ChatCompletion.ChatCompletionResponse;
+    console.log(r.choices[0]?.message?.content);
     console.log('---');
-    console.log('使用トークン:', response.usage);
+    console.log('使用トークン:', r.usage);
   } catch (error) {
     console.error('API呼び出し失敗');
     console.error(error);
