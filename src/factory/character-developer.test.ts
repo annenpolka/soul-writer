@@ -24,6 +24,9 @@ const mockSoulText = {
   constitution: { meta: { soul_name: 'test' } },
   fragments: new Map(),
   antiSoul: { categories: {} },
+  promptConfig: {
+    defaults: { protagonist_short: '透心', pronoun: 'わたし' },
+  },
 } as unknown as SoulText;
 
 const baseTheme: GeneratedTheme = {
@@ -116,5 +119,34 @@ describe('CharacterDeveloperAgent', () => {
     const systemPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(systemPrompt).toContain('叔父');
     expect(systemPrompt).toContain('不可欠な場合');
+  });
+
+  it('should use casting_rules from promptConfig', async () => {
+    const soulTextWithConfig = {
+      ...mockSoulText,
+      promptConfig: {
+        defaults: { protagonist_short: '透心', pronoun: 'わたし' },
+        agents: {
+          character_developer: {
+            casting_rules: [
+              'カスタムキャスティングルール1',
+              'カスタムキャスティングルール2',
+            ],
+          },
+        },
+      },
+    } as unknown as SoulText;
+    const response = JSON.stringify({
+      characters: [{ name: 'テスト', isNew: true, role: 'test' }],
+      castingRationale: 'test',
+    });
+    (mockLLMClient.complete as ReturnType<typeof vi.fn>).mockResolvedValue(response);
+
+    const agent = new CharacterDeveloperAgent(mockLLMClient, soulTextWithConfig);
+    await agent.develop(baseTheme);
+
+    const systemPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(systemPrompt).toContain('カスタムキャスティングルール1');
+    expect(systemPrompt).toContain('カスタムキャスティングルール2');
   });
 });

@@ -89,8 +89,13 @@ export class WriterAgent {
     parts.push('- 原作に存在しない新しい描写・比喩・状況を積極的に創作すること');
     parts.push('- 原典のセリフを直接引用しない。キャラクターの口調を再現しつつ、新しいセリフを創作すること');
     parts.push('- 例外：回想シーンで過去の会話を思い出す場合のみ、短い引用を許可');
-    parts.push('- 「ライオン」はタイトルのメタファー。可視的な獣・データ獣として作中に登場させない');
-    parts.push('- ライオンという語は内面の比喩としてのみ使用可。具現化・実体化は禁止');
+    // Soul-specific critical rules from prompt-config
+    const writerConfig = this.soulText.promptConfig?.agents?.writer;
+    if (writerConfig?.critical_rules) {
+      for (const rule of writerConfig.critical_rules) {
+        parts.push(`- ${rule}`);
+      }
+    }
     parts.push('- 出力はプレーンテキストの小説本文のみ。マークダウン記法は一切使用禁止');
     parts.push('- 禁止: **太字**, *斜体*, `コード`, # 見出し, - リスト, > 引用ブロック');
     parts.push('');
@@ -152,19 +157,10 @@ export class WriterAgent {
       parts.push('この人物のみで執筆すること。上記にない人物を登場させないこと。');
       parts.push('');
 
-      // Only inject つるぎ rules if つるぎ is in developed characters
-      const hasTsurugi = this.developedCharacters.some(c => c.name.includes('つるぎ'));
-      if (hasTsurugi) {
-        parts.push('## キャラクター行動制約');
-        parts.push('### 愛原つるぎの描写ルール（厳守）');
-        parts.push('- つるぎは透心の案内役やメンターではない。対等な共犯者であり、稚気のある挑発者');
-        parts.push('- つるぎは解説しない。断片的に、挑発的に語る。世界の仕組みを長台詞で説明させない');
-        parts.push('- つるぎの台詞は短く砕けていて、時に意味不明。3行以上の説明台詞は禁止');
-        parts.push('- つるぎが透心に何かを「教える」「導く」「説明する」「選ばせる」シーンを書かない');
-        parts.push('- つるぎは透心の殺意を「正解」と肯定するが、その理由は明示しない');
-        parts.push('- つるぎは自分の飢えや衝動を晒すだけ。透心を評価しない');
-        parts.push('');
-      }
+      // Inject character constraints from prompt-config for characters present in developedCharacters
+      this.injectCharacterConstraints(parts, (charName) =>
+        this.developedCharacters!.some(c => c.name.includes(charName))
+      );
     } else {
       // Fallback: world-bible characters
       parts.push('## キャラクター');
@@ -177,16 +173,8 @@ export class WriterAgent {
       }
       parts.push('');
 
-      // Character behavior constraints (always include when using world-bible)
-      parts.push('## キャラクター行動制約');
-      parts.push('### 愛原つるぎの描写ルール（厳守）');
-      parts.push('- つるぎは透心の案内役やメンターではない。対等な共犯者であり、稚気のある挑発者');
-      parts.push('- つるぎは解説しない。断片的に、挑発的に語る。世界の仕組みを長台詞で説明させない');
-      parts.push('- つるぎの台詞は短く砕けていて、時に意味不明。3行以上の説明台詞は禁止');
-      parts.push('- つるぎが透心に何かを「教える」「導く」「説明する」「選ばせる」シーンを書かない');
-      parts.push('- つるぎは透心の殺意を「正解」と肯定するが、その理由は明示しない');
-      parts.push('- つるぎは自分の飢えや衝動を晒すだけ。透心を評価しない');
-      parts.push('');
+      // Character behavior constraints from prompt-config (always include when using world-bible)
+      this.injectCharacterConstraints(parts);
     }
 
     // Terminology
@@ -232,6 +220,24 @@ export class WriterAgent {
     }
 
     return parts.join('\n');
+  }
+
+  private injectCharacterConstraints(parts: string[], filter?: (charName: string) => boolean): void {
+    const constraints = this.soulText.promptConfig?.character_constraints;
+    if (!constraints) return;
+
+    const entries = Object.entries(constraints);
+    const filtered = filter ? entries.filter(([name]) => filter(name)) : entries;
+    if (filtered.length === 0) return;
+
+    parts.push('## キャラクター行動制約');
+    for (const [charName, rules] of filtered) {
+      parts.push(`### ${charName}の描写ルール（厳守）`);
+      for (const rule of rules) {
+        parts.push(`- ${rule}`);
+      }
+    }
+    parts.push('');
   }
 
   private buildUserPrompt(prompt: string): string {

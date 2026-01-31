@@ -62,7 +62,13 @@ export class JudgeAgent {
       parts.push('- 視点の一貫性が崩れている → 大幅減点');
       parts.push('- 世界観に存在し得ない設定の捏造 → 大幅減点');
     }
-    parts.push('- つるぎの台詞が説明的・解説的になっている → 減点');
+    // Soul-specific penalty items from prompt-config
+    const judgeConfig = this.soulText.promptConfig?.agents?.judge;
+    if (judgeConfig?.penalty_items) {
+      for (const item of judgeConfig.penalty_items) {
+        parts.push(`- ${item}`);
+      }
+    }
     parts.push('- 陳腐な比喩の多用（「死んだ魚のような」「井戸の底のような」等） → 減点');
     parts.push('- 装飾過多な長文の連続 → 減点');
     parts.push('');
@@ -77,10 +83,17 @@ export class JudgeAgent {
     parts.push(`- 対話比率: ${constitution.narrative.dialogue_ratio}`);
     parts.push('');
 
-    // Character voice references
+    // Character voice references - prefer prompt-config, fallback to constitution
     parts.push('## キャラクター別の口調');
-    for (const [charName, style] of Object.entries(constitution.narrative.dialogue_style_by_character)) {
-      parts.push(`- ${charName}: ${style}`);
+    const voiceRules = judgeConfig?.character_voice_rules;
+    if (voiceRules && Object.keys(voiceRules).length > 0) {
+      for (const [charName, style] of Object.entries(voiceRules)) {
+        parts.push(`- ${charName}: ${style}`);
+      }
+    } else {
+      for (const [charName, style] of Object.entries(constitution.narrative.dialogue_style_by_character)) {
+        parts.push(`- ${charName}: ${style}`);
+      }
     }
     parts.push('');
 

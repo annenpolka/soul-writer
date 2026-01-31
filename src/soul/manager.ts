@@ -1,16 +1,20 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import yaml from 'js-yaml';
 import {
   ConstitutionSchema,
   WorldBibleSchema,
   AntiSoulSchema,
   ReaderPersonasSchema,
   FragmentCollectionSchema,
+  PromptConfigSchema,
+  DEFAULT_PROMPT_CONFIG,
   type Constitution,
   type WorldBible,
   type AntiSoul,
   type ReaderPersonas,
   type Fragment,
+  type PromptConfig,
 } from '../schemas/index.js';
 
 /**
@@ -22,6 +26,7 @@ export interface SoulText {
   antiSoul: AntiSoul;
   readerPersonas: ReaderPersonas;
   fragments: Map<string, Fragment[]>;
+  promptConfig: PromptConfig;
 }
 
 /**
@@ -33,19 +38,22 @@ export class SoulTextManager {
   private antiSoul: AntiSoul;
   private readerPersonas: ReaderPersonas;
   private fragments: Map<string, Fragment[]>;
+  private promptConfig: PromptConfig;
 
   private constructor(
     constitution: Constitution,
     worldBible: WorldBible,
     antiSoul: AntiSoul,
     readerPersonas: ReaderPersonas,
-    fragments: Map<string, Fragment[]>
+    fragments: Map<string, Fragment[]>,
+    promptConfig: PromptConfig,
   ) {
     this.constitution = constitution;
     this.worldBible = worldBible;
     this.antiSoul = antiSoul;
     this.readerPersonas = readerPersonas;
     this.fragments = fragments;
+    this.promptConfig = promptConfig;
   }
 
   /**
@@ -91,12 +99,22 @@ export class SoulTextManager {
       }
     }
 
+    // Load prompt config (optional - uses default if not found)
+    let promptConfig: PromptConfig = DEFAULT_PROMPT_CONFIG;
+    const promptConfigPath = join(soulDir, 'prompt-config.yaml');
+    if (existsSync(promptConfigPath)) {
+      const rawYaml = readFileSync(promptConfigPath, 'utf-8');
+      const parsed = yaml.load(rawYaml);
+      promptConfig = PromptConfigSchema.parse(parsed);
+    }
+
     return new SoulTextManager(
       constitution,
       worldBible,
       antiSoul,
       readerPersonas,
-      fragments
+      fragments,
+      promptConfig,
     );
   }
 
@@ -124,6 +142,10 @@ export class SoulTextManager {
     return new Map(this.fragments);
   }
 
+  getPromptConfig(): PromptConfig {
+    return this.promptConfig;
+  }
+
   getSoulText(): SoulText {
     return {
       constitution: this.constitution,
@@ -131,6 +153,7 @@ export class SoulTextManager {
       antiSoul: this.antiSoul,
       readerPersonas: this.readerPersonas,
       fragments: new Map(this.fragments),
+      promptConfig: this.promptConfig,
     };
   }
 

@@ -1,4 +1,5 @@
 import type { Character } from '../schemas/generated-theme.js';
+import type { PromptConfig } from '../schemas/prompt-config.js';
 
 export type PovType = 'first-person' | 'third-person-limited' | 'third-person-omniscient' | 'mixed';
 
@@ -23,20 +24,29 @@ const DEFAULT_PROTAGONIST_SHORT = '透心';
 export function resolveNarrativeRules(
   narrativeType?: string,
   characters?: Character[],
+  promptConfig?: PromptConfig,
 ): NarrativeRules {
+  const protagonistShort = promptConfig?.defaults.protagonist_short ?? DEFAULT_PROTAGONIST_SHORT;
+  const pronoun = promptConfig?.defaults.pronoun ?? 'わたし';
   const hasDefaultProtagonist = characters
-    ? characters.some(c => c.name.includes(DEFAULT_PROTAGONIST_SHORT) && !c.isNew)
+    ? characters.some(c => c.name.includes(protagonistShort) && !c.isNew)
     : true; // assume default if no characters specified
+
+  // Helper to get POV description from prompt-config if available
+  const getPovDescription = (key: string, fallback: string): string => {
+    return promptConfig?.pov_rules?.[key]?.description ?? fallback;
+  };
 
   // Default: first-person わたし with 透心
   if (!narrativeType) {
     return {
       pov: 'first-person',
-      pronoun: hasDefaultProtagonist ? 'わたし' : null,
+      pronoun: hasDefaultProtagonist ? pronoun : null,
       protagonistName: null,
-      povDescription: hasDefaultProtagonist
-        ? '一人称（わたし）視点。御鐘透心の内面から語る'
-        : '一人称視点。主人公の内面から語る',
+      povDescription: getPovDescription('first-person',
+        hasDefaultProtagonist
+          ? '一人称（わたし）視点。御鐘透心の内面から語る'
+          : '一人称視点。主人公の内面から語る'),
       isDefaultProtagonist: hasDefaultProtagonist,
     };
   }
@@ -45,10 +55,11 @@ export function resolveNarrativeRules(
     return {
       pov: 'third-person-limited',
       pronoun: null,
-      protagonistName: hasDefaultProtagonist ? DEFAULT_PROTAGONIST_SHORT : null,
-      povDescription: hasDefaultProtagonist
-        ? '三人称限定視点。透心を「透心」と呼び、彼女の内面に限定して描写する'
-        : '三人称限定視点。主人公を三人称で呼び、その内面に限定して描写する',
+      protagonistName: hasDefaultProtagonist ? protagonistShort : null,
+      povDescription: getPovDescription('third-person',
+        hasDefaultProtagonist
+          ? '三人称限定視点。透心を「透心」と呼び、彼女の内面に限定して描写する'
+          : '三人称限定視点。主人公を三人称で呼び、その内面に限定して描写する'),
       isDefaultProtagonist: hasDefaultProtagonist,
     };
   }
@@ -86,11 +97,12 @@ export function resolveNarrativeRules(
   if (narrativeType.includes('時系列逆転')) {
     return {
       pov: 'first-person',
-      pronoun: hasDefaultProtagonist ? 'わたし' : null,
+      pronoun: hasDefaultProtagonist ? pronoun : null,
       protagonistName: null,
-      povDescription: hasDefaultProtagonist
-        ? '時系列逆転。一人称（わたし）視点で、結末から遡って語る'
-        : '時系列逆転。一人称視点で、結末から遡って語る',
+      povDescription: getPovDescription('time-reversal',
+        hasDefaultProtagonist
+          ? '時系列逆転。一人称（わたし）視点で、結末から遡って語る'
+          : '時系列逆転。一人称視点で、結末から遡って語る'),
       isDefaultProtagonist: hasDefaultProtagonist,
     };
   }
@@ -98,11 +110,12 @@ export function resolveNarrativeRules(
   if (narrativeType.includes('反復')) {
     return {
       pov: 'first-person',
-      pronoun: hasDefaultProtagonist ? 'わたし' : null,
+      pronoun: hasDefaultProtagonist ? pronoun : null,
       protagonistName: null,
-      povDescription: hasDefaultProtagonist
-        ? '反復構造。同じシーンを異なる角度から繰り返し語る。一人称（わたし）視点'
-        : '反復構造。同じシーンを異なる角度から繰り返し語る',
+      povDescription: getPovDescription('repetition',
+        hasDefaultProtagonist
+          ? '反復構造。同じシーンを異なる角度から繰り返し語る。一人称（わたし）視点'
+          : '反復構造。同じシーンを異なる角度から繰り返し語る'),
       isDefaultProtagonist: hasDefaultProtagonist,
     };
   }
@@ -110,7 +123,7 @@ export function resolveNarrativeRules(
   // Fallback: first-person
   return {
     pov: 'first-person',
-    pronoun: hasDefaultProtagonist ? 'わたし' : null,
+    pronoun: hasDefaultProtagonist ? pronoun : null,
     protagonistName: null,
     povDescription: hasDefaultProtagonist
       ? '一人称（わたし）視点'
@@ -123,7 +136,14 @@ export function resolveNarrativeRules(
  * Generate POV-related rules for system prompts.
  * Returns an array of rule strings to inject into 【最重要ルール】 sections.
  */
-export function buildPovRules(rules: NarrativeRules): string[] {
+export function buildPovRules(rules: NarrativeRules, promptConfig?: PromptConfig): string[] {
+  // If promptConfig has pov_rules for this POV type, use those directly
+  const povKey = rules.pov === 'third-person-limited' ? 'third-person' : rules.pov;
+  const configRules = promptConfig?.pov_rules?.[povKey]?.rules;
+  if (configRules && configRules.length > 0) {
+    return configRules.map(r => `- ${r}`);
+  }
+
   const lines: string[] = [];
 
   if (rules.pov === 'first-person' && rules.pronoun) {

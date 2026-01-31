@@ -65,7 +65,15 @@ export class CharacterDeveloperAgent {
 
     parts.push('## キャスティングルール');
     parts.push('- 既存キャラクターを使う義務はない。テーマに合うなら新規キャラクターだけでもよい');
-    parts.push('- 「叔父」は物語に不可欠な場合（MRフロアの設定に直接関わる等）のみ登場させる。装飾的な登場は避ける');
+    // Soul-specific casting rules from prompt-config
+    const castingRules = this.soulText.promptConfig?.agents?.character_developer?.casting_rules;
+    if (castingRules) {
+      for (const rule of castingRules) {
+        parts.push(`- ${rule}`);
+      }
+    } else {
+      parts.push('- 「叔父」は物語に不可欠な場合（MRフロアの設定に直接関わる等）のみ登場させる。装飾的な登場は避ける');
+    }
     parts.push('- 新規キャラクターには必ず name, role, voice, description を付与する');
     parts.push('- キャラクター数は2-4名が目安。多すぎても少なすぎても物語の質が下がる');
     parts.push('- narrative_typeに応じた配置:');

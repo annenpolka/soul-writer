@@ -61,10 +61,12 @@ export class ThemeGeneratorAgent {
    * Stage 1: Generate an unconstrained creative idea
    */
   private async generateWildIdea(): Promise<string> {
-    const strategy = pickRandom(IDEATION_STRATEGIES);
+    const ideationStrategies = this.soulText.promptConfig?.ideation_strategies ?? IDEATION_STRATEGIES;
+    const timelineCatalog = this.soulText.promptConfig?.timeline_catalog ?? TIMELINE_CATALOG;
+    const strategy = pickRandom(ideationStrategies);
     const concept = pickRandom(CONCEPT_SEEDS);
     const emotion = pickRandom(EMOTION_CATALOG);
-    const timeline = pickRandom(TIMELINE_CATALOG);
+    const timeline = pickRandom(timelineCatalog);
 
     const systemPrompt = [
       'あなたは物語のアイデアを自由に発想するクリエイターです。',
@@ -78,7 +80,7 @@ export class ThemeGeneratorAgent {
       `「${concept}」という概念を、物語の底流に織り込んでください。`,
       '',
       `## 世界の断片`,
-      `世界観: AR/MRテクノロジーが浸透した近未来。無関心な社会。主要人物も無名の住人も存在する。`,
+      `世界観: ${this.soulText.promptConfig?.agents?.theme_generator?.world_description ?? 'AR/MRテクノロジーが浸透した近未来。無関心な社会。主要人物も無名の住人も存在する。'}`,
       '',
       '自由テキストで回答してください。JSON不要。3-5文程度。',
     ].join('\n');
@@ -149,19 +151,24 @@ export class ThemeGeneratorAgent {
       parts.push('');
     }
 
-    // Scene catalog
+    // Scene catalog from prompt-config or fallback
     parts.push('## シーン種類カタログ');
     parts.push('以下から2-4種類を選択してください。毎回異なる組み合わせを選ぶこと:');
-    parts.push('- 教室での内面描写');
-    parts.push('- 屋上での非公式な対話');
-    parts.push('- 名前消去事件（ARタグの操作に関する出来事）');
-    parts.push('- 日常観察（他者を静かに観察するシーン）');
-    parts.push('- MRフロアでの仮想体験');
-    parts.push('- セッション後の反芻（体験後の内省）');
-    parts.push('- 通学路・移動（物理空間での孤独）');
-    parts.push('- デジタル空間探索（ARシステムの裏側）');
-    parts.push('- 他者との表面的交流');
-    parts.push('- 記憶・回想（過去の断片）');
+    const sceneCatalog = this.soulText.promptConfig?.scene_catalog ?? [
+      '教室での内面描写',
+      '屋上での非公式な対話',
+      '名前消去事件（ARタグの操作に関する出来事）',
+      '日常観察（他者を静かに観察するシーン）',
+      'MRフロアでの仮想体験',
+      'セッション後の反芻（体験後の内省）',
+      '通学路・移動（物理空間での孤独）',
+      'デジタル空間探索（ARシステムの裏側）',
+      '他者との表面的交流',
+      '記憶・回想（過去の断片）',
+    ];
+    for (const scene of sceneCatalog) {
+      parts.push(`- ${scene}`);
+    }
     parts.push('');
     parts.push('## オリジナリティ要求');
     parts.push('- 上記カタログはあくまで参考。原作にない新しいシーン・場所・アイテムを積極的に発明すること');

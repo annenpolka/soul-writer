@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ThemeGeneratorAgent, type ThemeResult } from './theme-generator.js';
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
+import { DEFAULT_PROMPT_CONFIG } from '../schemas/prompt-config.js';
 
 // Mock LLM Client - supports two-stage generation (2 calls)
 const createMockLLMClient = (response: string): LLMClient => ({
@@ -78,6 +79,7 @@ const mockSoulText: SoulText = {
   },
   readerPersonas: { personas: [] },
   fragments: new Map(),
+  promptConfig: DEFAULT_PROMPT_CONFIG,
 };
 
 // Valid theme JSON response
@@ -252,6 +254,78 @@ describe('ThemeGeneratorAgent', () => {
       const generator = new ThemeGeneratorAgent(mockLLM, mockSoulText);
 
       await expect(generator.generateTheme()).rejects.toThrow();
+    });
+
+    it('should use world_description from promptConfig in stage 1', async () => {
+      const soulTextWithConfig: SoulText = {
+        ...mockSoulText,
+        promptConfig: {
+          defaults: { protagonist_short: '透心', pronoun: 'わたし' },
+          agents: {
+            theme_generator: {
+              world_description: 'カスタム世界観の説明文',
+            },
+          },
+        },
+      };
+      const mockLLM = createMockLLMClient(validThemeResponse);
+      const generator = new ThemeGeneratorAgent(mockLLM, soulTextWithConfig);
+      await generator.generateTheme();
+
+      const stage1SystemPrompt = (mockLLM.complete as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+      expect(stage1SystemPrompt).toContain('カスタム世界観の説明文');
+    });
+
+    it('should use scene_catalog from promptConfig in stage 2', async () => {
+      const soulTextWithConfig: SoulText = {
+        ...mockSoulText,
+        promptConfig: {
+          defaults: { protagonist_short: '透心', pronoun: 'わたし' },
+          scene_catalog: ['カスタムシーン1', 'カスタムシーン2'],
+        },
+      };
+      const mockLLM = createMockLLMClient(validThemeResponse);
+      const generator = new ThemeGeneratorAgent(mockLLM, soulTextWithConfig);
+      await generator.generateTheme();
+
+      const stage2SystemPrompt = (mockLLM.complete as ReturnType<typeof vi.fn>).mock.calls[1][0] as string;
+      expect(stage2SystemPrompt).toContain('カスタムシーン1');
+      expect(stage2SystemPrompt).toContain('カスタムシーン2');
+    });
+
+    it('should use timeline_catalog from promptConfig in stage 1', async () => {
+      const soulTextWithConfig: SoulText = {
+        ...mockSoulText,
+        promptConfig: {
+          defaults: { protagonist_short: '透心', pronoun: 'わたし' },
+          timeline_catalog: ['カスタムタイムライン1', 'カスタムタイムライン2'],
+        },
+      };
+      const mockLLM = createMockLLMClient(validThemeResponse);
+      const generator = new ThemeGeneratorAgent(mockLLM, soulTextWithConfig);
+      // Run multiple times to ensure at least one custom timeline appears
+      // Since pickRandom selects from the catalog, with only 2 items one must appear
+      await generator.generateTheme();
+
+      const stage1UserPrompt = (mockLLM.complete as ReturnType<typeof vi.fn>).mock.calls[0][1] as string;
+      const hasCustomTimeline = stage1UserPrompt.includes('カスタムタイムライン1') || stage1UserPrompt.includes('カスタムタイムライン2');
+      expect(hasCustomTimeline).toBe(true);
+    });
+
+    it('should use ideation_strategies from promptConfig in stage 1', async () => {
+      const soulTextWithConfig: SoulText = {
+        ...mockSoulText,
+        promptConfig: {
+          defaults: { protagonist_short: '透心', pronoun: 'わたし' },
+          ideation_strategies: ['カスタム発想法のみ'],
+        },
+      };
+      const mockLLM = createMockLLMClient(validThemeResponse);
+      const generator = new ThemeGeneratorAgent(mockLLM, soulTextWithConfig);
+      await generator.generateTheme();
+
+      const stage1SystemPrompt = (mockLLM.complete as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+      expect(stage1SystemPrompt).toContain('カスタム発想法のみ');
     });
 
     it('should throw on invalid theme structure', async () => {

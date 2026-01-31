@@ -175,6 +175,8 @@ const mockSoulText: SoulText = {
       },
     ],
   },
+  promptConfig: { defaults: { protagonist_short: '', pronoun: '' } },
+
   fragments: new Map(),
 };
 
