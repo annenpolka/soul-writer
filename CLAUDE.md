@@ -116,7 +116,7 @@ SQLite + Drizzle ORM。テーブル: Works, Chapters, TournamentMatches, JudgeSc
 | `docs/SPEC.md` | 詳細仕様（パイプライン、トーナメント、自動学習） |
 | `docs/ARCHITECTURE.md` | システム構成図、データフロー、状態遷移図 |
 | `docs/SOUL-FORMAT.md` | 四層構造のJSONスキーマと具体例 |
-| `docs/soultext.md` | 原典の小説メモ（「わたしのライオン」のキャラクター設定・ストーリー・台詞断片） |
+| `soul/soultext.md` | 原典の小説メモ（「わたしのライオン」のキャラクター設定・ストーリー・台詞断片） |
 
 ## ソウルテキストのファイル構成
 
@@ -134,5 +134,6 @@ soul/
 ├── world-bible.json        # 第三層
 ├── anti-soul.json          # 第四層
 ├── reader-personas.json    # 読者ペルソナ
-└── prompt-config.yaml      # プロンプト設定
+├── prompt-config.yaml      # プロンプト設定
+└── soultext.md             # 原典メモ（Writerプロンプトに全文含まれる）
 ```

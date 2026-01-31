@@ -27,6 +27,7 @@ export interface SoulText {
   readerPersonas: ReaderPersonas;
   fragments: Map<string, Fragment[]>;
   promptConfig: PromptConfig;
+  rawSoultext?: string;
 }
 
 /**
@@ -39,6 +40,7 @@ export class SoulTextManager {
   private readerPersonas: ReaderPersonas;
   private fragments: Map<string, Fragment[]>;
   private promptConfig: PromptConfig;
+  private rawSoultext?: string;
 
   private constructor(
     constitution: Constitution,
@@ -47,6 +49,7 @@ export class SoulTextManager {
     readerPersonas: ReaderPersonas,
     fragments: Map<string, Fragment[]>,
     promptConfig: PromptConfig,
+    rawSoultext?: string,
   ) {
     this.constitution = constitution;
     this.worldBible = worldBible;
@@ -54,6 +57,7 @@ export class SoulTextManager {
     this.readerPersonas = readerPersonas;
     this.fragments = fragments;
     this.promptConfig = promptConfig;
+    this.rawSoultext = rawSoultext;
   }
 
   /**
@@ -108,6 +112,13 @@ export class SoulTextManager {
       promptConfig = PromptConfigSchema.parse(parsed);
     }
 
+    // Load raw soultext (optional)
+    let rawSoultext: string | undefined;
+    const soultextPath = join(soulDir, 'soultext.md');
+    if (existsSync(soultextPath)) {
+      rawSoultext = readFileSync(soultextPath, 'utf-8');
+    }
+
     return new SoulTextManager(
       constitution,
       worldBible,
@@ -115,6 +126,7 @@ export class SoulTextManager {
       readerPersonas,
       fragments,
       promptConfig,
+      rawSoultext,
     );
   }
 
@@ -146,6 +158,10 @@ export class SoulTextManager {
     return this.promptConfig;
   }
 
+  getRawSoultext(): string | undefined {
+    return this.rawSoultext;
+  }
+
   getSoulText(): SoulText {
     return {
       constitution: this.constitution,
@@ -154,6 +170,7 @@ export class SoulTextManager {
       readerPersonas: this.readerPersonas,
       fragments: new Map(this.fragments),
       promptConfig: this.promptConfig,
+      rawSoultext: this.rawSoultext,
     };
   }
 
@@ -168,30 +185,32 @@ export class SoulTextManager {
     parts.push(`# ソウルテキスト: ${meta.soul_name}`);
     parts.push('');
 
-    // Constitution
+    // Constitution - universal
+    const u = this.constitution.universal;
+    const ps = this.constitution.protagonist_specific;
     parts.push('## 憲法（文体ルール）');
     parts.push('');
     parts.push('### 文構造');
-    parts.push(`- リズムパターン: ${this.constitution.sentence_structure.rhythm_pattern}`);
-    parts.push(`- 体言止め: ${this.constitution.sentence_structure.taigendome.usage}`);
+    parts.push(`- リズムパターン: ${ps.sentence_structure.rhythm_pattern}`);
+    parts.push(`- 体言止め: ${ps.sentence_structure.taigendome.usage}`);
     parts.push('');
     parts.push('### 語彙');
-    parts.push(`- 禁止語彙: ${this.constitution.vocabulary.forbidden_words.join(', ')}`);
-    parts.push(`- 特殊記号「${this.constitution.vocabulary.special_marks.mark}」: ${this.constitution.vocabulary.special_marks.usage}`);
-    parts.push(`- 使用形態: ${this.constitution.vocabulary.special_marks.forms.join(', ')}`);
+    parts.push(`- 禁止語彙: ${u.vocabulary.forbidden_words.join(', ')}`);
+    parts.push(`- 特殊記号「${u.vocabulary.special_marks.mark}」: ${u.vocabulary.special_marks.usage}`);
+    parts.push(`- 使用形態: ${u.vocabulary.special_marks.forms.join(', ')}`);
     parts.push('');
     parts.push('### 修辞');
-    parts.push(`- 比喩の基盤: ${this.constitution.rhetoric.simile_base}`);
-    parts.push(`- 禁止比喩: ${this.constitution.rhetoric.forbidden_similes.join(', ')}`);
+    parts.push(`- 比喩の基盤: ${u.rhetoric.simile_base}`);
+    parts.push(`- 禁止比喩: ${u.rhetoric.forbidden_similes.join(', ')}`);
     parts.push('');
     parts.push('### 語り');
-    parts.push(`- 視点: ${this.constitution.narrative.default_pov}`);
-    parts.push(`- 時制: ${this.constitution.narrative.default_tense}`);
-    parts.push(`- 対話比率: ${this.constitution.narrative.dialogue_ratio}`);
+    parts.push(`- 視点: ${ps.narrative.default_pov}`);
+    parts.push(`- 時制: ${ps.narrative.default_tense}`);
+    parts.push(`- 対話比率: ${ps.narrative.dialogue_ratio}`);
     parts.push('');
     parts.push('### テーマ制約');
-    parts.push(`- 維持すべきテーマ: ${this.constitution.thematic_constraints.must_preserve.join(', ')}`);
-    parts.push(`- 禁止結末: ${this.constitution.thematic_constraints.forbidden_resolutions.join(', ')}`);
+    parts.push(`- 維持すべきテーマ: ${u.thematic_constraints.must_preserve.join(', ')}`);
+    parts.push(`- 禁止結末: ${u.thematic_constraints.forbidden_resolutions.join(', ')}`);
     parts.push('');
 
     // World Bible

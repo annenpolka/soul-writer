@@ -1,64 +1,21 @@
 import { describe, it, expect } from 'vitest';
 import { ComplianceChecker } from '../../src/compliance/checker.js';
 import { ForbiddenWordsRule } from '../../src/compliance/rules/forbidden-words.js';
-import type { SoulText } from '../../src/soul/manager.js';
+import { createMockSoulText } from '../helpers/mock-soul-text.js';
 
-const mockSoulText: SoulText = {
-  constitution: {
-    meta: { soul_id: 'test', soul_name: 'Test', version: '1.0', created_at: '', updated_at: '' },
-    sentence_structure: {
-      rhythm_pattern: 'test',
-      taigendome: { usage: 'test', frequency: 'test', forbidden_context: [] },
-      typical_lengths: { short: 'test', long: 'test', forbidden: 'test' },
+const mockSoulText = createMockSoulText({
+  forbiddenWords: ['とても', '非常に'],
+  forbiddenSimiles: ['天使のような', '悪魔のような'],
+  deep: {
+    constitution: {
+      universal: {
+        vocabulary: {
+          special_marks: { mark: '×', usage: 'test', forms: ['×した', '×される'] },
+        },
+      },
     },
-    vocabulary: {
-      bracket_notations: [],
-      forbidden_words: ['とても', '非常に'],
-      characteristic_expressions: [],
-      special_marks: { mark: '×', usage: 'test', forms: ['×した', '×される'] },
-    },
-    rhetoric: {
-      simile_base: 'test',
-      metaphor_density: 'low',
-      forbidden_similes: ['天使のような', '悪魔のような'],
-      personification_allowed_for: [],
-    },
-    narrative: {
-      default_pov: 'test',
-      pov_by_character: {},
-      default_tense: 'test',
-      tense_shift_allowed: 'test',
-      dialogue_ratio: 'test',
-      dialogue_style_by_character: {},
-    },
-    thematic_constraints: {
-      must_preserve: [],
-      forbidden_resolutions: [],
-    },
-  },
-  worldBible: {
-    technology: {},
-    society: {},
-    characters: {},
-    terminology: {},
-    locations: {},
-  },
-  antiSoul: {
-    categories: {
-      theme_violation: [],
-      mentor_tsurgi: [],
-      lion_concretization: [],
-      excessive_sentiment: [],
-      explanatory_worldbuilding: [],
-      character_normalization: [],
-      cliche_simile: [],
-    },
-  },
-  readerPersonas: { personas: [] },
-  promptConfig: { defaults: { protagonist_short: '', pronoun: '' } },
-
-  fragments: new Map(),
-};
+  } as never,
+});
 
 describe('ComplianceChecker', () => {
   describe('constructor', () => {

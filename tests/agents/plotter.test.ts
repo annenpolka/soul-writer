@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PlotterAgent } from '../../src/agents/plotter.js';
 import type { LLMClient } from '../../src/llm/types.js';
-import type { SoulText } from '../../src/soul/manager.js';
 import { DEFAULT_PLOTTER_CONFIG } from '../../src/agents/types.js';
 import type { GeneratedTheme } from '../../src/schemas/generated-theme.js';
+import { createMockSoulText } from '../helpers/mock-soul-text.js';
 
 // Mock LLM Client
 const createMockLLMClient = (response: string): LLMClient => ({
@@ -11,72 +11,13 @@ const createMockLLMClient = (response: string): LLMClient => ({
   getTotalTokens: vi.fn().mockReturnValue(100),
 });
 
-// Mock Soul Text
-const mockSoulText: SoulText = {
-  constitution: {
-    meta: {
-      soul_id: 'test',
-      soul_name: 'Test Soul',
-      version: '1.0.0',
-      created_at: '',
-      updated_at: '',
-    },
-    sentence_structure: {
-      rhythm_pattern: 'test',
-      taigendome: { usage: 'test', frequency: 'test', forbidden_context: [] },
-      typical_lengths: { short: 'test', long: 'test', forbidden: 'test' },
-    },
-    vocabulary: {
-      bracket_notations: [],
-      forbidden_words: ['とても'],
-      characteristic_expressions: [],
-      special_marks: { mark: '×', usage: 'test', forms: [] },
-    },
-    rhetoric: {
-      simile_base: 'test',
-      metaphor_density: 'low',
-      forbidden_similes: [],
-      personification_allowed_for: [],
-    },
-    narrative: {
-      default_pov: 'test',
-      pov_by_character: {},
-      default_tense: 'test',
-      tense_shift_allowed: 'test',
-      dialogue_ratio: 'test',
-      dialogue_style_by_character: {},
-    },
-    thematic_constraints: {
-      must_preserve: ['存在確認', '無関心な世界'],
-      forbidden_resolutions: [],
-    },
+const mockSoulText = createMockSoulText({
+  thematicMustPreserve: ['存在確認', '無関心な世界'],
+  characters: {
+    透心: { role: 'protagonist', description: '孤児の学級委員長' },
+    つるぎ: { role: 'deuteragonist', description: 'ハッカー' },
   },
-  worldBible: {
-    technology: {},
-    society: {},
-    characters: {
-      透心: { role: 'protagonist', description: '孤児の学級委員長' },
-      つるぎ: { role: 'deuteragonist', description: 'ハッカー' },
-    },
-    terminology: {},
-    locations: {},
-  },
-  antiSoul: {
-    categories: {
-      excessive_sentiment: [],
-      explanatory_worldbuilding: [],
-      character_normalization: [],
-      cliche_simile: [],
-      theme_violation: [],
-      mentor_tsurgi: [],
-      lion_concretization: [],
-    },
-  },
-  readerPersonas: { personas: [] },
-  promptConfig: { defaults: { protagonist_short: '', pronoun: '' } },
-
-  fragments: new Map(),
-};
+});
 
 // Valid plot JSON response
 const validPlotResponse = JSON.stringify({

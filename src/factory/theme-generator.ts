@@ -89,7 +89,7 @@ export class ThemeGeneratorAgent {
 
   private buildStage2Context(wildIdea: string, recentThemes?: GeneratedTheme[]): Record<string, unknown> {
     const worldBible = this.soulText.worldBible;
-    const thematic = this.soulText.constitution.thematic_constraints;
+    const thematic = this.soulText.constitution.universal.thematic_constraints;
     const ctx: Record<string, unknown> = {};
 
     // Thematic constraints as array

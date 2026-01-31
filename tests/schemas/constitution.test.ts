@@ -15,7 +15,7 @@ describe('ConstitutionSchema', () => {
   });
 
   it('should reject invalid constitution without meta', () => {
-    const invalid = { sentence_structure: {} };
+    const invalid = { universal: {}, protagonist_specific: {} };
     const result = ConstitutionSchema.safeParse(invalid);
 
     expect(result.success).toBe(false);
@@ -30,34 +30,51 @@ describe('ConstitutionSchema', () => {
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-01T00:00:00Z',
       },
-      sentence_structure: {
-        rhythm_pattern: 'test',
-        taigendome: { usage: 'test', frequency: 'test', forbidden_context: [] },
-        typical_lengths: { short: 'test', long: 'test', forbidden: 'test' },
+      universal: {
+        vocabulary: {
+          bracket_notations: [],
+          forbidden_words: [],
+          characteristic_expressions: [],
+          special_marks: { mark: '×', usage: 'test', forms: [] },
+        },
+        rhetoric: {
+          simile_base: 'test',
+          metaphor_density: 'invalid', // Should be 'low', 'medium', or 'high'
+          forbidden_similes: [],
+          personification_allowed_for: [],
+        },
+        thematic_constraints: {
+          must_preserve: [],
+          forbidden_resolutions: [],
+        },
+        new_character_guide: {
+          description: 'test',
+          rules: [],
+        },
       },
-      vocabulary: {
-        bracket_notations: [],
-        forbidden_words: [],
-        characteristic_expressions: [],
-        special_marks: { mark: '×', usage: 'test', forms: [] },
-      },
-      rhetoric: {
-        simile_base: 'test',
-        metaphor_density: 'invalid', // Should be 'low', 'medium', or 'high'
-        forbidden_similes: [],
-        personification_allowed_for: [],
-      },
-      narrative: {
-        default_pov: 'test',
-        pov_by_character: {},
-        default_tense: 'test',
-        tense_shift_allowed: 'test',
-        dialogue_ratio: 'test',
-        dialogue_style_by_character: {},
-      },
-      thematic_constraints: {
-        must_preserve: [],
-        forbidden_resolutions: [],
+      protagonist_specific: {
+        sentence_structure: {
+          rhythm_pattern: 'test',
+          taigendome: { usage: 'test', frequency: 'test', forbidden_context: [] },
+          typical_lengths: { short: 'test', long: 'test', forbidden: 'test' },
+        },
+        narrative: {
+          default_pov: 'test',
+          pov_by_character: {},
+          default_tense: 'test',
+          tense_shift_allowed: 'test',
+          dialogue_ratio: 'test',
+          dialogue_style_by_character: {},
+        },
+        scene_modes: {
+          mundane: { description: 'test', style: 'test' },
+          tension: { description: 'test', style: 'test' },
+        },
+        dry_humor: {
+          description: 'test',
+          techniques: [],
+          frequency: 'test',
+        },
       },
     };
     const result = ConstitutionSchema.safeParse(invalid);

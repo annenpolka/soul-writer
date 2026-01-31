@@ -147,8 +147,8 @@ describe('PromptConfigSchema', () => {
       expect(result.data.defaults.pronoun).toBe('わたし');
       expect(result.data.character_constraints?.['愛原つるぎ']).toHaveLength(6);
       expect(result.data.scene_catalog).toHaveLength(10);
-      expect(result.data.timeline_catalog).toHaveLength(8);
-      expect(result.data.ideation_strategies).toHaveLength(3);
+      expect(result.data.timeline_catalog).toHaveLength(12);
+      expect(result.data.ideation_strategies).toHaveLength(13);
       expect(result.data.pov_rules?.['first-person']?.rules).toHaveLength(2);
       expect(result.data.agents?.writer?.critical_rules).toHaveLength(2);
       expect(result.data.agents?.judge?.penalty_items).toHaveLength(2);

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TournamentArena } from '../../src/tournament/arena.js';
 import type { LLMClient } from '../../src/llm/types.js';
-import type { SoulText } from '../../src/soul/manager.js';
+import { createMockSoulText } from '../helpers/mock-soul-text.js';
 
 // Mock LLM Client
 let callCount = 0;
@@ -28,63 +28,7 @@ const mockLLMClient: LLMClient = {
   getTotalTokens: vi.fn().mockReturnValue(500),
 };
 
-// Mock Soul Text
-const mockSoulText: SoulText = {
-  constitution: {
-    meta: { soul_id: 'test', soul_name: 'Test Soul', version: '1.0.0', created_at: '', updated_at: '' },
-    sentence_structure: {
-      rhythm_pattern: 'test',
-      taigendome: { usage: 'test', frequency: 'test', forbidden_context: [] },
-      typical_lengths: { short: 'test', long: 'test', forbidden: 'test' },
-    },
-    vocabulary: {
-      bracket_notations: [],
-      forbidden_words: [],
-      characteristic_expressions: [],
-      special_marks: { mark: '×', usage: 'test', forms: [] },
-    },
-    rhetoric: {
-      simile_base: 'test',
-      metaphor_density: 'low',
-      forbidden_similes: [],
-      personification_allowed_for: [],
-    },
-    narrative: {
-      default_pov: 'test',
-      pov_by_character: {},
-      default_tense: 'test',
-      tense_shift_allowed: 'test',
-      dialogue_ratio: 'test',
-      dialogue_style_by_character: {},
-    },
-    thematic_constraints: {
-      must_preserve: [],
-      forbidden_resolutions: [],
-    },
-  },
-  worldBible: {
-    technology: {},
-    society: {},
-    characters: {},
-    terminology: {},
-    locations: {},
-  },
-  antiSoul: {
-    categories: {
-      theme_violation: [],
-      mentor_tsurgi: [],
-      lion_concretization: [],
-      excessive_sentiment: [],
-      explanatory_worldbuilding: [],
-      character_normalization: [],
-      cliche_simile: [],
-    },
-  },
-  readerPersonas: { personas: [] },
-  promptConfig: { defaults: { protagonist_short: '', pronoun: '' } },
-
-  fragments: new Map(),
-};
+const mockSoulText = createMockSoulText({ forbiddenWords: [] });
 
 describe('TournamentArena', () => {
   beforeEach(() => {

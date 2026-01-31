@@ -57,14 +57,16 @@ export class RetakeAgent {
     } else {
       parts.push('- この世界観に存在し得る設定・キャラクターを使用すること');
     }
-    parts.push(`- リズム: ${constitution.sentence_structure.rhythm_pattern}`);
-    parts.push(`- 禁止語彙: ${constitution.vocabulary.forbidden_words.join(', ')}`);
-    parts.push(`- 禁止比喩: ${constitution.rhetoric.forbidden_similes.join(', ')}`);
+    const u = constitution.universal;
+    const ps = constitution.protagonist_specific;
+    parts.push(`- リズム: ${ps.sentence_structure.rhythm_pattern}`);
+    parts.push(`- 禁止語彙: ${u.vocabulary.forbidden_words.join(', ')}`);
+    parts.push(`- 禁止比喩: ${u.rhetoric.forbidden_similes.join(', ')}`);
     parts.push('');
 
     // Character voice reference
     parts.push('## キャラクター対話スタイル');
-    for (const [charName, style] of Object.entries(constitution.narrative.dialogue_style_by_character)) {
+    for (const [charName, style] of Object.entries(ps.narrative.dialogue_style_by_character)) {
       parts.push(`- ${charName}: ${style}`);
     }
     parts.push('');

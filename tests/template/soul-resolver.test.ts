@@ -21,9 +21,11 @@ const mockPromptConfig: PromptConfig = {
 
 const mockSoulText = {
   constitution: {
-    thematic_constraints: {
-      must_preserve: ['存在確認'],
-      forbidden_resolutions: [],
+    universal: {
+      thematic_constraints: {
+        must_preserve: ['存在確認'],
+        forbidden_resolutions: [],
+      },
     },
   },
   worldBible: {

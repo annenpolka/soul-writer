@@ -78,7 +78,7 @@ export class JudgeAgent {
         voiceEntries.push({ name: charName, style: style as string });
       }
     } else {
-      for (const [charName, style] of Object.entries(constitution.narrative.dialogue_style_by_character)) {
+      for (const [charName, style] of Object.entries(constitution.protagonist_specific.narrative.dialogue_style_by_character)) {
         voiceEntries.push({ name: charName, style: style as string });
       }
     }

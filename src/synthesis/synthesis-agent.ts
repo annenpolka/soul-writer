@@ -118,11 +118,13 @@ export class SynthesisAgent {
     parts.push('- 引用された表現をそのまま挿入するのではなく、文脈に溶け込む形で取り入れる');
     parts.push('');
 
+    const u = constitution.universal;
+    const ps = constitution.protagonist_specific;
     parts.push('【文体基準】');
-    parts.push(`- リズム: ${constitution.sentence_structure.rhythm_pattern}`);
-    parts.push(`- 禁止語彙: ${constitution.vocabulary.forbidden_words.join(', ')}`);
-    parts.push(`- 比喩基盤: ${constitution.rhetoric.simile_base}`);
-    parts.push(`- 禁止比喩: ${constitution.rhetoric.forbidden_similes.join(', ')}`);
+    parts.push(`- リズム: ${ps.sentence_structure.rhythm_pattern}`);
+    parts.push(`- 禁止語彙: ${u.vocabulary.forbidden_words.join(', ')}`);
+    parts.push(`- 比喩基盤: ${u.rhetoric.simile_base}`);
+    parts.push(`- 禁止比喩: ${u.rhetoric.forbidden_similes.join(', ')}`);
     parts.push('');
     parts.push('出力はテキスト本文のみ。メタ情報や説明は含めないこと。');
 

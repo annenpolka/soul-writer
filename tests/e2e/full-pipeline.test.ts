@@ -18,6 +18,7 @@ import { CheckpointManager } from '../../src/storage/checkpoint-manager.js';
 import { SoulCandidateRepository } from '../../src/storage/soul-candidate-repository.js';
 import type { LLMClient } from '../../src/llm/types.js';
 import type { SoulText } from '../../src/soul/manager.js';
+import { createMockSoulText } from '../helpers/mock-soul-text.js';
 
 // Mock LLM that returns appropriate responses
 const createMockLLMClient = (): LLMClient => {
@@ -71,56 +72,10 @@ const createMockLLMClient = (): LLMClient => {
 };
 
 const mockSoulText: SoulText = {
-  constitution: {
-    meta: { soul_id: 'e2e-test', soul_name: 'E2E Test Soul', version: '1.0.0', created_at: '', updated_at: '' },
-    sentence_structure: {
-      rhythm_pattern: 'test',
-      taigendome: { usage: 'test', frequency: 'test', forbidden_context: [] },
-      typical_lengths: { short: 'test', long: 'test', forbidden: 'test' },
-    },
-    vocabulary: {
-      bracket_notations: [],
-      forbidden_words: ['とても', '非常に'],
-      characteristic_expressions: [],
-      special_marks: { mark: '×', usage: 'test', forms: ['×した', '×される'] },
-    },
-    rhetoric: {
-      simile_base: 'test',
-      metaphor_density: 'low',
-      forbidden_similes: ['天使のような'],
-      personification_allowed_for: [],
-    },
-    narrative: {
-      default_pov: 'test',
-      pov_by_character: {},
-      default_tense: 'test',
-      tense_shift_allowed: 'test',
-      dialogue_ratio: 'test',
-      dialogue_style_by_character: {},
-    },
-    thematic_constraints: {
-      must_preserve: [],
-      forbidden_resolutions: [],
-    },
-  },
-  worldBible: {
-    technology: {},
-    society: {},
-    characters: {},
-    terminology: {},
-    locations: {},
-  },
-  antiSoul: {
-    categories: {
-      theme_violation: [],
-      mentor_tsurgi: [],
-      lion_concretization: [],
-      excessive_sentiment: [],
-      explanatory_worldbuilding: [],
-      character_normalization: [],
-      cliche_simile: [],
-    },
-  },
+  ...createMockSoulText({
+    forbiddenWords: ['とても', '非常に'],
+    forbiddenSimiles: ['天使のような'],
+  }),
   readerPersonas: {
     personas: [
       {
@@ -138,9 +93,6 @@ const mockSoulText: SoulText = {
       },
     ],
   },
-  promptConfig: { defaults: { protagonist_short: '', pronoun: '' } },
-
-  fragments: new Map(),
 };
 
 describe('E2E: Full Pipeline Integration', () => {
@@ -175,8 +127,8 @@ describe('E2E: Full Pipeline Integration', () => {
       await taskRepo.markStarted(task.id);
 
       // 3. Generate plot
-      const plotter = new PlotterAgent(mockLLMClient, mockSoulText);
-      const plotResult = await plotter.generatePlot('テスト生成', { chapterCount: 1, targetTotalLength: 4000 });
+      const plotter = new PlotterAgent(mockLLMClient, mockSoulText, { chapterCount: 1, targetTotalLength: 4000 });
+      const plotResult = await plotter.generatePlot();
 
       expect(plotResult.plot.title).toBe('テスト小説');
       expect(plotResult.plot.chapters).toHaveLength(1);
