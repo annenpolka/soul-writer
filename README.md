@@ -24,6 +24,37 @@ soul-writerは、作家の文体・世界観・キャラクターの「魂」を
 - **自動学習**: 成功した生成物から自動的に文体を学習（人間レビュー付き）
 - **品質優先**: Token消費よりも文体の忠実度を重視
 - **チェックポイント**: 長編生成の中断・再開に対応
+- **工場バッチ生成**: ランダムテーマによる大量並列生成と統計分析
+- **YAMLテンプレートエンジン**: 条件分岐・フィルタ・インクルード対応のプロンプト構築
+- **コンプライアンスチェック**: 禁止語彙、視点一貫性、リズム等の自動検査
+
+## 使い方
+
+### セットアップ
+
+```bash
+npm install
+# .env に CEREBRAS_API_KEY を設定
+```
+
+### CLIコマンド
+
+```bash
+# 単一トーナメント生成
+npx tsx src/main.ts generate --soul soul --prompt "透心の朝の独白を書いてください"
+
+# フルストーリー生成（5章）
+npx tsx src/main.ts story --soul soul --prompt "透心とつるぎの出会い" --chapters 5
+
+# 中断タスク再開
+npx tsx src/main.ts resume --task-id <uuid> --soul soul
+
+# 学習候補レビュー
+npx tsx src/main.ts review --soul soul
+
+# 工場バッチ生成（並列実行）
+npx tsx src/main.ts factory --config factory-config.json
+```
 
 ## ドキュメント
 
@@ -32,34 +63,19 @@ soul-writerは、作家の文体・世界観・キャラクターの「魂」を
 - [ソウルフォーマット](docs/SOUL-FORMAT.md) - ソウルテキストのJSON仕様
 - [原典小説メモ](docs/soultext.md) - 「わたしのライオン」のキャラクター設定・ストーリー・台詞断片
 
-## 機能（予定）
-
-### CLI
-
-```bash
-soul-writer init          # ソウルテキストの初期化
-soul-writer produce       # 短編の生成開始
-soul-writer status        # 生成状況の確認
-soul-writer archive       # アーカイブの管理
-soul-writer soul          # ソウルテキストの管理
-soul-writer serve         # Webダッシュボードの起動
-```
-
-### Webダッシュボード
-
-- リアルタイムモニタリング（生成状況、Token消費）
-- アーカイブブラウズ（検索・閲覧・評価）
-- ソウル編集（候補承認、断片追加）
-
 ## 技術スタック
 
-- **言語**: 未定（TypeScript/Deno, Python, Rust, Ruby が候補）
-- **データベース**: SQLite（全文検索対応）
-- **LLM API**: OpenAI互換API（Cerebras等）
+- **言語**: TypeScript (Node.js + tsx)
+- **テスト**: Vitest
+- **リンター**: oxlint
+- **データベース**: SQLite (better-sqlite3 + Drizzle ORM)
+- **LLM API**: Cerebras Cloud SDK
+- **バリデーション**: Zod v4
+- **テンプレート**: YAMLテンプレートエンジン（自作、js-yaml）
 
 ## 開発状況
 
-現在は設計フェーズです。詳細は[ドキュメント](docs/)を参照してください。
+主要機能は実装済み。詳細は[ドキュメント](docs/)を参照してください。
 
 ## ライセンス
 

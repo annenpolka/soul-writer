@@ -23,26 +23,75 @@ ARタグシステムとMR（拡張現実）を背景にした近未来SF。
 
 ## 開発状況
 
-**現在は設計フェーズ。実装コードは未着手。**
+主要機能は実装済み。
 
-- 言語: TypeScript (Deno)
-- データベース: SQLite（確定）
-- LLM API: OpenAI互換API（Cerebras等）
+- 言語: TypeScript (Node.js + tsx)
+- テスト: Vitest (`npm test`)
+- リンター: oxlint (`npm run lint`)
+- DB: SQLite (better-sqlite3 + Drizzle ORM)
+- LLM: Cerebras Cloud SDK
+- バリデーション: Zod v4
+- テンプレート: YAMLテンプレートエンジン（自作、js-yaml）
 
-### TypeScript/Deno選択理由
+### TypeScript選択理由
 
 - **型とJSONの相性**: ソウルテキスト四層構造はJSON。Zodによるランタイムバリデーション+型推論が強力
 - **非同期が自然**: Promise.all、async/awaitがネイティブ。並列生成のコードが読みやすい
 - **MCP親和性**: MCP SDKはTypeScriptがファーストクラス。将来的なMCPサーバー化に有利
-- **Deno固有利点**: TypeScript直接実行、パーミッションシステム、`deno compile`でシングルバイナリ
+
+## 開発コマンド
+
+```bash
+npm test              # テスト実行
+npm run test:watch    # テスト監視
+npm run lint          # リント
+npm run lint:fix      # リント自動修正
+```
 
 ## アーキテクチャ
 
-### 三層構造
+### エントリポイント
 
-1. **エントリポイント層**: CLI, Web Server, Worker（バックグラウンドデーモン）
-2. **コアエンジン層**: SoulText Manager, Pipeline Controller, Tournament Arena, Agents Registry
-3. **ストレージ層**: SQLite, File System
+CLI (`src/main.ts`) から各コマンドを実行:
+- `generate` - 単一トーナメント生成
+- `story` - フルストーリー生成（チェックポイント対応）
+- `resume` - 中断タスク再開
+- `review` - 学習候補レビュー
+- `factory` - バッチ生成（並列実行、統計分析）
+
+### src/ディレクトリ構成
+
+```
+src/
+├── agents/        # Writer, Judge, Plotter, Corrector, ReaderEvaluator, ReaderJury
+├── cli/           # CLIコマンド (generate, story, resume, review, factory)
+├── compliance/    # コンプライアンスチェック（禁止語彙、視点一貫性、リズム等）
+├── correction/    # 矯正ループ
+├── factory/       # 工場システム (BatchRunner, ThemeGenerator, Analytics等)
+├── learning/      # 自動学習 (FragmentExtractor, SoulExpander, AntiSoulCollector)
+├── llm/           # LLMクライアント (Cerebras)
+├── pipeline/      # Simple/Fullパイプライン
+├── prompts/       # YAMLテンプレート (agents/, sections/)
+├── retake/        # 再挑戦システム
+├── schemas/       # Zodスキーマ定義
+├── soul/          # ソウルテキスト管理 (SoulManager)
+├── storage/       # Drizzle ORMスキーマ・リポジトリ
+├── synthesis/     # 統合エージェント
+├── template/      # YAMLテンプレートエンジン
+├── tournament/    # トーナメントシステム
+└── main.ts        # エントリポイント
+```
+
+### コアエンジン層
+
+- **SoulText Manager**: ソウルテキスト四層構造の読み込み・管理
+- **Pipeline Controller**: Simple/Fullパイプラインの制御
+- **Tournament Arena**: 4人トーナメントの実行
+- **Agents**: Writer, Judge, Plotter, Corrector, ReaderEvaluator, ReaderJury, ThemeGenerator, CharacterDeveloper
+
+### ストレージ層
+
+SQLite + Drizzle ORM。テーブル: Works, Chapters, TournamentMatches, JudgeScores, Tasks, Checkpoints, SoulCandidates, ReaderEvaluations
 
 ### ソウルテキスト四層構造
 
@@ -70,13 +119,21 @@ ARタグシステムとMR（拡張現実）を背景にした近未来SF。
 | `docs/SOUL-FORMAT.md` | 四層構造のJSONスキーマと具体例 |
 | `docs/soultext.md` | 原典の小説メモ（「わたしのライオン」のキャラクター設定・ストーリー・台詞断片） |
 
-## ソウルテキストのファイル構成（予定）
+## ソウルテキストのファイル構成
 
 ```
 soul/
 ├── constitution.json       # 第一層
 ├── fragments/              # 第二層（カテゴリ別）
+│   ├── opening.json
+│   ├── killing.json
+│   ├── introspection.json
+│   ├── dialogue.json
+│   ├── character_voice.json
+│   ├── symbolism.json
+│   └── world_building.json
 ├── world-bible.json        # 第三層
 ├── anti-soul.json          # 第四層
-└── reader-personas.json    # 読者ペルソナ
+├── reader-personas.json    # 読者ペルソナ
+└── prompt-config.yaml      # プロンプト設定
 ```
