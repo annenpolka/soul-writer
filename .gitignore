@@ -12,6 +12,9 @@
 *.sqlite3
 data/
 
+# Config files (test/local only)
+factory-config*.json
+
 # OS
 .DS_Store
 Thumbs.db
