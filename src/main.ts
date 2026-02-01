@@ -30,8 +30,15 @@ resume Options:
   --task-id   Task ID to resume (required)
 
 factory Options:
-  --config    Path to factory config JSON file (required)
-  --resume    Resume interrupted batch generation
+  --config              Path to factory config JSON file (optional)
+  --count               Number of stories to generate (default: 10)
+  --parallel            Number of parallel executions, 1-8 (default: 4)
+  --chapters-per-story  Chapters per story (default: 5)
+  --soul                Path to soul text directory (default: "soul")
+  --output              Output directory (default: "output")
+  --db                  Path to SQLite database (default: "factory.db")
+  --task-delay          Delay ms between tasks per worker (default: 1000)
+  --resume              Resume interrupted batch generation
 
 Examples:
   # Simple tournament generation (no DB)
@@ -49,8 +56,14 @@ Examples:
   # Review learning candidates
   npx tsx src/main.ts review --soul soul
 
-  # Batch generation with random themes
+  # Batch generation with config file
   npx tsx src/main.ts factory --config factory-config.json
+
+  # Batch generation with CLI arguments
+  npx tsx src/main.ts factory --count 5 --parallel 2 --chapters-per-story 3
+
+  # Config file with CLI overrides
+  npx tsx src/main.ts factory --config factory-config.json --count 20
   `);
 }
 
@@ -127,16 +140,17 @@ async function main(): Promise<void> {
     }
 
     case 'factory': {
-      const configPath = options.config;
-      const resumeFlag = options.resume === 'true';
-
-      if (!configPath) {
-        console.error('Error: --config is required');
-        printUsage();
-        process.exit(1);
-      }
-
-      await factory({ config: configPath, resume: resumeFlag });
+      await factory({
+        config: options.config,
+        resume: options.resume === 'true',
+        count: options.count ? parseInt(options.count, 10) : undefined,
+        parallel: options.parallel ? parseInt(options.parallel, 10) : undefined,
+        chaptersPerStory: options['chapters-per-story'] ? parseInt(options['chapters-per-story'], 10) : undefined,
+        soulPath: options.soul,
+        outputDir: options.output,
+        dbPath: options.db,
+        taskDelayMs: options['task-delay'] ? parseInt(options['task-delay'], 10) : undefined,
+      });
       break;
     }
 

@@ -55,8 +55,14 @@ npx tsx src/main.ts resume --task-id <uuid> --soul soul
 # 学習候補レビュー
 npx tsx src/main.ts review --soul soul
 
-# 工場バッチ生成（並列実行）
+# 工場バッチ生成（configファイル）
 npx tsx src/main.ts factory --config factory-config.json
+
+# 工場バッチ生成（CLI引数）
+npx tsx src/main.ts factory --count 5 --parallel 2 --chapters-per-story 3
+
+# configファイル + CLI引数で上書き
+npx tsx src/main.ts factory --config factory-config.json --count 20
 ```
 
 ## ドキュメント
