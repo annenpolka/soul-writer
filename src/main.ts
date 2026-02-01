@@ -26,6 +26,7 @@ generate Options:
   --mode         Generation mode: "tournament" (default) or "collaboration"
   --soul         Path to soul text directory (default: "soul")
   --db           Path to SQLite database (default: "soul-writer.db")
+  --include-raw-soultext  Include raw soultext.md in writer prompts (default: off)
 
 resume Options:
   --task-id   Task ID to resume (required)
@@ -40,6 +41,7 @@ factory Options:
   --db                  Path to SQLite database (default: "factory.db")
   --task-delay          Delay ms between tasks per worker (default: 1000)
   --mode                Generation mode: "tournament" (default) or "collaboration"
+  --include-raw-soultext  Include raw soultext.md in writer prompts (default: off)
   --resume              Resume interrupted batch generation
 
 Examples:
@@ -112,6 +114,7 @@ async function main(): Promise<void> {
       const simple = options.simple === 'true';
       const verbose = options.verbose === 'true';
       const mode = options.mode as 'tournament' | 'collaboration' | undefined;
+      const includeRawSoultext = options['include-raw-soultext'] === 'true';
 
       if (!prompt && !autoTheme) {
         console.error('Error: --prompt or --auto-theme is required');
@@ -119,7 +122,7 @@ async function main(): Promise<void> {
         process.exit(1);
       }
 
-      await generate({ soul, prompt, autoTheme, chapters, dbPath, simple, verbose, mode });
+      await generate({ soul, prompt, autoTheme, chapters, dbPath, simple, verbose, mode, includeRawSoultext });
       break;
     }
 
@@ -149,10 +152,12 @@ async function main(): Promise<void> {
 
     case 'factory': {
       const verbose = options.verbose === 'true';
+      const includeRawSoultextFactory = options['include-raw-soultext'] === 'true';
       await factory({
         config: options.config,
         resume: options.resume === 'true',
         verbose,
+        includeRawSoultext: includeRawSoultextFactory,
         count: options.count ? parseInt(options.count, 10) : undefined,
         parallel: options.parallel ? parseInt(options.parallel, 10) : undefined,
         chaptersPerStory: options['chapters-per-story'] ? parseInt(options['chapters-per-story'], 10) : undefined,

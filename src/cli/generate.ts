@@ -26,6 +26,7 @@ export interface GenerateOptions {
   simple?: boolean;
   verbose?: boolean;
   mode?: 'tournament' | 'collaboration';
+  includeRawSoultext?: boolean;
 }
 
 export async function generate(options: GenerateOptions): Promise<void> {
@@ -38,6 +39,7 @@ export async function generate(options: GenerateOptions): Promise<void> {
     simple = false,
     verbose = false,
     mode,
+    includeRawSoultext = false,
   } = options;
 
   const logger = new Logger({
@@ -57,6 +59,9 @@ export async function generate(options: GenerateOptions): Promise<void> {
   // Load soul text
   console.log(`Loading soul text from "${soul}"...`);
   const soulManager = await SoulTextManager.load(soul);
+  if (!includeRawSoultext) {
+    soulManager.clearRawSoultext();
+  }
   console.log(`✓ Loaded: ${soulManager.getConstitution().meta.soul_name}\n`);
 
   // Create LLM client

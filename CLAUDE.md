@@ -139,5 +139,5 @@ soul/
 ├── anti-soul.json          # 第四層
 ├── reader-personas.json    # 読者ペルソナ
 ├── prompt-config.yaml      # プロンプト設定
-└── soultext.md             # 原典メモ（Writerプロンプトに全文含まれる）
+└── soultext.md             # 原典メモ（デフォルト無効、--include-raw-soultextで有効化）
 ```

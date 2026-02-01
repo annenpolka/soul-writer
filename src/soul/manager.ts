@@ -199,6 +199,10 @@ export class SoulTextManager {
     return this.rawSoultext;
   }
 
+  clearRawSoultext(): void {
+    this.rawSoultext = undefined;
+  }
+
   getSoulText(): SoulText {
     return {
       constitution: this.constitution,

@@ -53,6 +53,9 @@ npx tsx src/main.ts generate --auto-theme --chapters 3
 # コラボレーションモード（複数Writer共作）
 npx tsx src/main.ts generate --auto-theme --chapters 2 --mode collaboration
 
+# 原典メモ（soultext.md）をWriterプロンプトに含める
+npx tsx src/main.ts generate --simple --prompt "透心の独白" --include-raw-soultext
+
 # 中断タスク再開
 npx tsx src/main.ts resume --task-id <uuid> --soul soul
 
