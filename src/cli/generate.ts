@@ -3,6 +3,7 @@ import { CerebrasClient } from '../llm/cerebras.js';
 import { SoulTextManager } from '../soul/manager.js';
 import { SimplePipeline } from '../pipeline/simple.js';
 import { FullPipeline } from '../pipeline/full.js';
+import { Logger } from '../logger.js';
 import { DatabaseConnection } from '../storage/database.js';
 import { TaskRepository } from '../storage/task-repository.js';
 import { WorkRepository } from '../storage/work-repository.js';
@@ -21,6 +22,7 @@ export interface GenerateOptions {
   chapters?: number;
   dbPath?: string;
   simple?: boolean;
+  verbose?: boolean;
 }
 
 export async function generate(options: GenerateOptions): Promise<void> {
@@ -31,7 +33,13 @@ export async function generate(options: GenerateOptions): Promise<void> {
     chapters,
     dbPath = 'soul-writer.db',
     simple = false,
+    verbose = false,
   } = options;
+
+  const logger = new Logger({
+    verbose,
+    logFile: verbose ? `logs/generate-${Date.now()}.log` : undefined,
+  });
 
   // Check environment
   const apiKey = process.env.CEREBRAS_API_KEY;
@@ -52,26 +60,35 @@ export async function generate(options: GenerateOptions): Promise<void> {
 
   // Simple mode: tournament only, no DB
   if (simple) {
-    return runSimpleMode(llmClient, soulManager, prompt!);
+    try {
+      return await runSimpleMode(llmClient, soulManager, prompt!, logger);
+    } finally {
+      logger.close();
+    }
   }
 
   // Full mode: FullPipeline with DB
-  return runFullMode(llmClient, soulManager, {
-    prompt,
-    autoTheme,
-    chapters,
-    dbPath,
-  });
+  try {
+    return await runFullMode(llmClient, soulManager, {
+      prompt,
+      autoTheme,
+      chapters,
+      dbPath,
+    }, logger);
+  } finally {
+    logger.close();
+  }
 }
 
 async function runSimpleMode(
   llmClient: CerebrasClient,
   soulManager: SoulTextManager,
   prompt: string,
+  logger: Logger,
 ): Promise<void> {
   console.log(`Mode: Simple (tournament only)\n`);
 
-  const pipeline = new SimplePipeline(llmClient, soulManager, { simple: true });
+  const pipeline = new SimplePipeline(llmClient, soulManager, { simple: true, logger });
   const result = await pipeline.generate(prompt);
 
   console.log(`\n🏆 Champion: ${result.champion}`);
@@ -97,6 +114,7 @@ async function runFullMode(
   llmClient: CerebrasClient,
   soulManager: SoulTextManager,
   opts: FullModeOptions,
+  logger: Logger,
 ): Promise<void> {
   const chapterCount = opts.chapters ?? 5;
 
@@ -153,6 +171,7 @@ async function runFullMode(
         narrativeType,
         developedCharacters,
       },
+      logger,
     );
 
     console.log('Starting story generation...');

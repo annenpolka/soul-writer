@@ -28,6 +28,7 @@ import { RetakeLoop, DEFAULT_RETAKE_CONFIG } from '../retake/retake-loop.js';
 import { JudgeAgent } from '../agents/judge.js';
 import { SynthesisAgent } from '../synthesis/synthesis-agent.js';
 import { resolveNarrativeRules, type NarrativeRules } from '../factory/narrative-rules.js';
+import type { Logger } from '../logger.js';
 
 /**
  * Full pipeline that integrates all generation, compliance, evaluation, and learning features
@@ -40,6 +41,7 @@ export class FullPipeline {
   private workRepo: WorkRepository;
   private candidateRepo: SoulCandidateRepository;
   private config: FullPipelineConfig;
+  private logger?: Logger;
 
   constructor(
     llmClient: LLMClient,
@@ -48,7 +50,8 @@ export class FullPipeline {
     taskRepo: TaskRepository,
     workRepo: WorkRepository,
     candidateRepo: SoulCandidateRepository,
-    config: Partial<FullPipelineConfig> = {}
+    config: Partial<FullPipelineConfig> = {},
+    logger?: Logger,
   ) {
     this.llmClient = llmClient;
     this.soulManager = soulManager;
@@ -57,6 +60,7 @@ export class FullPipeline {
     this.workRepo = workRepo;
     this.candidateRepo = candidateRepo;
     this.config = { ...DEFAULT_FULL_PIPELINE_CONFIG, ...config };
+    this.logger = logger;
     // Convert developedCharacters to Character[] for narrative rules resolution
     const chars = this.config.developedCharacters?.map(c => ({
       name: c.name,
@@ -98,6 +102,14 @@ export class FullPipeline {
     const plotResult = await plotter.generatePlot();
     let totalTokensUsed = plotResult.tokensUsed;
 
+    this.logger?.section('Plot Generated');
+    this.logger?.debug('Plot', {
+      title: plotResult.plot.title,
+      theme: plotResult.plot.theme,
+      chapters: plotResult.plot.chapters.map(c => ({ index: c.index, title: c.title, summary: c.summary })),
+      tokensUsed: plotResult.tokensUsed,
+    });
+
     // 3. Save plot checkpoint
     await this.checkpointManager.saveCheckpoint(
       taskId,
@@ -112,6 +124,7 @@ export class FullPipeline {
     let antiPatternsCollected = 0;
 
     for (const chapter of plotResult.plot.chapters) {
+      this.logger?.section(`Chapter ${chapter.index}: ${chapter.title}`);
       const chapterResult = await this.generateChapter(chapter, plotResult.plot);
       chapterResults.push(chapterResult);
       totalTokensUsed += chapterResult.tokensUsed;
@@ -171,6 +184,9 @@ export class FullPipeline {
         learningCandidates += learningResult.added;
       }
     }
+
+    this.logger?.section('Learning Pipeline Complete');
+    this.logger?.debug('Learning summary', { learningCandidates, antiPatternsCollected });
 
     // 8. Mark task as completed
     await this.taskRepo.markCompleted(taskId);
@@ -317,7 +333,7 @@ export class FullPipeline {
     const tokensStart = this.llmClient.getTotalTokens();
 
     // 1. Run tournament
-    const arena = new TournamentArena(this.llmClient, this.soulManager.getSoulText(), undefined, this.narrativeRules, this.config.developedCharacters);
+    const arena = new TournamentArena(this.llmClient, this.soulManager.getSoulText(), undefined, this.narrativeRules, this.config.developedCharacters, this.logger);
     const chapterPrompt = this.buildChapterPrompt(chapter, plot);
     const tournamentResult = await arena.runTournament(chapterPrompt);
 
@@ -327,6 +343,8 @@ export class FullPipeline {
 
     // 1.5. Synthesis: enhance champion using elements from all entries
     if (tournamentResult.allGenerations.length > 1) {
+      this.logger?.section('Synthesis');
+      const beforeLength = finalText.length;
       try {
         const synthesizer = new SynthesisAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules);
         const synthesisResult = await synthesizer.synthesize(
@@ -337,17 +355,22 @@ export class FullPipeline {
         );
         finalText = synthesisResult.synthesizedText;
         synthesized = true;
+        this.logger?.debug('Synthesis result', { synthesized: true, beforeLength, afterLength: finalText.length });
       } catch (err) {
         console.warn(`Chapter ${chapter.index}: Synthesis failed, using champion text as-is.`, err);
+        this.logger?.debug('Synthesis failed', { error: String(err) });
       }
     }
 
     // 2. Compliance check
+    this.logger?.section('Compliance Check');
     const checker = ComplianceChecker.fromSoulText(this.soulManager.getSoulText(), this.narrativeRules);
     let complianceResult: ComplianceResult = checker.check(finalText);
+    this.logger?.debug('Compliance result', complianceResult);
 
     // 3. Correction loop if needed
     if (!complianceResult.isCompliant) {
+      this.logger?.section('Correction Loop');
       const corrector = new CorrectorAgent(this.llmClient, this.soulManager.getSoulText());
       const loop = new CorrectionLoop(corrector, checker, this.config.maxCorrectionAttempts);
       const correctionResult = await loop.run(finalText);
@@ -355,6 +378,7 @@ export class FullPipeline {
       correctionAttempts = correctionResult.attempts;
       finalText = correctionResult.finalText;
       complianceResult = checker.check(finalText);
+      this.logger?.debug('Correction result', { attempts: correctionAttempts, success: correctionResult.success, finalCompliance: complianceResult });
 
       // 4. Collect anti-patterns if correction failed
       if (!correctionResult.success) {
@@ -367,10 +391,12 @@ export class FullPipeline {
     }
 
     // 5. Retake loop (post-tournament, pre-reader-jury)
+    this.logger?.section('Retake Loop');
     const retakeAgent = new RetakeAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules);
     const judgeAgent = new JudgeAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules);
     const retakeLoop = new RetakeLoop(retakeAgent, judgeAgent, DEFAULT_RETAKE_CONFIG);
     const retakeResult = await retakeLoop.run(finalText);
+    this.logger?.debug('Retake result', { improved: retakeResult.improved, retakeCount: retakeResult.retakeCount });
     if (retakeResult.improved) {
       finalText = retakeResult.finalText;
       // Re-check compliance after retake
@@ -378,8 +404,12 @@ export class FullPipeline {
     }
 
     // 6. Reader jury evaluation
+    this.logger?.section('Reader Jury Evaluation');
     const readerJury = new ReaderJuryAgent(this.llmClient, this.soulManager.getSoulText());
     const readerJuryResult: ReaderJuryResult = await readerJury.evaluate(finalText);
+    this.logger?.debug('Reader Jury result', readerJuryResult);
+
+    this.logger?.debug(`Chapter text (${finalText.length}文字)`, finalText);
 
     // Note: Learning pipeline is executed after work is archived (in generateStory/resume)
     // to satisfy foreign key constraint on work_id
