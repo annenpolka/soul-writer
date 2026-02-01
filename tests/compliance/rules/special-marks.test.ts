@@ -98,5 +98,22 @@ describe('SpecialMarksRule', () => {
       // '◯した' allowed, '◯に' not allowed
       expect(violations).toHaveLength(1);
     });
+
+    it('should handle multiple instances of the same allowed form', () => {
+      const rule = new SpecialMarksRule('×', ['×した']);
+      const text = '彼は×した。彼女も×した。そして全員が×した。';
+      const violations = rule.check(text);
+
+      expect(violations).toHaveLength(0);
+    });
+
+    it('should handle mixed allowed and disallowed with repeated forms', () => {
+      const rule = new SpecialMarksRule('×', ['×したい']);
+      const text = '×したい。また×したい。でも×は駄目。';
+      const violations = rule.check(text);
+
+      // Two '×したい' are allowed, standalone '×' is not
+      expect(violations).toHaveLength(1);
+    });
   });
 });

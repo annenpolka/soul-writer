@@ -104,6 +104,23 @@ export class PlotterAgent {
       };
     }
 
+    // MacGuffins
+    if (this.config.plotMacGuffins && this.config.plotMacGuffins.length > 0) {
+      ctx.plotMacGuffins = this.config.plotMacGuffins.map(m => ({
+        name: m.name,
+        surface: m.surfaceAppearance,
+        questions: m.tensionQuestions.join('、'),
+        hint: m.presenceHint,
+      }));
+    }
+    if (this.config.characterMacGuffins && this.config.characterMacGuffins.length > 0) {
+      ctx.characterMacGuffins = this.config.characterMacGuffins.map(m => ({
+        name: m.characterName,
+        secret: m.secret,
+        signs: m.surfaceSigns.join('、'),
+      }));
+    }
+
     ctx.chapterInstruction = `${this.config.chapterCount}章構成の物語を設計してください。\n総文字数の目安: ${this.config.targetTotalLength}字`;
 
     return ctx;

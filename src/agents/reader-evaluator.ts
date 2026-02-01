@@ -53,7 +53,12 @@ export class ReaderEvaluator {
       try {
         const parsed = JSON.parse(jsonMatch[0]);
         categoryScores = this.normalizeScores(parsed.categoryScores);
-        feedback = parsed.feedback || 'フィードバックなし';
+        if (parsed.feedback && typeof parsed.feedback === 'object') {
+          const fb = parsed.feedback;
+          feedback = `[良] ${fb.strengths || ''} [課題] ${fb.weaknesses || ''} [提案] ${fb.suggestion || ''}`;
+        } else {
+          feedback = parsed.feedback || 'フィードバックなし';
+        }
       } catch {
         // Fallback on parse error
         categoryScores = this.getDefaultScores();

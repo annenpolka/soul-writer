@@ -45,11 +45,27 @@ system:
     - type: text
       text: |
         - 新規キャラクターには必ず name, role, voice, description を付与する
+        - 既存キャラクターにも voice, description を必ず付与する（空欄禁止）
         - キャラクター数は2-4名が目安。多すぎても少なすぎても物語の質が下がる
         - narrative_typeに応じた配置:
           - モブ/システム視点系 → 新規キャラを主軸に
           - 群像劇 → 既存+新規をミックス
           - 一人称内面独白 → 主人公1名を中心に（既存でも新規でも可）
+
+    - type: heading
+      heading: キャラクター深度の要件
+
+    - type: text
+      text: |
+        descriptionには以下を必ず含めること（各キャラ最低50字）：
+        - 外見的特徴（服装、体格、癖など）
+        - 内面の動機や欲求（何を求め、何を恐れるか）
+        - 矛盾や葛藤（表面と内面のギャップ）
+
+        voiceには以下を必ず含めること：
+        - 具体的な口調パターン（語尾、一人称、特徴的な言い回し）
+        - 感情表現の傾向（怒りを隠す、皮肉で返す等）
+        - 他キャラとの差別化ポイント
 
     - type: heading
       heading: 出力形式
@@ -59,8 +75,8 @@ system:
         ```json
         {
           "characters": [
-            { "name": "名前", "isNew": false, "role": "この物語での役割", "voice": "口調" },
-            { "name": "新キャラ名", "isNew": true, "role": "役割", "description": "外見や背景", "voice": "口調の特徴" }
+            { "name": "名前", "isNew": false, "role": "この物語での役割", "description": "外見・内面の動機・矛盾を含む詳細（50字以上）", "voice": "一人称・語尾・感情表現の具体的パターン" },
+            { "name": "新キャラ名", "isNew": true, "role": "役割", "description": "外見・内面の動機・矛盾を含む詳細（50字以上）", "voice": "一人称・語尾・感情表現の具体的パターン" }
           ],
           "castingRationale": "なぜこの組み合わせか（1-2文）"
         }
@@ -83,6 +99,19 @@ user:
       then:
         - type: text
           text: "- ナラティブ型: {{ themeInfo.narrative_type }}"
+
+    - type: condition
+      if:
+        has: characterMacGuffins
+      then:
+        - type: heading
+          heading: キャラクターの秘密（descriptionとvoiceに反映せよ）
+        - type: each
+          each: characterMacGuffins
+          as: m
+          template: "- {{ m.name }}: {{ m.secret }}（表出: {{ m.surfaceSigns }}）"
+        - type: text
+          text: "秘密そのものをdescriptionに直接書かず、表出サインをvoiceや行動特徴として織り込むこと。"
 
     - type: heading
       heading: テーマ生成時のキャラクター案

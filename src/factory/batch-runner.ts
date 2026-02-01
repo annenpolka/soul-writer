@@ -10,6 +10,9 @@ import type { GeneratedTheme } from '../schemas/generated-theme.js';
 import type { FullPipelineResult } from '../agents/types.js';
 import { ThemeGeneratorAgent, type ThemeResult } from './theme-generator.js';
 import { CharacterDeveloperAgent, type CharacterDevelopResult, type DevelopedCharacters } from './character-developer.js';
+import { CharacterMacGuffinAgent } from './character-macguffin.js';
+import { PlotMacGuffinAgent } from './plot-macguffin.js';
+import type { CharacterMacGuffin, PlotMacGuffin } from '../schemas/macguffin.js';
 import { FullPipeline } from '../pipeline/full.js';
 import { FileWriter } from './file-writer.js';
 import { Logger } from '../logger.js';
@@ -71,7 +74,7 @@ export interface StoryFileWriter {
 export interface BatchRunnerOptions {
   themeGenerator?: ThemeGenerator;
   characterDeveloper?: CharacterDeveloper;
-  pipelineFactory?: (theme: GeneratedTheme, developed?: DevelopedCharacters, logger?: Logger) => PipelineInstance;
+  pipelineFactory?: (theme: GeneratedTheme, developed?: DevelopedCharacters, logger?: Logger, charMacGuffins?: CharacterMacGuffin[], plotMacGuffins?: PlotMacGuffin[]) => PipelineInstance;
   fileWriter?: StoryFileWriter;
   verbose?: boolean;
 }
@@ -110,7 +113,7 @@ export class BatchRunner {
     const fileWriter = this.options.fileWriter ??
       new FileWriter(this.config.outputDir);
 
-    const createPipeline = this.options.pipelineFactory ?? ((theme: GeneratedTheme, developed?: DevelopedCharacters, logger?: Logger) => {
+    const createPipeline = this.options.pipelineFactory ?? ((theme: GeneratedTheme, developed?: DevelopedCharacters, logger?: Logger, charMG?: CharacterMacGuffin[], plotMG?: PlotMacGuffin[]) => {
       const mockSoulManager = {
         getSoulText: () => this.deps.soulText,
         getConstitution: () => this.deps.soulText.constitution,
@@ -127,6 +130,9 @@ export class BatchRunner {
           chapterCount: this.config.chaptersPerStory,
           narrativeType: theme.narrative_type,
           developedCharacters: developed?.characters,
+          theme,
+          characterMacGuffins: charMG,
+          plotMacGuffins: plotMG,
         },
         logger,
       );
@@ -154,12 +160,24 @@ export class BatchRunner {
         const themeResult = await themeGenerator.generateTheme([...recentThemes]);
         logger?.debug('Theme generated', themeResult.theme);
 
-        // Develop characters for this theme
-        const charResult = await characterDeveloper.develop(themeResult.theme);
+        // Generate character MacGuffins
+        const charMacGuffinAgent = new CharacterMacGuffinAgent(this.deps.llmClient, this.deps.soulText);
+        const charMacGuffinResult = await charMacGuffinAgent.generate(themeResult.theme);
+        const charMacGuffins: CharacterMacGuffin[] = charMacGuffinResult.macguffins;
+        logger?.debug('Character MacGuffins generated', charMacGuffins);
+
+        // Develop characters for this theme (with MacGuffins)
+        const charResult = await characterDeveloper.develop(themeResult.theme, charMacGuffins);
         logger?.debug('Characters developed', charResult.developed);
 
+        // Generate plot MacGuffins
+        const plotMacGuffinAgent = new PlotMacGuffinAgent(this.deps.llmClient, this.deps.soulText);
+        const plotMacGuffinResult = await plotMacGuffinAgent.generate(themeResult.theme, charMacGuffins);
+        const plotMacGuffins: PlotMacGuffin[] = plotMacGuffinResult.macguffins;
+        logger?.debug('Plot MacGuffins generated', plotMacGuffins);
+
         // Create pipeline and generate story
-        const pipeline = createPipeline(themeResult.theme, charResult.developed, logger);
+        const pipeline = createPipeline(themeResult.theme, charResult.developed, logger, charMacGuffins, plotMacGuffins);
         const storyResult = await pipeline.generateStory(themeResult.theme.premise);
 
         // Write to file

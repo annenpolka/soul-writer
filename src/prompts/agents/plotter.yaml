@@ -126,6 +126,32 @@ user:
               as: s
               template: "- {{ s }}"
 
+    - type: condition
+      if:
+        has: plotMacGuffins
+      then:
+        - type: heading
+          heading: 物語に漂わせる謎
+        - type: each
+          each: plotMacGuffins
+          as: m
+          template: "- {{ m.name }}: 表層「{{ m.surface }}」／問い: {{ m.questions }}（{{ m.hint }}）"
+        - type: text
+          text: "これらの謎を章の展開に自然に織り込んでください。解決は不要です。"
+
+    - type: condition
+      if:
+        has: characterMacGuffins
+      then:
+        - type: heading
+          heading: キャラクターの秘密
+        - type: each
+          each: characterMacGuffins
+          as: m
+          template: "- {{ m.name }}: {{ m.secret }}（表出: {{ m.signs }}）"
+        - type: text
+          text: "秘密そのものを明かす必要はありません。表出サインがプロットに影響するよう設計してください。"
+
     - type: text
       text: "{{ chapterInstruction }}"
 

@@ -31,6 +31,10 @@ export interface ScoreBreakdown {
   voice_accuracy?: number;
   /** Fidelity to original work's setting and plot */
   originality_fidelity?: number;
+  /** Narrative quality: immersion, emotional weight, structural strength */
+  narrative_quality?: number;
+  /** Novelty: unexpected developments, fresh expressions, new character facets */
+  novelty?: number;
 }
 
 /**
@@ -70,6 +74,9 @@ export interface PlotterConfig {
   theme?: import('../schemas/generated-theme.js').GeneratedTheme;
   /** Developed characters from CharacterDeveloper - overrides world-bible characters in prompt */
   developedCharacters?: import('../factory/character-developer.js').DevelopedCharacter[];
+  /** MacGuffins for plot mystery injection */
+  plotMacGuffins?: import('../schemas/macguffin.js').PlotMacGuffin[];
+  characterMacGuffins?: import('../schemas/macguffin.js').CharacterMacGuffin[];
 }
 
 /**
@@ -195,6 +202,11 @@ export interface FullPipelineConfig {
   dbPath: string;
   narrativeType?: string;
   developedCharacters?: import('../factory/character-developer.js').DevelopedCharacter[];
+  /** Theme from ThemeGenerator - passed to Plotter for emotion/timeline/scene_types context */
+  theme?: import('../schemas/generated-theme.js').GeneratedTheme;
+  /** MacGuffins for mystery injection into writers */
+  characterMacGuffins?: import('../schemas/macguffin.js').CharacterMacGuffin[];
+  plotMacGuffins?: import('../schemas/macguffin.js').PlotMacGuffin[];
   verbose?: boolean;
 }
 

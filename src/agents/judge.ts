@@ -49,6 +49,8 @@ export class JudgeAgent {
     }
     criteriaEntries.push({ text: '3. **文体の一貫性** (style): 短-短-長(内省)-短(断定)のリズム、体言止め、比喩密度low' });
     criteriaEntries.push({ text: '4. **禁止パターンの回避** (compliance): 禁止語彙、禁止比喩、「×」の正しい用法' });
+    criteriaEntries.push({ text: '5. **物語性** (narrative_quality): 読者を引き込む没入感、感情の重み、構成力。形式ルール遵守だけでは高得点にならない' });
+    criteriaEntries.push({ text: '6. **新奇さ** (novelty): 予想外の展開、新鮮な表現・比喩、キャラクターの未知の側面。原作の精神を継ぎつつ超える力' });
 
     // Penalty items
     const penaltyEntries: Array<{ text: string }> = [];
@@ -143,12 +145,18 @@ export class JudgeAgent {
   }
 
   private normalizeScore(score: Partial<ScoreBreakdown> | undefined): ScoreBreakdown {
+    const clamp = (v: number | undefined) => {
+      const val = v ?? 0.5;
+      return Math.min(0.95, Math.max(0.05, val));
+    };
     return {
-      style: score?.style ?? 0.5,
-      compliance: score?.compliance ?? 0.5,
-      voice_accuracy: score?.voice_accuracy ?? 0.5,
-      originality_fidelity: score?.originality_fidelity ?? 0.5,
-      overall: score?.overall ?? 0.5,
+      style: clamp(score?.style),
+      compliance: clamp(score?.compliance),
+      voice_accuracy: clamp(score?.voice_accuracy),
+      originality_fidelity: clamp(score?.originality_fidelity),
+      narrative_quality: clamp(score?.narrative_quality),
+      novelty: clamp(score?.novelty),
+      overall: clamp(score?.overall),
     };
   }
 
@@ -160,8 +168,8 @@ export class JudgeAgent {
       winner: mentionsB > mentionsA ? 'B' : 'A',
       reasoning: 'Fallback parsing: ' + response.slice(0, 100),
       scores: {
-        A: { style: 0.5, compliance: 0.5, overall: 0.5 },
-        B: { style: 0.5, compliance: 0.5, overall: 0.5 },
+        A: { style: 0.5, compliance: 0.5, voice_accuracy: 0.5, originality_fidelity: 0.5, narrative_quality: 0.5, novelty: 0.5, overall: 0.5 },
+        B: { style: 0.5, compliance: 0.5, voice_accuracy: 0.5, originality_fidelity: 0.5, narrative_quality: 0.5, novelty: 0.5, overall: 0.5 },
       },
     };
   }

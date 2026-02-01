@@ -46,6 +46,8 @@ export class RetakeAgent {
     parts.push('あなたはリテイク専門家です。');
     parts.push('提示されたテキストを、フィードバックに基づいて原作により忠実な形に書き直してください。');
     parts.push('');
+    parts.push('【絶対厳守】プレーンテキストのみ出力。***、**、#、---、```等のMarkdown記法は一切禁止。セクション区切りには空行のみ使用。');
+    parts.push('');
     parts.push('【絶対ルール】');
     for (const rule of buildPovRules(this.narrativeRules)) {
       parts.push(rule);
@@ -95,6 +97,8 @@ export class RetakeAgent {
     parts.push('');
     parts.push('## フィードバック（修正すべき問題）');
     parts.push(feedback);
+    parts.push('');
+    parts.push(`【文字数厳守】元のテキストは${originalText.length}文字です。書き直し後も同程度の文字数（±10%以内、${Math.round(originalText.length * 0.9)}〜${Math.round(originalText.length * 1.1)}文字）を維持してください。大幅な短縮は禁止です。`);
     parts.push('');
     parts.push('上記のフィードバックに基づいて、テキスト全体を原作の文体に忠実に書き直してください。');
     parts.push('元のプロット・シーン展開は維持しつつ、文体・語り口・キャラクター描写を改善してください。');

@@ -98,6 +98,9 @@ export class FullPipeline {
       chapterCount: this.config.chapterCount,
       targetTotalLength: this.config.targetTotalLength,
       developedCharacters: this.config.developedCharacters,
+      theme: this.config.theme,
+      plotMacGuffins: this.config.plotMacGuffins,
+      characterMacGuffins: this.config.characterMacGuffins,
     });
     const plotResult = await plotter.generatePlot();
     let totalTokensUsed = plotResult.tokensUsed;
@@ -403,11 +406,45 @@ export class FullPipeline {
       complianceResult = checker.check(finalText);
     }
 
-    // 6. Reader jury evaluation
+    // 6. Reader jury evaluation (with retake loop on failure, max 2 retakes)
     this.logger?.section('Reader Jury Evaluation');
     const readerJury = new ReaderJuryAgent(this.llmClient, this.soulManager.getSoulText());
-    const readerJuryResult: ReaderJuryResult = await readerJury.evaluate(finalText);
+    let readerJuryResult: ReaderJuryResult = await readerJury.evaluate(finalText);
     this.logger?.debug('Reader Jury result', readerJuryResult);
+
+    const MAX_READER_RETAKES = 2;
+    for (let readerRetake = 0; readerRetake < MAX_READER_RETAKES && !readerJuryResult.passed; readerRetake++) {
+      this.logger?.section(`Reader Jury Retake ${readerRetake + 1}/${MAX_READER_RETAKES}`);
+      const prevScore = readerJuryResult.aggregatedScore;
+      const prevText = finalText;
+      const prevResult = readerJuryResult;
+
+      // Build feedback from reader evaluations
+      const readerFeedback = readerJuryResult.evaluations
+        .map((e) => `${e.personaName}: ${e.feedback}`)
+        .join('\n');
+
+      // Retake using reader feedback
+      const readerRetakeAgent = new RetakeAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules);
+      const retakeResult2 = await readerRetakeAgent.retake(finalText, `読者陪審員から以下のフィードバックを受けました。改善してください:\n${readerFeedback}`);
+      finalText = retakeResult2.retakenText;
+
+      // Re-check compliance after retake
+      complianceResult = checker.check(finalText);
+
+      // Re-evaluate with reader jury
+      readerJuryResult = await readerJury.evaluate(finalText);
+      this.logger?.debug(`Reader Jury Retake ${readerRetake + 1} result`, readerJuryResult);
+
+      // Abort if score degraded — revert to previous text
+      if (readerJuryResult.aggregatedScore <= prevScore) {
+        this.logger?.debug(`Reader Jury Retake aborted: score degraded (${prevScore.toFixed(3)} → ${readerJuryResult.aggregatedScore.toFixed(3)})`);
+        finalText = prevText;
+        readerJuryResult = prevResult;
+        complianceResult = checker.check(finalText);
+        break;
+      }
+    }
 
     this.logger?.debug(`Chapter text (${finalText.length}文字)`, finalText);
 
@@ -466,6 +503,24 @@ export class FullPipeline {
       parts.push(`- ${event}`);
     }
     parts.push('');
+    // Inject character MacGuffins as surface signs
+    if (this.config.characterMacGuffins && this.config.characterMacGuffins.length > 0) {
+      parts.push('## キャラクターの秘密（表出サインとして描写に織り込むこと）');
+      for (const m of this.config.characterMacGuffins) {
+        parts.push(`- ${m.characterName}: ${m.surfaceSigns.join('、')}`);
+      }
+      parts.push('');
+    }
+
+    // Inject plot MacGuffins as tension questions
+    if (this.config.plotMacGuffins && this.config.plotMacGuffins.length > 0) {
+      parts.push('## 物語の謎（解決不要、雰囲気として漂わせること）');
+      for (const m of this.config.plotMacGuffins) {
+        parts.push(`- ${m.name}: ${m.tensionQuestions.join('、')}（${m.presenceHint}）`);
+      }
+      parts.push('');
+    }
+
     parts.push(`目標文字数: ${chapter.target_length}字`);
     parts.push('');
     parts.push('この章を執筆してください。');
