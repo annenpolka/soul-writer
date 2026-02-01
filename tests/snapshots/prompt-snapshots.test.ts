@@ -212,6 +212,7 @@ describe('Prompt Snapshots', () => {
         worldDescription: 'AR/MRテクノロジーが浸透した近未来。',
         emotion: '孤独',
         timeline: '出会い前',
+        tone: '常識的な展開や安全な選択を避け、予想外で挑発的なアイデアを出してください。',
       };
 
       const result = buildPrompt('theme-generator-stage1', context);
