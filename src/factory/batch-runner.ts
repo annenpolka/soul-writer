@@ -117,6 +117,8 @@ export class BatchRunner {
       const mockSoulManager = {
         getSoulText: () => this.deps.soulText,
         getConstitution: () => this.deps.soulText.constitution,
+        getWriterPersonas: () => this.deps.soulText.writerPersonas ?? [],
+        getPromptConfig: () => this.deps.soulText.promptConfig,
       } as SoulTextManager;
 
       return new FullPipeline(

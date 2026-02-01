@@ -1,6 +1,7 @@
 import type { LLMClient } from '../llm/types.js';
 import { SoulTextManager } from '../soul/manager.js';
 import { TournamentArena, type TournamentResult } from '../tournament/arena.js';
+import { selectTournamentWriters, DEFAULT_TEMPERATURE_SLOTS } from '../tournament/persona-pool.js';
 import type { ComplianceResult, ReaderJuryResult } from '../agents/types.js';
 import { type NarrativeRules, resolveNarrativeRules } from '../factory/narrative-rules.js';
 import type { DevelopedCharacter } from '../factory/character-developer.js';
@@ -60,10 +61,14 @@ export class SimplePipeline {
    */
   async generate(prompt: string): Promise<PipelineResult> {
     const soulText = this.soulManager.getSoulText();
+    const writerPersonas = this.soulManager.getWriterPersonas();
+    const writerConfigs = writerPersonas.length > 0
+      ? selectTournamentWriters(writerPersonas, DEFAULT_TEMPERATURE_SLOTS)
+      : undefined;
     const arena = new TournamentArena(
       this.llmClient,
       soulText,
-      undefined,
+      writerConfigs,
       this.narrativeRules,
       this.options.developedCharacters,
       this.logger,

@@ -134,6 +134,8 @@ const createMockSoulManager = () => ({
   getAntiSoul: () => mockSoulText.antiSoul,
   getReaderPersonas: () => mockSoulText.readerPersonas,
   getFragments: () => mockSoulText.fragments,
+  getWriterPersonas: () => [],
+  getPromptConfig: () => mockSoulText.promptConfig,
 });
 
 describe('FullPipeline', () => {
