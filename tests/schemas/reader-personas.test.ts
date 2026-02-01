@@ -9,7 +9,7 @@ describe('ReaderPersonasSchema', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.personas).toHaveLength(4);
+      expect(result.data.personas).toHaveLength(3);
     }
   });
 
@@ -39,7 +39,6 @@ describe('ReaderPersonasSchema', () => {
       const ids = result.data.personas.map((p) => p.id);
       expect(ids).toContain('sf-enthusiast');
       expect(ids).toContain('literary-reader');
-      expect(ids).toContain('light-reader');
       expect(ids).toContain('editor');
     }
   });

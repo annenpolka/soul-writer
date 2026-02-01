@@ -12,6 +12,8 @@ import { CheckpointManager } from '../storage/checkpoint-manager.js';
 import { SoulCandidateRepository } from '../storage/soul-candidate-repository.js';
 import { ThemeGeneratorAgent } from '../factory/theme-generator.js';
 import { CharacterDeveloperAgent } from '../factory/character-developer.js';
+import { CharacterMacGuffinAgent } from '../factory/character-macguffin.js';
+import { PlotMacGuffinAgent } from '../factory/plot-macguffin.js';
 
 dotenv.config();
 
@@ -134,9 +136,12 @@ async function runFullMode(
     let storyPrompt: string;
     let developedCharacters: import('../factory/character-developer.js').DevelopedCharacter[] | undefined;
     let narrativeType: string | undefined;
+    let generatedTheme: import('../schemas/generated-theme.js').GeneratedTheme | undefined;
+    let characterMacGuffins: import('../schemas/macguffin.js').CharacterMacGuffin[] | undefined;
+    let plotMacGuffins: import('../schemas/macguffin.js').PlotMacGuffin[] | undefined;
 
     if (opts.autoTheme) {
-      // Auto-theme mode: generate theme → develop characters
+      // Auto-theme mode: generate theme → MacGuffins → develop characters → plot MacGuffins
       console.log(`Mode: Auto-theme generation\n`);
 
       const themeGenerator = new ThemeGeneratorAgent(llmClient, soulManager.getSoulText());
@@ -145,12 +150,27 @@ async function runFullMode(
       console.log(`✓ Theme: ${themeResult.theme.emotion} / ${themeResult.theme.timeline}`);
       console.log(`  Premise: ${themeResult.theme.premise}\n`);
 
+      // Generate character MacGuffins
+      console.log('Generating character mysteries...');
+      const charMacGuffinAgent = new CharacterMacGuffinAgent(llmClient, soulManager.getSoulText());
+      const charMacGuffinResult = await charMacGuffinAgent.generate(themeResult.theme);
+      characterMacGuffins = charMacGuffinResult.macguffins;
+      console.log(`✓ Character mysteries: ${characterMacGuffins.map(m => m.characterName).join(', ')}\n`);
+
       const charDeveloper = new CharacterDeveloperAgent(llmClient, soulManager.getSoulText());
       console.log('Developing characters...');
-      const charResult = await charDeveloper.develop(themeResult.theme);
+      const charResult = await charDeveloper.develop(themeResult.theme, characterMacGuffins);
       developedCharacters = charResult.developed.characters;
       narrativeType = themeResult.theme.narrative_type;
+      generatedTheme = themeResult.theme;
       console.log(`✓ Characters: ${developedCharacters.map(c => c.name).join(', ')}\n`);
+
+      // Generate plot MacGuffins
+      console.log('Generating plot mysteries...');
+      const plotMacGuffinAgent = new PlotMacGuffinAgent(llmClient, soulManager.getSoulText());
+      const plotMacGuffinResult = await plotMacGuffinAgent.generate(themeResult.theme, characterMacGuffins);
+      plotMacGuffins = plotMacGuffinResult.macguffins;
+      console.log(`✓ Plot mysteries: ${plotMacGuffins.map(m => m.name).join(', ')}\n`);
 
       storyPrompt = themeResult.theme.premise;
     } else {
@@ -170,6 +190,9 @@ async function runFullMode(
         chapterCount,
         narrativeType,
         developedCharacters,
+        theme: generatedTheme,
+        characterMacGuffins,
+        plotMacGuffins,
       },
       logger,
     );

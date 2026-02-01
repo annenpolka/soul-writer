@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import type { GeneratedTheme } from '../schemas/generated-theme.js';
+import type { CharacterMacGuffin } from '../schemas/macguffin.js';
 import { buildPrompt } from '../template/composer.js';
 
 const LLMCharacterResponseSchema = z.object({
@@ -9,8 +10,8 @@ const LLMCharacterResponseSchema = z.object({
     name: z.string().default(''),
     isNew: z.boolean().default(false),
     role: z.string().default(''),
-    description: z.string().optional(),
-    voice: z.string().optional(),
+    description: z.string().default(''),
+    voice: z.string().default(''),
   })),
   castingRationale: z.string().default(''),
 });
@@ -19,8 +20,8 @@ export interface DevelopedCharacter {
   name: string;
   isNew: boolean;
   role: string;
-  description?: string;
-  voice?: string;
+  description: string;
+  voice: string;
 }
 
 export interface DevelopedCharacters {
@@ -46,10 +47,10 @@ export class CharacterDeveloperAgent {
     this.soulText = soulText;
   }
 
-  async develop(theme: GeneratedTheme): Promise<CharacterDevelopResult> {
+  async develop(theme: GeneratedTheme, charMacGuffins?: CharacterMacGuffin[]): Promise<CharacterDevelopResult> {
     const tokensBefore = this.llmClient.getTotalTokens();
 
-    const context = this.buildContext(theme);
+    const context = this.buildContext(theme, charMacGuffins);
     const { system: systemPrompt, user: userPrompt } = buildPrompt('character-developer', context);
     const response = await this.llmClient.complete(systemPrompt, userPrompt, {
       temperature: 0.8,
@@ -61,7 +62,7 @@ export class CharacterDeveloperAgent {
     return { developed, tokensUsed };
   }
 
-  private buildContext(theme: GeneratedTheme): Record<string, unknown> {
+  private buildContext(theme: GeneratedTheme, charMacGuffins?: CharacterMacGuffin[]): Record<string, unknown> {
     const ctx: Record<string, unknown> = {};
 
     // Existing characters as structured array
@@ -95,6 +96,15 @@ export class CharacterDeveloperAgent {
       descSuffix: c.description ? `: ${c.description}` : '',
     }));
 
+    // MacGuffins for character depth
+    if (charMacGuffins && charMacGuffins.length > 0) {
+      ctx.characterMacGuffins = charMacGuffins.map(m => ({
+        name: m.characterName,
+        secret: m.secret,
+        surfaceSigns: m.surfaceSigns.join('、'),
+      }));
+    }
+
     return ctx;
   }
 
@@ -125,7 +135,8 @@ export class CharacterDeveloperAgent {
         name: c.name,
         isNew: c.isNew,
         role: c.description || '',
-        description: c.description,
+        description: c.description || '',
+        voice: '',
       })),
       castingRationale: 'Fallback: テーマ生成時のキャラクターをそのまま使用',
     };

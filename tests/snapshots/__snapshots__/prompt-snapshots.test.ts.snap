@@ -10,18 +10,30 @@ exports[`Prompt Snapshots > character-developer > should match snapshot 1`] = `
 - 既存キャラクターを使う義務はない
 - 「叔父」は物語に不可欠な場合のみ
 - 新規キャラクターには必ず name, role, voice, description を付与する
+- 既存キャラクターにも voice, description を必ず付与する（空欄禁止）
 - キャラクター数は2-4名が目安。多すぎても少なすぎても物語の質が下がる
 - narrative_typeに応じた配置:
   - モブ/システム視点系 → 新規キャラを主軸に
   - 群像劇 → 既存+新規をミックス
   - 一人称内面独白 → 主人公1名を中心に（既存でも新規でも可）
 
+## キャラクター深度の要件
+descriptionには以下を必ず含めること（各キャラ最低50字）：
+- 外見的特徴（服装、体格、癖など）
+- 内面の動機や欲求（何を求め、何を恐れるか）
+- 矛盾や葛藤（表面と内面のギャップ）
+
+voiceには以下を必ず含めること：
+- 具体的な口調パターン（語尾、一人称、特徴的な言い回し）
+- 感情表現の傾向（怒りを隠す、皮肉で返す等）
+- 他キャラとの差別化ポイント
+
 ## 出力形式
 \`\`\`json
 {
   "characters": [
-    { "name": "名前", "isNew": false, "role": "この物語での役割", "voice": "口調" },
-    { "name": "新キャラ名", "isNew": true, "role": "役割", "description": "外見や背景", "voice": "口調の特徴" }
+    { "name": "名前", "isNew": false, "role": "この物語での役割", "description": "外見・内面の動機・矛盾を含む詳細（50字以上）", "voice": "一人称・語尾・感情表現の具体的パターン" },
+    { "name": "新キャラ名", "isNew": true, "role": "役割", "description": "外見・内面の動機・矛盾を含む詳細（50字以上）", "voice": "一人称・語尾・感情表現の具体的パターン" }
   ],
   "castingRationale": "なぜこの組み合わせか（1-2文）"
 }
@@ -117,7 +129,7 @@ exports[`Prompt Snapshots > fragment-extractor > should match snapshot 2`] = `
 
 exports[`Prompt Snapshots > judge > should match snapshot 1`] = `
 "あなたは「テストソウル」の厳格な審査員です。
-2つのテキストを比較し、原作の文体・語り口・世界観により忠実な方を選んでください。
+2つのテキストを比較し、原作の精神を継ぎつつそれを超える方を選んでください。忠実さは土台です。その上で、物語としての面白さ・新鮮さ・深さを出せているかを重視してください。
 ## 評価基準（重要度順）
 1. **語り声の再現** (voice_accuracy): 一人称「わたし」
 2. **原作忠実度** (originality_fidelity): 忠実に再現
@@ -142,14 +154,20 @@ exports[`Prompt Snapshots > judge > should match snapshot 1`] = `
 教室の蛍光灯が、まただれかの名前を消した。
 \`\`\`
 
+## スコアリングガイドライン
+- 各テキストを独立に絶対評価してください。相手との相対比較でスコアを歪めないこと
+- 0.9以上は例外的に優れた場合のみ。1.0は付けないでください
+- 形式ルール遵守だけでは高得点になりません。物語として読者を引き込むかが重要です
+- 0.3-0.7が標準的な範囲です。0.5は「可もなく不可もなく」
+
 回答はJSON形式で返してください:
 \`\`\`json
 {
   "winner": "A" または "B",
   "reasoning": "選択理由（具体的にどの点が優れていたか）",
   "scores": {
-    "A": { "style": 0-1, "compliance": 0-1, "voice_accuracy": 0-1, "originality_fidelity": 0-1, "overall": 0-1 },
-    "B": { "style": 0-1, "compliance": 0-1, "voice_accuracy": 0-1, "originality_fidelity": 0-1, "overall": 0-1 }
+    "A": { "style": 0-1, "compliance": 0-1, "voice_accuracy": 0-1, "originality_fidelity": 0-1, "narrative_quality": 0-1, "novelty": 0-1, "overall": 0-1 },
+    "B": { "style": 0-1, "compliance": 0-1, "voice_accuracy": 0-1, "originality_fidelity": 0-1, "narrative_quality": 0-1, "novelty": 0-1, "overall": 0-1 }
   },
   "praised_excerpts": {
     "A": ["テキストAで特に優れていた表現・描写の引用（原文ママ、各50字以内、最大3つ）"],
@@ -171,7 +189,7 @@ exports[`Prompt Snapshots > judge > should match snapshot 2`] = `
 テキストBのサンプル内容。
 \`\`\`
 
-どちらがソウルテキストにより忠実ですか？JSON形式で回答してください。"
+どちらがより優れた小説ですか？各テキストを独立に絶対評価した上で、勝者を選んでください。JSON形式で回答してください。"
 `;
 
 exports[`Prompt Snapshots > plotter > should match snapshot 1`] = `
@@ -246,6 +264,13 @@ exports[`Prompt Snapshots > reader-evaluator > should match snapshot 1`] = `
 4. **worldbuilding（世界観）**: 設定の緻密さ、SF的整合性
 5. **readability（可読性）**: 読みやすさ、テンポ、流れ
 
+## スコアリングガイドライン
+- あなたの専門外の項目は厳しく評価してよい。専門分野こそ本気で評価すること
+- 0.5が標準的な水準。優れた点は0.7-0.8、傑出した点のみ0.9
+- 専門分野で明確な欠陥がある場合のみ0.3以下を使用すること
+- テンプレ表現（「〜を彷彿とさせる」「〜的な」等の定型句）は使わないこと
+- 必ず1つ以上の具体的な改善提案を含めること
+
 ## 回答形式
 必ず以下のJSON形式で回答してください：
 
@@ -258,7 +283,11 @@ exports[`Prompt Snapshots > reader-evaluator > should match snapshot 1`] = `
     "worldbuilding": 0.0-1.0,
     "readability": 0.0-1.0
   },
-  "feedback": "具体的な評価コメント（100〜200文字）"
+  "feedback": {
+    "strengths": "良い点（50字以内）",
+    "weaknesses": "改善すべき点（50字以内）",
+    "suggestion": "具体的な改善提案（50字以内）"
+  }
 }
 \`\`\`
 "
@@ -357,7 +386,8 @@ JSON形式で回答してください。
 `;
 
 exports[`Prompt Snapshots > writer > should match snapshot 1`] = `
-"あなたは以下の世界観に棲む作家です。原作の文体を「型」として身体に染み込ませた上で、自分の言葉で新しいシーンを書いてください。
+"【絶対厳守】プレーンテキストのみ出力。***、**、#、\`\`\`等のMarkdown記法は一切禁止。セクション区切りには空行のみ使用。
+あなたは以下の世界観に棲む作家です。原作の文体を「型」として身体に染み込ませた上で、自分の言葉で新しいシーンを書いてください。
 - 一人称「わたし」のみ使用
 - 「私」は禁止
 ## 憲法（文体ルール）

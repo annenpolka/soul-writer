@@ -4,7 +4,7 @@ import type { ReaderPersona } from '../schemas/reader-personas.js';
 import type { ReaderJuryResult, PersonaEvaluation } from './types.js';
 import { ReaderEvaluator } from './reader-evaluator.js';
 
-const PASSING_THRESHOLD = 0.8;
+const PASSING_THRESHOLD = 0.85;
 
 /**
  * Reader jury agent that evaluates text using multiple personas

@@ -28,15 +28,15 @@ export class SpecialMarksRule implements ComplianceRule {
     while (index !== -1) {
       // Check if this occurrence is part of an allowed form
       const isAllowed = this.allowedForms.some((form) => {
-        const formIndex = text.indexOf(form);
-        // The mark at this index should be within an allowed form
-        if (formIndex === -1) return false;
-
-        // Check if this specific mark instance is part of this form
         const markIndexInForm = form.indexOf(this.mark);
-        return (
-          formIndex <= index && index < formIndex + form.length && formIndex + markIndexInForm === index
-        );
+        if (markIndexInForm === -1) return false;
+
+        // Reverse-calculate where the form should start if this mark is part of it
+        const expectedStart = index - markIndexInForm;
+        if (expectedStart < 0 || expectedStart + form.length > text.length) return false;
+
+        const candidate = text.slice(expectedStart, expectedStart + form.length);
+        return candidate === form;
       });
 
       if (!isAllowed) {
