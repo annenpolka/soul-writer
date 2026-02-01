@@ -78,6 +78,9 @@ export class ReaderJuryAgent {
     for (const evaluation of evaluations) {
       const score = (evaluation.weightedScore * 100).toFixed(1);
       parts.push(`- ${evaluation.personaName}: ${score}点`);
+      parts.push(`  [良] ${evaluation.feedback.strengths}`);
+      parts.push(`  [課題] ${evaluation.feedback.weaknesses}`);
+      parts.push(`  [提案] ${evaluation.feedback.suggestion}`);
     }
 
     return parts.join('\n');

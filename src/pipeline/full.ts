@@ -461,7 +461,7 @@ export class FullPipeline {
 
       // Build feedback from reader evaluations and accumulate history
       const currentFeedback = readerJuryResult.evaluations
-        .map((e) => `${e.personaName}: ${e.feedback}`)
+        .map((e) => `${e.personaName}:\n  [良] ${e.feedback.strengths}\n  [課題] ${e.feedback.weaknesses}\n  [提案] ${e.feedback.suggestion}`)
         .join('\n');
       feedbackHistory.push(currentFeedback);
 

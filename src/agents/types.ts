@@ -172,6 +172,15 @@ export interface CategoryScores {
 }
 
 /**
+ * Structured feedback from a reader persona
+ */
+export interface PersonaFeedback {
+  strengths: string;
+  weaknesses: string;
+  suggestion: string;
+}
+
+/**
  * Evaluation result from a single persona
  */
 export interface PersonaEvaluation {
@@ -179,7 +188,7 @@ export interface PersonaEvaluation {
   personaName: string;
   categoryScores: CategoryScores;
   weightedScore: number;
-  feedback: string;
+  feedback: PersonaFeedback;
 }
 
 /**
