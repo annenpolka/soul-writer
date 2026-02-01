@@ -136,6 +136,7 @@ export class BatchRunner {
           theme,
           characterMacGuffins: charMG,
           plotMacGuffins: plotMG,
+          mode: this.config.mode === 'collaboration' ? 'collaboration' : undefined,
         },
         logger,
       );

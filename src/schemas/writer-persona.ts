@@ -4,13 +4,13 @@ import { z } from 'zod';
 export const WriterPersonaSchema = z.object({
   id: z.string(),
   name: z.string(),
-  directive: z.string().min(200),
+  directive: z.string().optional(),
   focusCategories: z.array(z.string()).optional(),
 });
 
 // Collection of writer personas
 export const WriterPersonasSchema = z.object({
-  personas: z.array(WriterPersonaSchema).min(4),
+  personas: z.array(WriterPersonaSchema).min(1),
 });
 
 export type WriterPersona = z.infer<typeof WriterPersonaSchema>;

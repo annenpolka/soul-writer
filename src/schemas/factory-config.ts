@@ -20,6 +20,8 @@ export const FactoryConfigSchema = z.object({
   taskDelayMs: z.number().int().min(0).default(1000),
   /** Number of recent works to analyze for motif avoidance (0 = disabled) */
   motifAnalysisCount: z.number().int().min(0).default(20),
+  /** Generation mode: tournament (default) or collaboration */
+  mode: z.enum(['tournament', 'collaboration']).default('tournament'),
 });
 
 export type FactoryConfig = z.infer<typeof FactoryConfigSchema>;

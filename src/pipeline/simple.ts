@@ -1,5 +1,5 @@
 import type { LLMClient } from '../llm/types.js';
-import { SoulTextManager } from '../soul/manager.js';
+import { type SoulText, SoulTextManager } from '../soul/manager.js';
 import { TournamentArena, type TournamentResult } from '../tournament/arena.js';
 import { selectTournamentWriters, DEFAULT_TEMPERATURE_SLOTS } from '../tournament/persona-pool.js';
 import type { ComplianceResult, ReaderJuryResult } from '../agents/types.js';
@@ -14,6 +14,9 @@ import { JudgeAgent } from '../agents/judge.js';
 import { ReaderJuryAgent } from '../agents/reader-jury.js';
 import { SynthesisAgent } from '../synthesis/synthesis-agent.js';
 import { AntiSoulCollector } from '../learning/anti-soul-collector.js';
+import { CollaborationSession } from '../collaboration/session.js';
+import { toTournamentResult } from '../collaboration/adapter.js';
+import type { CollaborationConfig } from '../collaboration/types.js';
 import type { Logger } from '../logger.js';
 
 /**
@@ -28,10 +31,13 @@ export interface PipelineResult {
   readerJuryResult?: ReaderJuryResult;
   synthesized?: boolean;
   correctionAttempts?: number;
+  readerRetakeCount?: number;
 }
 
 export interface SimplePipelineOptions {
   simple?: boolean;
+  mode?: 'tournament' | 'collaboration';
+  collaborationConfig?: Partial<CollaborationConfig>;
   narrativeRules?: NarrativeRules;
   developedCharacters?: DevelopedCharacter[];
   verbose?: boolean;
@@ -60,6 +66,10 @@ export class SimplePipeline {
    * Generate text using tournament competition with optional post-processing
    */
   async generate(prompt: string): Promise<PipelineResult> {
+    if (this.options.mode === 'collaboration') {
+      return this.generateWithCollaboration(prompt);
+    }
+
     const soulText = this.soulManager.getSoulText();
     const writerPersonas = this.soulManager.getWriterPersonas();
     const writerConfigs = writerPersonas.length > 0
@@ -147,11 +157,10 @@ export class SimplePipeline {
       complianceResult = checker.check(finalText);
     }
 
-    // 5. Reader jury evaluation
-    this.logger?.section('Reader Jury Evaluation');
-    const readerJury = new ReaderJuryAgent(this.llmClient, soulText);
-    const readerJuryResult: ReaderJuryResult = await readerJury.evaluate(finalText);
-    this.logger?.debug('Reader Jury result', readerJuryResult);
+    // 5. Reader jury evaluation with retake loop
+    const readerResult = await this.runReaderJuryWithRetake(finalText, soulText, checker);
+    finalText = readerResult.finalText;
+    complianceResult = readerResult.complianceResult;
 
     this.logger?.section('Final Text');
     this.logger?.debug(`Final text (${finalText.length}文字)`, finalText);
@@ -162,9 +171,141 @@ export class SimplePipeline {
       tournamentResult,
       tokensUsed: tournamentResult.totalTokensUsed,
       complianceResult,
-      readerJuryResult,
+      readerJuryResult: readerResult.readerJuryResult,
       synthesized,
       correctionAttempts,
+      readerRetakeCount: readerResult.readerRetakeCount,
     };
+  }
+
+  private async generateWithCollaboration(prompt: string): Promise<PipelineResult> {
+    const soulText = this.soulManager.getSoulText();
+    const collabPersonas = this.soulManager.getCollabPersonas();
+    const writerConfigs = collabPersonas.length > 0
+      ? selectTournamentWriters(collabPersonas, DEFAULT_TEMPERATURE_SLOTS)
+      : undefined;
+
+    this.logger?.section('Collaboration Start');
+    const session = new CollaborationSession(
+      this.llmClient,
+      soulText,
+      writerConfigs ?? [],
+      this.options.collaborationConfig,
+      this.logger,
+    );
+
+    const collabResult = await session.run(prompt);
+    const tournamentResult = toTournamentResult(collabResult);
+
+    if (this.options.simple) {
+      return {
+        text: collabResult.finalText,
+        champion: 'collaboration',
+        tournamentResult,
+        tokensUsed: collabResult.totalTokensUsed,
+      };
+    }
+
+    let finalText = collabResult.finalText;
+    let correctionAttempts = 0;
+
+    // Post-processing: compliance check, correction, retake, reader jury
+    this.logger?.section('Compliance Check');
+    const checker = ComplianceChecker.fromSoulText(soulText, this.narrativeRules);
+    let complianceResult: ComplianceResult = checker.check(finalText);
+
+    if (!complianceResult.isCompliant) {
+      this.logger?.section('Correction Loop');
+      const corrector = new CorrectorAgent(this.llmClient, soulText);
+      const loop = new CorrectionLoop(corrector, checker, 3);
+      const correctionResult = await loop.run(finalText);
+      correctionAttempts = correctionResult.attempts;
+      finalText = correctionResult.finalText;
+      complianceResult = checker.check(finalText);
+
+      if (!correctionResult.success) {
+        const collector = new AntiSoulCollector(this.soulManager.getSoulText().antiSoul);
+        collector.collectFromFailedCorrection(correctionResult);
+      }
+    }
+
+    this.logger?.section('Retake Loop');
+    const retakeAgent = new RetakeAgent(this.llmClient, soulText, this.narrativeRules);
+    const judgeAgent = new JudgeAgent(this.llmClient, soulText, this.narrativeRules);
+    const retakeLoop = new RetakeLoop(retakeAgent, judgeAgent, DEFAULT_RETAKE_CONFIG);
+    const retakeResult = await retakeLoop.run(finalText);
+    if (retakeResult.improved) {
+      finalText = retakeResult.finalText;
+      complianceResult = checker.check(finalText);
+    }
+
+    const readerResult = await this.runReaderJuryWithRetake(finalText, soulText, checker);
+    finalText = readerResult.finalText;
+    complianceResult = readerResult.complianceResult;
+
+    return {
+      text: finalText,
+      champion: 'collaboration',
+      tournamentResult,
+      tokensUsed: collabResult.totalTokensUsed,
+      complianceResult,
+      readerJuryResult: readerResult.readerJuryResult,
+      correctionAttempts,
+      readerRetakeCount: readerResult.readerRetakeCount,
+    };
+  }
+
+  private async runReaderJuryWithRetake(
+    text: string,
+    soulText: SoulText,
+    checker: ComplianceChecker,
+  ): Promise<{
+    finalText: string;
+    readerJuryResult: ReaderJuryResult;
+    complianceResult: ComplianceResult;
+    readerRetakeCount: number;
+  }> {
+    this.logger?.section('Reader Jury Evaluation');
+    const readerJury = new ReaderJuryAgent(this.llmClient, soulText);
+    let readerJuryResult: ReaderJuryResult = await readerJury.evaluate(text);
+    this.logger?.debug('Reader Jury result', readerJuryResult);
+
+    let finalText = text;
+    let complianceResult = checker.check(finalText);
+    let readerRetakeCount = 0;
+
+    const MAX_READER_RETAKES = 2;
+    for (let i = 0; i < MAX_READER_RETAKES && !readerJuryResult.passed; i++) {
+      this.logger?.section(`Reader Jury Retake ${i + 1}/${MAX_READER_RETAKES}`);
+      const prevScore = readerJuryResult.aggregatedScore;
+      const prevText = finalText;
+      const prevResult = readerJuryResult;
+
+      const readerFeedback = readerJuryResult.evaluations
+        .map((e) => `${e.personaName}: ${e.feedback}`)
+        .join('\n');
+
+      const retakeAgent = new RetakeAgent(this.llmClient, soulText, this.narrativeRules);
+      const retakeResult = await retakeAgent.retake(
+        finalText,
+        `読者陪審員から以下のフィードバックを受けました。改善してください:\n${readerFeedback}`,
+      );
+      finalText = retakeResult.retakenText;
+      complianceResult = checker.check(finalText);
+      readerJuryResult = await readerJury.evaluate(finalText);
+      readerRetakeCount++;
+
+      this.logger?.debug(`Reader Jury Retake ${i + 1} result`, readerJuryResult);
+
+      if (readerJuryResult.aggregatedScore <= prevScore) {
+        this.logger?.debug(`Reader Jury Retake aborted: score degraded (${prevScore.toFixed(3)} → ${readerJuryResult.aggregatedScore.toFixed(3)})`);
+        finalText = prevText;
+        readerJuryResult = prevResult;
+        complianceResult = checker.check(finalText);
+        break;
+      }
+    }
+
+    return { finalText, readerJuryResult, complianceResult, readerRetakeCount };
   }
 }

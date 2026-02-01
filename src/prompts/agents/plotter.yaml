@@ -32,7 +32,7 @@ system:
           as: c
           template: "- {{ c.name }}{{ c.tag }}: {{ c.role }}{{ c.descriptionLine }}"
         - type: text
-          text: "この人物構成に基づいてプロットを設計してください。上記にない人物を追加しないこと。"
+          text: "上記の人物を参考にプロットを設計してください。新しい人物の追加も自由です。既存人物を使う場合はその設定を尊重すること。"
       else:
         - type: condition
           if:

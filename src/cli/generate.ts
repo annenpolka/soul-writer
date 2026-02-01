@@ -25,6 +25,7 @@ export interface GenerateOptions {
   dbPath?: string;
   simple?: boolean;
   verbose?: boolean;
+  mode?: 'tournament' | 'collaboration';
 }
 
 export async function generate(options: GenerateOptions): Promise<void> {
@@ -36,6 +37,7 @@ export async function generate(options: GenerateOptions): Promise<void> {
     dbPath = 'soul-writer.db',
     simple = false,
     verbose = false,
+    mode,
   } = options;
 
   const logger = new Logger({
@@ -63,7 +65,7 @@ export async function generate(options: GenerateOptions): Promise<void> {
   // Simple mode: tournament only, no DB
   if (simple) {
     try {
-      return await runSimpleMode(llmClient, soulManager, prompt!, logger);
+      return await runSimpleMode(llmClient, soulManager, prompt!, logger, mode);
     } finally {
       logger.close();
     }
@@ -76,6 +78,7 @@ export async function generate(options: GenerateOptions): Promise<void> {
       autoTheme,
       chapters,
       dbPath,
+      mode,
     }, logger);
   } finally {
     logger.close();
@@ -87,10 +90,11 @@ async function runSimpleMode(
   soulManager: SoulTextManager,
   prompt: string,
   logger: Logger,
+  mode?: 'tournament' | 'collaboration',
 ): Promise<void> {
   console.log(`Mode: Simple (tournament only)\n`);
 
-  const pipeline = new SimplePipeline(llmClient, soulManager, { simple: true, logger });
+  const pipeline = new SimplePipeline(llmClient, soulManager, { simple: true, mode, logger });
   const result = await pipeline.generate(prompt);
 
   console.log(`\n🏆 Champion: ${result.champion}`);
@@ -110,6 +114,7 @@ interface FullModeOptions {
   autoTheme: boolean;
   chapters?: number;
   dbPath: string;
+  mode?: 'tournament' | 'collaboration';
 }
 
 async function runFullMode(
@@ -193,6 +198,7 @@ async function runFullMode(
         theme: generatedTheme,
         characterMacGuffins,
         plotMacGuffins,
+        mode: opts.mode,
       },
       logger,
     );

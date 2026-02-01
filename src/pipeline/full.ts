@@ -28,6 +28,8 @@ import { RetakeAgent } from '../retake/retake-agent.js';
 import { RetakeLoop, DEFAULT_RETAKE_CONFIG } from '../retake/retake-loop.js';
 import { JudgeAgent } from '../agents/judge.js';
 import { SynthesisAgent } from '../synthesis/synthesis-agent.js';
+import { CollaborationSession } from '../collaboration/session.js';
+import { toTournamentResult } from '../collaboration/adapter.js';
 import { resolveNarrativeRules, type NarrativeRules } from '../factory/narrative-rules.js';
 import type { Logger } from '../logger.js';
 
@@ -346,37 +348,59 @@ export class FullPipeline {
   ): Promise<ChapterPipelineResult> {
     const tokensStart = this.llmClient.getTotalTokens();
 
-    // 1. Run tournament (use persona pool if available)
+    const chapterPrompt = this.buildChapterPrompt(chapter, plot);
     const writerPersonas = this.soulManager.getWriterPersonas();
     const writerConfigs = writerPersonas.length > 0
       ? selectTournamentWriters(writerPersonas, this.getTemperatureSlots())
       : undefined;
-    const arena = new TournamentArena(this.llmClient, this.soulManager.getSoulText(), writerConfigs, this.narrativeRules, this.config.developedCharacters, this.logger);
-    const chapterPrompt = this.buildChapterPrompt(chapter, plot);
-    const tournamentResult = await arena.runTournament(chapterPrompt);
 
-    let finalText = tournamentResult.championText;
+    let finalText: string;
+    let tournamentResult;
     let correctionAttempts = 0;
     let synthesized = false;
 
-    // 1.5. Synthesis: enhance champion using elements from all entries
-    if (tournamentResult.allGenerations.length > 1) {
-      this.logger?.section('Synthesis');
-      const beforeLength = finalText.length;
-      try {
-        const synthesizer = new SynthesisAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules);
-        const synthesisResult = await synthesizer.synthesize(
-          tournamentResult.championText,
-          tournamentResult.champion,
-          tournamentResult.allGenerations,
-          tournamentResult.rounds,
-        );
-        finalText = synthesisResult.synthesizedText;
-        synthesized = true;
-        this.logger?.debug('Synthesis result', { synthesized: true, beforeLength, afterLength: finalText.length });
-      } catch (err) {
-        console.warn(`Chapter ${chapter.index}: Synthesis failed, using champion text as-is.`, err);
-        this.logger?.debug('Synthesis failed', { error: String(err) });
+    if (this.config.mode === 'collaboration') {
+      // Collaboration mode: use collab-specific personas
+      const collabPersonas = this.soulManager.getCollabPersonas();
+      const collabConfigs = collabPersonas.length > 0
+        ? selectTournamentWriters(collabPersonas, this.getTemperatureSlots())
+        : writerConfigs;
+      this.logger?.section('Collaboration Start');
+      const session = new CollaborationSession(
+        this.llmClient,
+        this.soulManager.getSoulText(),
+        collabConfigs ?? [],
+        this.config.collaborationConfig,
+        this.logger,
+      );
+      const collabResult = await session.run(chapterPrompt);
+      tournamentResult = toTournamentResult(collabResult);
+      finalText = collabResult.finalText;
+    } else {
+      // Tournament mode (default)
+      const arena = new TournamentArena(this.llmClient, this.soulManager.getSoulText(), writerConfigs, this.narrativeRules, this.config.developedCharacters, this.logger);
+      tournamentResult = await arena.runTournament(chapterPrompt);
+      finalText = tournamentResult.championText;
+
+      // Synthesis: enhance champion using elements from all entries
+      if (tournamentResult.allGenerations.length > 1) {
+        this.logger?.section('Synthesis');
+        const beforeLength = finalText.length;
+        try {
+          const synthesizer = new SynthesisAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules);
+          const synthesisResult = await synthesizer.synthesize(
+            tournamentResult.championText,
+            tournamentResult.champion,
+            tournamentResult.allGenerations,
+            tournamentResult.rounds,
+          );
+          finalText = synthesisResult.synthesizedText;
+          synthesized = true;
+          this.logger?.debug('Synthesis result', { synthesized: true, beforeLength, afterLength: finalText.length });
+        } catch (err) {
+          console.warn(`Chapter ${chapter.index}: Synthesis failed, using champion text as-is.`, err);
+          this.logger?.debug('Synthesis failed', { error: String(err) });
+        }
       }
     }
 

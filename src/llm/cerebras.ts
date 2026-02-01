@@ -1,6 +1,6 @@
 import Cerebras from '@cerebras/cerebras_cloud_sdk';
 import type { ChatCompletion } from '@cerebras/cerebras_cloud_sdk/resources/chat/completions.js';
-import type { LLMClient, CompletionOptions, CerebrasConfig } from './types.js';
+import type { LLMClient, CompletionOptions, CerebrasConfig, ToolDefinition, ToolCallOptions, ToolCallResponse, ToolCallResult } from './types.js';
 
 const DEFAULT_MAX_RETRIES = 5;
 const DEFAULT_INITIAL_RETRY_DELAY_MS = 1000;
@@ -82,6 +82,71 @@ export class CerebrasClient implements LLMClient {
     throw new Error(`LLM request failed after ${this.maxRetries} retries`);
   }
 
+  async completeWithTools(
+    systemPrompt: string,
+    userPrompt: string,
+    tools: ToolDefinition[],
+    options?: ToolCallOptions
+  ): Promise<ToolCallResponse> {
+    for (let attempt = 0; attempt < this.maxRetries; attempt++) {
+      try {
+        const response = await this.client.chat.completions.create({
+          model: this.model,
+          messages: [
+            { role: 'system' as const, content: systemPrompt },
+            { role: 'user' as const, content: userPrompt },
+          ],
+          tools,
+          tool_choice: options?.toolChoice,
+          parallel_tool_calls: options?.parallelToolCalls,
+          temperature: options?.temperature,
+          max_tokens: options?.maxTokens,
+          top_p: options?.topP,
+        });
+
+        if (!isCompletionResponse(response)) {
+          continue;
+        }
+
+        if (response.usage?.total_tokens) {
+          this.totalTokens += response.usage.total_tokens;
+        }
+
+        const choice = response.choices[0];
+        const message = choice?.message;
+        const toolCalls: ToolCallResult[] = (message?.tool_calls ?? []).map((tc: any) => ({
+          id: tc.id,
+          type: 'function' as const,
+          function: {
+            name: tc.function.name,
+            arguments: tc.function.arguments,
+          },
+        }));
+
+        return {
+          toolCalls,
+          content: message?.content ?? null,
+          tokensUsed: response.usage?.total_tokens ?? 0,
+        };
+      } catch (error) {
+        if (!this.isRetryable(error)) {
+          throw error;
+        }
+      }
+
+      if (attempt < this.maxRetries - 1) {
+        const baseDelay = Math.min(
+          this.initialRetryDelayMs * Math.pow(2, attempt),
+          this.maxRetryDelayMs
+        );
+        const jitter = Math.random() * 0.5 + 0.75;
+        await this.sleep(baseDelay * jitter);
+      }
+    }
+
+    throw new Error(`LLM tool calling request failed after ${this.maxRetries} retries`);
+  }
+
   getTotalTokens(): number {
     return this.totalTokens;
   }
@@ -89,8 +154,13 @@ export class CerebrasClient implements LLMClient {
   private isRetryable(error: unknown): boolean {
     if (error && typeof error === 'object' && 'status' in error) {
       const status = (error as { status: number }).status;
-      // 4xx client errors (except 429) are not retryable
-      if (status >= 400 && status < 500 && status !== 429) {
+      // 400 tool_calls generation failure is transient and retryable
+      if (status === 400) {
+        const message = 'message' in error ? String((error as { message: string }).message) : '';
+        return message.includes('tool_call') || message.includes('tool_calls');
+      }
+      // Other 4xx client errors (except 429) are not retryable
+      if (status > 400 && status < 500 && status !== 429) {
         return false;
       }
     }

@@ -23,6 +23,7 @@ generate Options:
   --auto-theme   Auto-generate theme and characters (no --prompt needed)
   --chapters     Number of chapters (default: 5)
   --simple       Tournament only, no post-processing, no DB
+  --mode         Generation mode: "tournament" (default) or "collaboration"
   --soul         Path to soul text directory (default: "soul")
   --db           Path to SQLite database (default: "soul-writer.db")
 
@@ -38,6 +39,7 @@ factory Options:
   --output              Output directory (default: "output")
   --db                  Path to SQLite database (default: "factory.db")
   --task-delay          Delay ms between tasks per worker (default: 1000)
+  --mode                Generation mode: "tournament" (default) or "collaboration"
   --resume              Resume interrupted batch generation
 
 Examples:
@@ -109,6 +111,7 @@ async function main(): Promise<void> {
       const dbPath = options.db || 'soul-writer.db';
       const simple = options.simple === 'true';
       const verbose = options.verbose === 'true';
+      const mode = options.mode as 'tournament' | 'collaboration' | undefined;
 
       if (!prompt && !autoTheme) {
         console.error('Error: --prompt or --auto-theme is required');
@@ -116,7 +119,7 @@ async function main(): Promise<void> {
         process.exit(1);
       }
 
-      await generate({ soul, prompt, autoTheme, chapters, dbPath, simple, verbose });
+      await generate({ soul, prompt, autoTheme, chapters, dbPath, simple, verbose, mode });
       break;
     }
 
@@ -157,6 +160,7 @@ async function main(): Promise<void> {
         outputDir: options.output,
         dbPath: options.db,
         taskDelayMs: options['task-delay'] ? parseInt(options['task-delay'], 10) : undefined,
+        mode: options.mode,
       });
       break;
     }

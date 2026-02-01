@@ -44,6 +44,7 @@ export class SoulTextManager {
   private fragments: Map<string, Fragment[]>;
   private promptConfig: PromptConfig;
   private writerPersonas: WriterPersona[];
+  private collabPersonas: WriterPersona[];
   private rawSoultext?: string;
 
   private constructor(
@@ -54,6 +55,7 @@ export class SoulTextManager {
     fragments: Map<string, Fragment[]>,
     promptConfig: PromptConfig,
     writerPersonas: WriterPersona[],
+    collabPersonas: WriterPersona[],
     rawSoultext?: string,
   ) {
     this.constitution = constitution;
@@ -63,6 +65,7 @@ export class SoulTextManager {
     this.fragments = fragments;
     this.promptConfig = promptConfig;
     this.writerPersonas = writerPersonas;
+    this.collabPersonas = collabPersonas;
     this.rawSoultext = rawSoultext;
   }
 
@@ -127,6 +130,15 @@ export class SoulTextManager {
       writerPersonas = parsed.personas;
     }
 
+    // Load collaboration personas (optional)
+    let collabPersonas: WriterPersona[] = [];
+    const collabPersonasPath = join(soulDir, 'collab-personas.json');
+    if (existsSync(collabPersonasPath)) {
+      const collabPersonasJson = JSON.parse(readFileSync(collabPersonasPath, 'utf-8'));
+      const parsedCollab = WriterPersonasSchema.parse(collabPersonasJson);
+      collabPersonas = parsedCollab.personas;
+    }
+
     // Load raw soultext (optional)
     let rawSoultext: string | undefined;
     const soultextPath = join(soulDir, 'soultext.md');
@@ -142,6 +154,7 @@ export class SoulTextManager {
       fragments,
       promptConfig,
       writerPersonas,
+      collabPersonas,
       rawSoultext,
     );
   }
@@ -176,6 +189,10 @@ export class SoulTextManager {
 
   getWriterPersonas(): WriterPersona[] {
     return this.writerPersonas;
+  }
+
+  getCollabPersonas(): WriterPersona[] {
+    return this.collabPersonas;
   }
 
   getRawSoultext(): string | undefined {
