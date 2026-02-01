@@ -130,7 +130,7 @@ export class SimplePipeline {
       this.logger?.debug('Correction result', { attempts: correctionAttempts, success: correctionResult.success, finalCompliance: complianceResult });
 
       if (!correctionResult.success) {
-        const collector = new AntiSoulCollector();
+        const collector = new AntiSoulCollector(this.soulManager.getSoulText().antiSoul);
         collector.collectFromFailedCorrection(correctionResult);
       }
     }

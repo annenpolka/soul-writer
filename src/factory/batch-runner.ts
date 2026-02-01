@@ -14,6 +14,7 @@ import { CharacterMacGuffinAgent } from './character-macguffin.js';
 import { PlotMacGuffinAgent } from './plot-macguffin.js';
 import type { CharacterMacGuffin, PlotMacGuffin } from '../schemas/macguffin.js';
 import { FullPipeline } from '../pipeline/full.js';
+import { MotifAnalyzerAgent } from './motif-analyzer.js';
 import { FileWriter } from './file-writer.js';
 import { Logger } from '../logger.js';
 
@@ -56,7 +57,7 @@ export interface BatchDependencies {
 
 // Interfaces for dependency injection (testing)
 export interface ThemeGenerator {
-  generateTheme(recentThemes?: GeneratedTheme[]): Promise<ThemeResult>;
+  generateTheme(recentThemes?: GeneratedTheme[], motifAvoidance?: string[]): Promise<ThemeResult>;
 }
 
 export interface CharacterDeveloper {
@@ -148,6 +149,19 @@ export class BatchRunner {
     const recentThemes: GeneratedTheme[] = [];
     const MAX_RECENT_THEMES = 10;
 
+    // DB-based motif avoidance (0 = disabled)
+    let dbMotifAvoidance: string[] = [];
+    if (this.config.motifAnalysisCount > 0) {
+      const soulId = this.deps.soulText.constitution.meta.soul_id;
+      const recentWorks = await this.deps.workRepo.findRecentBySoulId(soulId, this.config.motifAnalysisCount);
+      if (recentWorks.length > 0) {
+        const analyzer = new MotifAnalyzerAgent(this.deps.llmClient);
+        const analysis = await analyzer.analyze(recentWorks);
+        dbMotifAvoidance = analysis.frequentMotifs;
+        totalTokensUsed += analysis.tokensUsed;
+      }
+    }
+
     // Execute a single task
     const verbose = this.options.verbose ?? false;
 
@@ -159,7 +173,7 @@ export class BatchRunner {
 
       try {
         // Generate theme with history avoidance
-        const themeResult = await themeGenerator.generateTheme([...recentThemes]);
+        const themeResult = await themeGenerator.generateTheme([...recentThemes], dbMotifAvoidance);
         logger?.debug('Theme generated', themeResult.theme);
 
         // Generate character MacGuffins

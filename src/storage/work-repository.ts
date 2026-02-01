@@ -147,6 +147,40 @@ export class WorkRepository {
     }));
   }
 
+  async findRecentBySoulId(soulId: string, limit: number): Promise<Work[]> {
+    const results = this.db.getSqlite().prepare(`
+      SELECT id, soul_id, title, content, total_chapters, total_tokens, compliance_score, reader_score, status, created_at, updated_at
+      FROM works WHERE soul_id = ? AND status = 'completed'
+      ORDER BY created_at DESC LIMIT ?
+    `).all(soulId, limit) as Array<{
+      id: string;
+      soul_id: string;
+      title: string;
+      content: string;
+      total_chapters: number;
+      total_tokens: number;
+      compliance_score: number | null;
+      reader_score: number | null;
+      status: string;
+      created_at: string;
+      updated_at: string;
+    }>;
+
+    return results.map((r) => ({
+      id: r.id,
+      soulId: r.soul_id,
+      title: r.title,
+      content: r.content,
+      totalChapters: r.total_chapters,
+      totalTokens: r.total_tokens,
+      complianceScore: r.compliance_score,
+      readerScore: r.reader_score,
+      status: r.status,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    }));
+  }
+
   async update(id: string, input: UpdateWorkInput): Promise<Work | undefined> {
     const now = new Date().toISOString();
     const updates: string[] = [];

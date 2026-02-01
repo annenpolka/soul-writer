@@ -90,6 +90,67 @@
         "source": "manual",
         "added_at": "2024-01-01T00:00:00Z"
       }
+    ],
+    "ar_reality_cliche": [
+      {
+        "id": "anti-ar-cliche-001",
+        "text": "ARレンダリングが音を立てて剥がれ落ち、その下から醜い灰色の壁が露出した。美化レイヤーの皮膚が裂け、剥き出しのコンクリートが覗く。これが本当の世界だ。",
+        "reason": "「ARレンダリング剥離→醜い現実の露出」は頻出パターン。AR表現の崩壊は多様な形がありうる（徐々に透ける、色だけ変わる、音だけ消える等）。剥がれ落ちる描写に頼らない。",
+        "source": "pattern_analysis",
+        "added_at": "2025-02-01T00:00:00Z"
+      },
+      {
+        "id": "anti-ar-cliche-002",
+        "text": "システムが浄化プロセスを起動した。推奨事項（レコメンド）が視界を埋め尽くす。だが彼女はそれを無視し、汚れた真実を選んだ。",
+        "reason": "「システムが修正/浄化→主人公が抵抗/無視」の二項対立が定型化。システムとの関係は共犯、依存、無自覚な利用、皮肉な協力など多様であるべき。",
+        "source": "pattern_analysis",
+        "added_at": "2025-02-01T00:00:00Z"
+      },
+      {
+        "id": "anti-ar-cliche-003",
+        "text": "偽物の美しさで塗り固められた街並みと、その裏側にある本物の醜悪さ。管理された幸福の下には、腐敗した真実が隠されている。",
+        "reason": "「偽の美vs本物の醜」の直接対比は陳腐。美醜の境界はもっと曖昧であり、ARが本物より美しいとは限らず、現実が醜いとも限らない。価値判断を固定しない。",
+        "source": "pattern_analysis",
+        "added_at": "2025-02-01T00:00:00Z"
+      },
+      {
+        "id": "anti-ar-cliche-004",
+        "text": "画面にノイズが走った。グリッチ。それだけが真実のサインだった。ノイズの中にだけ、本物の世界が見える。",
+        "reason": "「ノイズ/グリッチ＝真実の象徴」の固定使用。グリッチが常に正の意味を持つわけではない。ノイズは混乱、恐怖、無意味でもありうる。真実の手がかりをグリッチに限定しない。",
+        "source": "pattern_analysis",
+        "added_at": "2025-02-01T00:00:00Z"
+      },
+      {
+        "id": "anti-ar-cliche-005",
+        "text": "清潔に管理された大通りを抜けて、誰も見向きもしない薄暗い路地裏へ入った。ここにだけ本物がある。ARのレンダリングが届かないこの場所だけが、呼吸できる空間だ。",
+        "reason": "「清潔な表通りvs汚い路地裏」の空間対比の固定化。真実や自由は明るい場所にもあり、路地裏が常に聖域とは限らない。場所と真偽の対応関係を固定しない。",
+        "source": "pattern_analysis",
+        "added_at": "2025-02-01T00:00:00Z"
+      },
+      {
+        "id": "anti-ar-cliche-006",
+        "text": "【警告】異常な行動パターンを検出しました。推奨事項（レコメンド）に従ってください。彼はその通知を指で弾いた。無視する。システムの言いなりになんか、ならない。",
+        "reason": "「システム警告→無視/拒絶」のシーンが毎回登場。警告への反応は従う、利用する、改変する、気づかない、笑う等多様。また警告自体がストーリーに不要な場合もある。",
+        "source": "pattern_analysis",
+        "added_at": "2025-02-01T00:00:00Z"
+      },
+      {
+        "id": "anti-ar-cliche-007",
+        "text": "爪が肉に食い込む。この痛みだけが、自分がここに存在している証拠だった。痛覚だけが、麻痺した世界で唯一のリアルだ。",
+        "reason": "「身体的痛み＝存在証明」の定型構造。存在の確認方法は痛み以外にも、匂い、記憶、他者の視線、言葉、沈黙、習慣、失敗など無数にある。痛みへの依存を避ける。",
+        "source": "pattern_analysis",
+        "added_at": "2025-02-01T00:00:00Z"
+      }
     ]
-  }
+  },
+  "violation_mapping": {
+    "theme_violation": "theme_violation",
+    "forbidden_word": "cliche_simile",
+    "forbidden_simile": "cliche_simile",
+    "sentence_too_long": "excessive_sentiment",
+    "special_mark_misuse": "character_normalization",
+    "markdown_contamination": "cliche_simile",
+    "quote_direct_copy": "cliche_simile"
+  },
+  "default_category": "cliche_simile"
 }

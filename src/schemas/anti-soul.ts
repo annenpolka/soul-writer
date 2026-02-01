@@ -5,26 +5,19 @@ export const AntiSoulEntrySchema = z.object({
   id: z.string(),
   text: z.string(),
   reason: z.string(),
-  source: z.enum(['manual', 'auto']),
+  source: z.string(),
   added_at: z.string(),
 });
 
-// Anti-soul categories
-export const AntiSoulCategory = z.enum([
-  'excessive_sentiment',
-  'explanatory_worldbuilding',
-  'character_normalization',
-  'cliche_simile',
-  'theme_violation',
-  'mentor_tsurgi',
-  'lion_concretization',
-]);
+// Violation type to anti-soul category mapping
+export const ViolationMappingSchema = z.record(z.string(), z.string());
 
 // Full Anti-Soul schema
 export const AntiSoulSchema = z.object({
-  categories: z.record(AntiSoulCategory, z.array(AntiSoulEntrySchema)),
+  categories: z.record(z.string(), z.array(AntiSoulEntrySchema)),
+  violation_mapping: ViolationMappingSchema.optional(),
+  default_category: z.string().optional(),
 });
 
 export type AntiSoulEntry = z.infer<typeof AntiSoulEntrySchema>;
-export type AntiSoulCategoryType = z.infer<typeof AntiSoulCategory>;
 export type AntiSoul = z.infer<typeof AntiSoulSchema>;
