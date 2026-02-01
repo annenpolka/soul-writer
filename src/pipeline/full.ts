@@ -400,7 +400,7 @@ export class FullPipeline {
 
       // 4. Collect anti-patterns if correction failed
       if (!correctionResult.success) {
-        const collector = new AntiSoulCollector();
+        const collector = new AntiSoulCollector(this.soulManager.getSoulText().antiSoul);
         collector.collectFromFailedCorrection(correctionResult);
         console.warn(
           `Chapter ${chapter.index}: Correction failed after ${correctionAttempts} attempts. Continuing with best effort.`

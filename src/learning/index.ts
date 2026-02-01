@@ -8,7 +8,6 @@ export { SoulExpander, type AddCandidatesResult } from './soul-expander.js';
 export {
   AntiSoulCollector,
   type AntiPattern,
-  type AntiSoulCategory,
 } from './anti-soul-collector.js';
 export {
   LearningPipeline,

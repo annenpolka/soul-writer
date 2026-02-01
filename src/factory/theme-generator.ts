@@ -36,14 +36,14 @@ export class ThemeGeneratorAgent {
    * Stage 1: Generate a wild, unconstrained idea
    * Stage 2: Refine it into a structured GeneratedTheme
    */
-  async generateTheme(recentThemes?: GeneratedTheme[]): Promise<ThemeResult> {
+  async generateTheme(recentThemes?: GeneratedTheme[], motifAvoidance?: string[]): Promise<ThemeResult> {
     const tokensBefore = this.llmClient.getTotalTokens();
 
     // Stage 1: Wild idea generation (minimal world context, high creativity)
     const wildIdea = await this.generateWildIdea();
 
     // Stage 2: Refine into structured theme (full world context)
-    const stage2Context = this.buildStage2Context(wildIdea, recentThemes);
+    const stage2Context = this.buildStage2Context(wildIdea, recentThemes, motifAvoidance);
     const { system: systemPrompt, user: userPrompt } = buildPrompt('theme-generator-stage2', stage2Context);
 
     const response = await this.llmClient.complete(systemPrompt, userPrompt, {
@@ -92,7 +92,7 @@ export class ThemeGeneratorAgent {
     });
   }
 
-  private buildStage2Context(wildIdea: string, recentThemes?: GeneratedTheme[]): Record<string, unknown> {
+  private buildStage2Context(wildIdea: string, recentThemes?: GeneratedTheme[], motifAvoidance?: string[]): Record<string, unknown> {
     const worldBible = this.soulText.worldBible;
     const thematic = this.soulText.constitution.universal.thematic_constraints;
     const ctx: Record<string, unknown> = {};
@@ -152,6 +152,19 @@ export class ThemeGeneratorAgent {
     ctx.wildIdea = wildIdea;
     ctx.narrative = narrative;
     ctx.opening = opening;
+
+    // Motif avoidance: merge anti-soul clichés + DB-derived motifs
+    const avoidanceItems: string[] = [];
+    const arClicheEntries = this.soulText.antiSoul?.categories?.ar_reality_cliche;
+    if (arClicheEntries && arClicheEntries.length > 0) {
+      avoidanceItems.push(...arClicheEntries.map(e => e.reason));
+    }
+    if (motifAvoidance && motifAvoidance.length > 0) {
+      avoidanceItems.push(...motifAvoidance);
+    }
+    if (avoidanceItems.length > 0) {
+      ctx.motifAvoidanceList = avoidanceItems;
+    }
 
     // History avoidance as structured array
     if (recentThemes && recentThemes.length > 0) {

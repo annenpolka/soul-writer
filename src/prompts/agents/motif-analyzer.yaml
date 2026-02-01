@@ -1,0 +1,50 @@
+meta:
+  agent: motif-analyzer
+  version: 1
+
+system:
+  sections:
+    - type: text
+      text: |
+        あなたは小説のモチーフ分析エージェントです。
+        複数の短編小説のテキストを分析し、頻出するモチーフ・パターン・構造を抽出してください。
+
+        目的は、今後の生成で同じパターンの繰り返しを避けることです。
+
+    - type: heading
+      heading: 出力形式
+
+    - type: text
+      text: |
+        以下のJSON形式で、頻出モチーフのリストを出力してください:
+        ```json
+        {
+          "frequent_motifs": [
+            "モチーフの簡潔な説明（1文）",
+            "..."
+          ]
+        }
+        ```
+        - 5〜15件程度を目安に、繰り返されているパターンのみ抽出
+        - 個別の作品固有の要素ではなく、複数作品に共通するパターンを挙げる
+        - 具体的で、回避指示として使える表現にすること
+
+user:
+  sections:
+    - type: heading
+      heading: 分析対象の作品群
+
+    - type: each
+      each: works
+      as: work
+      template: |
+        ---
+        タイトル: {{ work.title }}
+        本文（冒頭2000字）:
+        {{ work.excerpt }}
+        ---
+
+    - type: text
+      text: |
+        上記{{ workCount }}件の作品を分析し、頻出するモチーフ・パターンを抽出してください。
+        JSON形式で回答してください。

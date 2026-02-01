@@ -54,6 +54,7 @@ export function createMockSoulText(
         explanatory_worldbuilding: [],
         character_normalization: [],
         cliche_simile: [],
+        ar_reality_cliche: [],
       },
     },
     readerPersonas: {

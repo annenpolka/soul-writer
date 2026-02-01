@@ -6,7 +6,19 @@ describe('AntiSoulCollector', () => {
   let collector: AntiSoulCollector;
 
   beforeEach(() => {
-    collector = new AntiSoulCollector();
+    collector = new AntiSoulCollector({
+      categories: {},
+      violation_mapping: {
+        theme_violation: 'theme_violation',
+        forbidden_word: 'cliche_simile',
+        forbidden_simile: 'cliche_simile',
+        sentence_too_long: 'excessive_sentiment',
+        special_mark_misuse: 'character_normalization',
+        markdown_contamination: 'cliche_simile',
+        quote_direct_copy: 'cliche_simile',
+      },
+      default_category: 'cliche_simile',
+    });
   });
 
   describe('constructor', () => {

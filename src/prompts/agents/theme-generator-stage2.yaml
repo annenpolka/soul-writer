@@ -67,6 +67,21 @@ system:
       as: s
       template: "- {{ s }}"
 
+    - type: condition
+      if:
+        has: motifAvoidanceList
+      then:
+        - type: heading
+          heading: 回避すべきモチーフ・パターン
+        - type: text
+          text: |
+            以下のモチーフやパターンは陳腐化しているため、使用を避けてください。
+            部分的な類似も避け、まったく異なるアプローチを探してください:
+        - type: each
+          each: motifAvoidanceList
+          as: motif
+          template: "- {{ motif }}"
+
     - type: heading
       heading: オリジナリティ要求
 
@@ -117,7 +132,7 @@ user:
         has: recentThemes
       then:
         - type: heading
-          heading: 既出テーマ（これらと明確に異なるテーマを生成すること）
+          heading: 既出テーマ（これらと明確に異なるテーマを生成すること。感情・モチーフ・構造の部分的な類似も避ける）
         - type: each
           each: recentThemes
           as: t

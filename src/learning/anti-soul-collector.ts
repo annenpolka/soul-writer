@@ -1,15 +1,9 @@
 import type { CorrectionLoopResult, Violation } from '../agents/types.js';
-
-export type AntiSoulCategory =
-  | 'theme_violation'
-  | 'excessive_sentiment'
-  | 'explanatory_worldbuilding'
-  | 'character_normalization'
-  | 'cliche_simile';
+import type { AntiSoul } from '../schemas/anti-soul.js';
 
 export interface AntiPattern {
   text: string;
-  category: AntiSoulCategory;
+  category: string;
   reason: string;
   source: 'auto' | 'manual';
 }
@@ -18,6 +12,14 @@ export interface AntiPattern {
  * Collects anti-patterns from failed corrections for the anti-soul
  */
 export class AntiSoulCollector {
+  private violationMapping: Record<string, string>;
+  private defaultCategory: string;
+
+  constructor(antiSoul?: AntiSoul) {
+    this.violationMapping = antiSoul?.violation_mapping ?? {};
+    this.defaultCategory = antiSoul?.default_category ?? 'cliche_simile';
+  }
+
   /**
    * Extract anti-patterns from a failed correction loop
    */
@@ -35,21 +37,9 @@ export class AntiSoulCollector {
   }
 
   /**
-   * Map a violation type to an anti-soul category
+   * Map a violation type to an anti-soul category using violation_mapping
    */
-  mapViolationToCategory(violation: Violation): AntiSoulCategory {
-    switch (violation.type) {
-      case 'theme_violation':
-        return 'theme_violation';
-      case 'forbidden_word':
-      case 'forbidden_simile':
-        return 'cliche_simile';
-      case 'sentence_too_long':
-        return 'excessive_sentiment';
-      case 'special_mark_misuse':
-        return 'character_normalization';
-      default:
-        return 'cliche_simile';
-    }
+  mapViolationToCategory(violation: Violation): string {
+    return this.violationMapping[violation.type] ?? this.defaultCategory;
   }
 }

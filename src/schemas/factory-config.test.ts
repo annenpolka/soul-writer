@@ -12,6 +12,7 @@ describe('FactoryConfigSchema', () => {
         outputDir: 'output',
         dbPath: 'factory.db',
         taskDelayMs: 1000,
+        motifAnalysisCount: 20,
       };
 
       const result = FactoryConfigSchema.safeParse(config);

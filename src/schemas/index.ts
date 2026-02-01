@@ -37,10 +37,9 @@ export {
 export {
   AntiSoulSchema,
   AntiSoulEntrySchema,
-  AntiSoulCategory,
+  ViolationMappingSchema,
   type AntiSoul,
   type AntiSoulEntry,
-  type AntiSoulCategoryType,
 } from './anti-soul.js';
 
 // Reader Personas
