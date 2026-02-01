@@ -88,6 +88,7 @@ export function createMockSoulText(
         },
       ],
     },
+    writerPersonas: [],
     fragments: new Map(),
     promptConfig: DEFAULT_PROMPT_CONFIG,
   };

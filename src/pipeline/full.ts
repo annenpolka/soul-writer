@@ -15,6 +15,7 @@ import {
 import type { Plot, Chapter } from '../schemas/plot.js';
 import { PlotterAgent } from '../agents/plotter.js';
 import { TournamentArena } from '../tournament/arena.js';
+import { selectTournamentWriters, DEFAULT_TEMPERATURE_SLOTS, type TemperatureSlot } from '../tournament/persona-pool.js';
 import { ComplianceChecker } from '../compliance/checker.js';
 import { CorrectorAgent } from '../agents/corrector.js';
 import { CorrectionLoop } from '../correction/loop.js';
@@ -71,6 +72,16 @@ export class FullPipeline {
   }
 
   private narrativeRules: NarrativeRules;
+
+  private getTemperatureSlots(): TemperatureSlot[] {
+    const config = this.soulManager.getPromptConfig()?.tournament?.temperature_slots;
+    if (!config || config.length === 0) return DEFAULT_TEMPERATURE_SLOTS;
+    return config.map(s => ({
+      label: s.label,
+      range: s.range as [number, number],
+      topPRange: s.topP_range as [number, number],
+    }));
+  }
 
   /**
    * Generate a full story with all pipeline features
@@ -335,8 +346,12 @@ export class FullPipeline {
   ): Promise<ChapterPipelineResult> {
     const tokensStart = this.llmClient.getTotalTokens();
 
-    // 1. Run tournament
-    const arena = new TournamentArena(this.llmClient, this.soulManager.getSoulText(), undefined, this.narrativeRules, this.config.developedCharacters, this.logger);
+    // 1. Run tournament (use persona pool if available)
+    const writerPersonas = this.soulManager.getWriterPersonas();
+    const writerConfigs = writerPersonas.length > 0
+      ? selectTournamentWriters(writerPersonas, this.getTemperatureSlots())
+      : undefined;
+    const arena = new TournamentArena(this.llmClient, this.soulManager.getSoulText(), writerConfigs, this.narrativeRules, this.config.developedCharacters, this.logger);
     const chapterPrompt = this.buildChapterPrompt(chapter, plot);
     const tournamentResult = await arena.runTournament(chapterPrompt);
 

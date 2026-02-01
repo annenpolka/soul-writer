@@ -8,6 +8,10 @@ export interface WriterConfig {
   style: 'balanced' | 'creative' | 'conservative' | 'moderate';
   /** Focus categories for fragment selection - each writer gets different emphasis */
   focusCategories?: string[];
+  /** Persona directive injected into system prompt */
+  personaDirective?: string;
+  /** Persona display name for logging */
+  personaName?: string;
 }
 
 /**

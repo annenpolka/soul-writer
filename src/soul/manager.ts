@@ -8,6 +8,7 @@ import {
   ReaderPersonasSchema,
   FragmentCollectionSchema,
   PromptConfigSchema,
+  WriterPersonasSchema,
   DEFAULT_PROMPT_CONFIG,
   type Constitution,
   type WorldBible,
@@ -15,6 +16,7 @@ import {
   type ReaderPersonas,
   type Fragment,
   type PromptConfig,
+  type WriterPersona,
 } from '../schemas/index.js';
 
 /**
@@ -25,6 +27,7 @@ export interface SoulText {
   worldBible: WorldBible;
   antiSoul: AntiSoul;
   readerPersonas: ReaderPersonas;
+  writerPersonas: WriterPersona[];
   fragments: Map<string, Fragment[]>;
   promptConfig: PromptConfig;
   rawSoultext?: string;
@@ -40,6 +43,7 @@ export class SoulTextManager {
   private readerPersonas: ReaderPersonas;
   private fragments: Map<string, Fragment[]>;
   private promptConfig: PromptConfig;
+  private writerPersonas: WriterPersona[];
   private rawSoultext?: string;
 
   private constructor(
@@ -49,6 +53,7 @@ export class SoulTextManager {
     readerPersonas: ReaderPersonas,
     fragments: Map<string, Fragment[]>,
     promptConfig: PromptConfig,
+    writerPersonas: WriterPersona[],
     rawSoultext?: string,
   ) {
     this.constitution = constitution;
@@ -57,6 +62,7 @@ export class SoulTextManager {
     this.readerPersonas = readerPersonas;
     this.fragments = fragments;
     this.promptConfig = promptConfig;
+    this.writerPersonas = writerPersonas;
     this.rawSoultext = rawSoultext;
   }
 
@@ -112,6 +118,15 @@ export class SoulTextManager {
       promptConfig = PromptConfigSchema.parse(parsed);
     }
 
+    // Load writer personas (optional)
+    let writerPersonas: WriterPersona[] = [];
+    const writerPersonasPath = join(soulDir, 'writer-personas.json');
+    if (existsSync(writerPersonasPath)) {
+      const writerPersonasJson = JSON.parse(readFileSync(writerPersonasPath, 'utf-8'));
+      const parsed = WriterPersonasSchema.parse(writerPersonasJson);
+      writerPersonas = parsed.personas;
+    }
+
     // Load raw soultext (optional)
     let rawSoultext: string | undefined;
     const soultextPath = join(soulDir, 'soultext.md');
@@ -126,6 +141,7 @@ export class SoulTextManager {
       readerPersonas,
       fragments,
       promptConfig,
+      writerPersonas,
       rawSoultext,
     );
   }
@@ -158,6 +174,10 @@ export class SoulTextManager {
     return this.promptConfig;
   }
 
+  getWriterPersonas(): WriterPersona[] {
+    return this.writerPersonas;
+  }
+
   getRawSoultext(): string | undefined {
     return this.rawSoultext;
   }
@@ -168,6 +188,7 @@ export class SoulTextManager {
       worldBible: this.worldBible,
       antiSoul: this.antiSoul,
       readerPersonas: this.readerPersonas,
+      writerPersonas: this.writerPersonas,
       fragments: new Map(this.fragments),
       promptConfig: this.promptConfig,
       rawSoultext: this.rawSoultext,

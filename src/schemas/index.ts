@@ -79,6 +79,14 @@ export {
   type FactoryConfig,
 } from './factory-config.js';
 
+// Writer Personas
+export {
+  WriterPersonasSchema,
+  WriterPersonaSchema,
+  type WriterPersonas,
+  type WriterPersona,
+} from './writer-persona.js';
+
 // Prompt Config
 export {
   PromptConfigSchema,

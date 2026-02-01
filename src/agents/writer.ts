@@ -115,6 +115,11 @@ export class WriterAgent {
       ctx.rawSoultext = this.soulText.rawSoultext;
     }
 
+    // Persona directive (injected when persona pool is used)
+    if (this.config.personaDirective) {
+      ctx.personaDirective = this.config.personaDirective;
+    }
+
     ctx.prompt = prompt;
 
     return ctx;

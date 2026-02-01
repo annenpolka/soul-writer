@@ -26,6 +26,18 @@ export const AgentPromptConfigSchema = z.object({
   world_description: z.string().optional(),
 }).catchall(z.unknown());
 
+// Temperature slot configuration for tournament
+export const TemperatureSlotSchema = z.object({
+  label: z.string(),
+  range: z.tuple([z.number(), z.number()]),
+  topP_range: z.tuple([z.number(), z.number()]),
+});
+
+// Tournament configuration
+export const TournamentConfigSchema = z.object({
+  temperature_slots: z.array(TemperatureSlotSchema).optional(),
+});
+
 // Full prompt config
 export const PromptConfigSchema = z.object({
   defaults: PromptConfigDefaultsSchema,
@@ -36,12 +48,14 @@ export const PromptConfigSchema = z.object({
   ideation_strategies: z.array(z.string()).optional(),
   tone_directives: z.array(z.string()).optional(),
   pov_rules: PovRulesSchema.optional(),
+  tournament: TournamentConfigSchema.optional(),
   agents: z.record(z.string(), AgentPromptConfigSchema).optional(),
 });
 
 export type PromptConfigDefaults = z.infer<typeof PromptConfigDefaultsSchema>;
 export type PovRules = z.infer<typeof PovRulesSchema>;
 export type AgentPromptConfig = z.infer<typeof AgentPromptConfigSchema>;
+export type TournamentConfig = z.infer<typeof TournamentConfigSchema>;
 export type PromptConfig = z.infer<typeof PromptConfigSchema>;
 
 // Default empty config for when prompt-config.yaml doesn't exist
