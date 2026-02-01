@@ -14,6 +14,7 @@ import { ThemeGeneratorAgent } from '../factory/theme-generator.js';
 import { CharacterDeveloperAgent } from '../factory/character-developer.js';
 import { CharacterMacGuffinAgent } from '../factory/character-macguffin.js';
 import { PlotMacGuffinAgent } from '../factory/plot-macguffin.js';
+import { MotifAnalyzerAgent } from '../factory/motif-analyzer.js';
 
 dotenv.config();
 
@@ -155,8 +156,21 @@ async function runFullMode(
       console.log(`Mode: Auto-theme generation\n`);
 
       const themeGenerator = new ThemeGeneratorAgent(llmClient, soulManager.getSoulText());
+
+      // Motif avoidance: analyze recent works from DB
+      let dbMotifAvoidance: string[] = [];
+      const soulId = soulManager.getConstitution().meta.soul_id;
+      const recentWorks = await workRepo.findRecentBySoulId(soulId, 20);
+      if (recentWorks.length > 0) {
+        console.log(`Analyzing ${recentWorks.length} recent works for motif avoidance...`);
+        const analyzer = new MotifAnalyzerAgent(llmClient);
+        const analysis = await analyzer.analyze(recentWorks);
+        dbMotifAvoidance = analysis.frequentMotifs;
+        console.log(`✓ Found ${dbMotifAvoidance.length} motifs to avoid\n`);
+      }
+
       console.log('Generating theme...');
-      const themeResult = await themeGenerator.generateTheme();
+      const themeResult = await themeGenerator.generateTheme([], dbMotifAvoidance);
       console.log(`✓ Theme: ${themeResult.theme.emotion} / ${themeResult.theme.timeline}`);
       console.log(`  Premise: ${themeResult.theme.premise}\n`);
 

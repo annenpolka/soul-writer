@@ -53,7 +53,7 @@ npm run lint:fix      # リント自動修正
 ### エントリポイント
 
 CLI (`src/main.ts`) から各コマンドを実行:
-- `generate` - ストーリー生成（単一/マルチチャプター、テーマ自動生成対応、--simpleでトーナメントのみ、--mode collaborationで共作モード）
+- `generate` - ストーリー生成（単一/マルチチャプター、テーマ自動生成対応、--simpleでトーナメントのみ、--mode collaborationで共作モード、auto-theme時はDB由来のmotif avoidance自動適用）
 - `resume` - 中断タスク再開
 - `review` - 学習候補レビュー
 - `factory` - バッチ生成（並列実行、統計分析、configファイルまたはCLI引数で設定、--mode collaborationで共作モード）
@@ -88,7 +88,7 @@ src/
 - **Pipeline Controller**: Simple/Fullパイプラインの制御
 - **Tournament Arena**: 4人トーナメントの実行
 - **Collaboration Session**: 複数Writerがモデレーター進行で議論・草稿・レビューを行う共作モード
-- **Agents**: Writer, Judge, Plotter, Corrector, ReaderEvaluator, ReaderJury, ThemeGenerator, CharacterDeveloper, ModeratorAgent, CollaborativeWriter
+- **Agents**: Writer, Judge, Plotter, Corrector, ReaderEvaluator, ReaderJury, ThemeGenerator, CharacterDeveloper, MotifAnalyzer, ModeratorAgent, CollaborativeWriter
 
 ### ストレージ層
 
