@@ -27,7 +27,7 @@ export class ReaderJuryAgent {
   /**
    * Evaluate text using all personas in parallel
    */
-  async evaluate(text: string): Promise<ReaderJuryResult> {
+  async evaluate(text: string, previousResult?: ReaderJuryResult): Promise<ReaderJuryResult> {
     // Run all evaluations in parallel
     const evaluations = await Promise.all(
       this.personas.map((persona) => {
@@ -36,7 +36,8 @@ export class ReaderJuryAgent {
           this.soulText,
           persona
         );
-        return evaluator.evaluate(text);
+        const prevEval = previousResult?.evaluations.find(e => e.personaId === persona.id);
+        return evaluator.evaluate(text, prevEval);
       })
     );
 

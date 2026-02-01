@@ -452,27 +452,34 @@ export class FullPipeline {
     this.logger?.debug('Reader Jury result', readerJuryResult);
 
     const MAX_READER_RETAKES = 2;
+    const feedbackHistory: string[] = [];
     for (let readerRetake = 0; readerRetake < MAX_READER_RETAKES && !readerJuryResult.passed; readerRetake++) {
       this.logger?.section(`Reader Jury Retake ${readerRetake + 1}/${MAX_READER_RETAKES}`);
       const prevScore = readerJuryResult.aggregatedScore;
       const prevText = finalText;
       const prevResult = readerJuryResult;
 
-      // Build feedback from reader evaluations
-      const readerFeedback = readerJuryResult.evaluations
+      // Build feedback from reader evaluations and accumulate history
+      const currentFeedback = readerJuryResult.evaluations
         .map((e) => `${e.personaName}: ${e.feedback}`)
         .join('\n');
+      feedbackHistory.push(currentFeedback);
 
-      // Retake using reader feedback
+      const feedbackMessage = feedbackHistory.length === 1
+        ? `読者陪審員から以下のフィードバックを受けました。改善してください:\n${currentFeedback}`
+        : `読者陪審員から複数回のフィードバックを受けています。前回の改善点も踏まえて修正してください:\n\n` +
+          feedbackHistory.map((fb, idx) => `【第${idx + 1}回レビュー】\n${fb}`).join('\n\n');
+
+      // Retake using accumulated reader feedback
       const readerRetakeAgent = new RetakeAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules);
-      const retakeResult2 = await readerRetakeAgent.retake(finalText, `読者陪審員から以下のフィードバックを受けました。改善してください:\n${readerFeedback}`);
+      const retakeResult2 = await readerRetakeAgent.retake(finalText, feedbackMessage);
       finalText = retakeResult2.retakenText;
 
       // Re-check compliance after retake
       complianceResult = checker.check(finalText);
 
-      // Re-evaluate with reader jury
-      readerJuryResult = await readerJury.evaluate(finalText);
+      // Re-evaluate with reader jury (passing previous result for context)
+      readerJuryResult = await readerJury.evaluate(finalText, readerJuryResult);
       this.logger?.debug(`Reader Jury Retake ${readerRetake + 1} result`, readerJuryResult);
 
       // Abort if score degraded — revert to previous text
