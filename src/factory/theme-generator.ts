@@ -8,6 +8,7 @@ import {
   OPENING_CONSTRAINTS,
   IDEATION_STRATEGIES,
   CONCEPT_SEEDS,
+  TONE_DIRECTIVES,
   pickRandom,
 } from './diversity-catalog.js';
 import { buildPrompt } from '../template/composer.js';
@@ -72,12 +73,16 @@ export class ThemeGeneratorAgent {
     const worldDescription = this.soulText.promptConfig?.agents?.theme_generator?.world_description
       ?? 'AR/MRテクノロジーが浸透した近未来。無関心な社会。主要人物も無名の住人も存在する。';
 
+    const toneDirectives = this.soulText.promptConfig?.tone_directives ?? TONE_DIRECTIVES;
+    const tone = pickRandom(toneDirectives);
+
     const stage1Context = {
       strategy,
       concept,
       worldDescription,
       emotion,
       timeline,
+      tone,
     };
 
     const { system: systemPrompt, user: userPrompt } = buildPrompt('theme-generator-stage1', stage1Context);

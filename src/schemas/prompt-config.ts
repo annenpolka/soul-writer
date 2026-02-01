@@ -34,6 +34,7 @@ export const PromptConfigSchema = z.object({
   scene_catalog: z.array(z.string()).optional(),
   timeline_catalog: z.array(z.string()).optional(),
   ideation_strategies: z.array(z.string()).optional(),
+  tone_directives: z.array(z.string()).optional(),
   pov_rules: PovRulesSchema.optional(),
   agents: z.record(z.string(), AgentPromptConfigSchema).optional(),
 });
