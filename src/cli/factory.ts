@@ -14,25 +14,45 @@ import { BatchRunner, type ProgressInfo, calculateAnalytics, ReportGenerator } f
 dotenv.config();
 
 export interface FactoryOptions {
-  config: string;
+  config?: string;
   resume?: boolean;
+  count?: number;
+  parallel?: number;
+  chaptersPerStory?: number;
+  soulPath?: string;
+  outputDir?: string;
+  dbPath?: string;
+  taskDelayMs?: number;
 }
 
 export async function factory(options: FactoryOptions): Promise<void> {
   // 1. Load and validate config
+  let rawConfig: Record<string, unknown> = {};
+
+  // Load from config file if specified
   const configPath = options.config;
-  if (!fs.existsSync(configPath)) {
-    console.error(`Error: Config file not found: ${configPath}`);
-    process.exit(1);
+  if (configPath) {
+    if (!fs.existsSync(configPath)) {
+      console.error(`Error: Config file not found: ${configPath}`);
+      process.exit(1);
+    }
+
+    try {
+      rawConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as Record<string, unknown>;
+    } catch {
+      console.error(`Error: Invalid JSON in config file: ${configPath}`);
+      process.exit(1);
+    }
   }
 
-  let rawConfig: unknown;
-  try {
-    rawConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-  } catch {
-    console.error(`Error: Invalid JSON in config file: ${configPath}`);
-    process.exit(1);
-  }
+  // Override with CLI arguments
+  if (options.count !== undefined) rawConfig.count = options.count;
+  if (options.parallel !== undefined) rawConfig.parallel = options.parallel;
+  if (options.chaptersPerStory !== undefined) rawConfig.chaptersPerStory = options.chaptersPerStory;
+  if (options.soulPath !== undefined) rawConfig.soulPath = options.soulPath;
+  if (options.outputDir !== undefined) rawConfig.outputDir = options.outputDir;
+  if (options.dbPath !== undefined) rawConfig.dbPath = options.dbPath;
+  if (options.taskDelayMs !== undefined) rawConfig.taskDelayMs = options.taskDelayMs;
 
   const configResult = FactoryConfigSchema.safeParse(rawConfig);
   if (!configResult.success) {
@@ -43,7 +63,7 @@ export async function factory(options: FactoryOptions): Promise<void> {
 
   console.log(`\n📖 Soul Writer Factory`);
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-  console.log(`Config: ${configPath}`);
+  console.log(`Config: ${configPath ?? '(CLI arguments)'}`);
   console.log(`Count: ${config.count}`);
   console.log(`Parallel: ${config.parallel}`);
   console.log(`Chapters per story: ${config.chaptersPerStory}`);
