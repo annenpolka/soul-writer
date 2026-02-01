@@ -24,6 +24,7 @@ export interface FactoryOptions {
   dbPath?: string;
   taskDelayMs?: number;
   verbose?: boolean;
+  mode?: string;
 }
 
 export async function factory(options: FactoryOptions): Promise<void> {
@@ -54,6 +55,7 @@ export async function factory(options: FactoryOptions): Promise<void> {
   if (options.outputDir !== undefined) rawConfig.outputDir = options.outputDir;
   if (options.dbPath !== undefined) rawConfig.dbPath = options.dbPath;
   if (options.taskDelayMs !== undefined) rawConfig.taskDelayMs = options.taskDelayMs;
+  if (options.mode !== undefined) rawConfig.mode = options.mode;
 
   const configResult = FactoryConfigSchema.safeParse(rawConfig);
   if (!configResult.success) {
@@ -71,6 +73,7 @@ export async function factory(options: FactoryOptions): Promise<void> {
   console.log(`Soul: ${config.soulPath}`);
   console.log(`Output: ${config.outputDir}`);
   console.log(`Database: ${config.dbPath}`);
+  console.log(`Mode: ${config.mode}`);
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
 
   // 2. Check environment

@@ -28,9 +28,52 @@ export interface LLMClient {
   ): Promise<string>;
 
   /**
+   * Generate a completion with tool calling support
+   */
+  completeWithTools?(
+    systemPrompt: string,
+    userPrompt: string,
+    tools: ToolDefinition[],
+    options?: ToolCallOptions
+  ): Promise<ToolCallResponse>;
+
+  /**
    * Get total tokens used across all requests
    */
   getTotalTokens(): number;
+}
+
+// --- Tool calling types ---
+
+export interface ToolDefinition {
+  type: 'function';
+  function: {
+    name: string;
+    description?: string;
+    parameters?: unknown;
+    strict?: boolean;
+  };
+  [k: string]: unknown;
+}
+
+export interface ToolCallResult {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
+export interface ToolCallResponse {
+  toolCalls: ToolCallResult[];
+  content: string | null;
+  tokensUsed: number;
+}
+
+export interface ToolCallOptions extends CompletionOptions {
+  toolChoice?: 'auto' | 'required' | 'none' | { type: 'function'; function: { name: string } };
+  parallelToolCalls?: boolean;
 }
 
 /**

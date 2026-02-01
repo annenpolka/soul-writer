@@ -21,6 +21,7 @@ soul-writerは、作家の文体・世界観・キャラクターの「魂」を
 
 - **ソウルテキスト四層構造**: 憲法、聖典断片、世界聖書、反魂の4層で文体と世界観を定義
 - **競争的生成（トーナメント）**: 4人の仮想作家が競い合い、最良の文章を選出
+- **共作モード（コラボレーション）**: 複数Writerがモデレーター進行のもと議論・執筆を行う協調型生成
 - **自動学習**: 成功した生成物から自動的に文体を学習（人間レビュー付き）
 - **品質優先**: Token消費よりも文体の忠実度を重視
 - **チェックポイント**: 長編生成の中断・再開に対応
@@ -49,6 +50,9 @@ npx tsx src/main.ts generate --prompt "透心とつるぎの出会い" --chapter
 # テーマ自動生成（テーマ・キャラクター自動生成→ストーリー生成）
 npx tsx src/main.ts generate --auto-theme --chapters 3
 
+# コラボレーションモード（複数Writer共作）
+npx tsx src/main.ts generate --auto-theme --chapters 2 --mode collaboration
+
 # 中断タスク再開
 npx tsx src/main.ts resume --task-id <uuid> --soul soul
 
@@ -63,6 +67,9 @@ npx tsx src/main.ts factory --count 5 --parallel 2 --chapters-per-story 3
 
 # configファイル + CLI引数で上書き
 npx tsx src/main.ts factory --config factory-config.json --count 20
+
+# 工場バッチ生成（コラボレーションモード）
+npx tsx src/main.ts factory --count 5 --parallel 2 --mode collaboration
 ```
 
 ## ドキュメント

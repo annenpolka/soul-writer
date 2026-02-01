@@ -53,16 +53,16 @@ npm run lint:fix      # リント自動修正
 ### エントリポイント
 
 CLI (`src/main.ts`) から各コマンドを実行:
-- `generate` - ストーリー生成（単一/マルチチャプター、テーマ自動生成対応、--simpleでトーナメントのみ）
+- `generate` - ストーリー生成（単一/マルチチャプター、テーマ自動生成対応、--simpleでトーナメントのみ、--mode collaborationで共作モード）
 - `resume` - 中断タスク再開
 - `review` - 学習候補レビュー
-- `factory` - バッチ生成（並列実行、統計分析、configファイルまたはCLI引数で設定）
+- `factory` - バッチ生成（並列実行、統計分析、configファイルまたはCLI引数で設定、--mode collaborationで共作モード）
 
 ### src/ディレクトリ構成
 
 ```
 src/
-├── agents/        # Writer, Judge, Plotter, Corrector, ReaderEvaluator, ReaderJury
+├── agents/        # Writer, Judge, Plotter, Corrector, ReaderEvaluator, ReaderJury, ModeratorAgent
 ├── cli/           # CLIコマンド (generate, resume, review, factory)
 ├── compliance/    # コンプライアンスチェック（禁止語彙、視点一貫性、リズム等）
 ├── correction/    # 矯正ループ
@@ -77,6 +77,7 @@ src/
 ├── storage/       # Drizzle ORMスキーマ・リポジトリ
 ├── synthesis/     # 統合エージェント
 ├── template/      # YAMLテンプレートエンジン
+├── collaboration/ # コラボレーションモード (CollaborativeWriter, ModeratorAgent, CollaborationSession)
 ├── tournament/    # トーナメントシステム
 └── main.ts        # エントリポイント
 ```
@@ -86,7 +87,8 @@ src/
 - **SoulText Manager**: ソウルテキスト四層構造の読み込み・管理
 - **Pipeline Controller**: Simple/Fullパイプラインの制御
 - **Tournament Arena**: 4人トーナメントの実行
-- **Agents**: Writer, Judge, Plotter, Corrector, ReaderEvaluator, ReaderJury, ThemeGenerator, CharacterDeveloper
+- **Collaboration Session**: 複数Writerがモデレーター進行で議論・草稿・レビューを行う共作モード
+- **Agents**: Writer, Judge, Plotter, Corrector, ReaderEvaluator, ReaderJury, ThemeGenerator, CharacterDeveloper, ModeratorAgent, CollaborativeWriter
 
 ### ストレージ層
 
@@ -104,9 +106,11 @@ SQLite + Drizzle ORM。テーブル: Works, Chapters, TournamentMatches, JudgeSc
 ### 生成パイプライン
 
 1. プロット生成（Plotterエージェント）
-2. 各章で4人トーナメント（Writer×4 → Judge → 勝者選出）
+2. 各章でテキスト生成（2モード選択可）:
+   - **トーナメントモード**: Writer×4 → Judge → 勝者選出 → Synthesis
+   - **コラボレーションモード**: 複数Writer → Moderator進行 → proposal/discussion/drafting/review → 合意形成
 3. 適合度チェック（違反時は矯正ループ、3回失敗で反魂に追加）
-4. 読者陪審員による多角的評価
+4. 読者陪審員による多角的評価（不合格時は最大2回のフィードバック付きリテイク）
 5. アーカイブ + 自動学習候補抽出
 
 ## 重要ドキュメント

@@ -212,6 +212,8 @@ export interface FullPipelineConfig {
   characterMacGuffins?: import('../schemas/macguffin.js').CharacterMacGuffin[];
   plotMacGuffins?: import('../schemas/macguffin.js').PlotMacGuffin[];
   verbose?: boolean;
+  mode?: 'tournament' | 'collaboration';
+  collaborationConfig?: import('../collaboration/types.js').CollaborationConfig;
 }
 
 /**
