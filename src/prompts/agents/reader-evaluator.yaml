@@ -78,5 +78,19 @@ user:
         {{ text }}
         ```
 
+    - type: condition
+      if:
+        has: previousFeedback
+      then:
+        - type: heading
+          heading: 前回のあなたの評価（リテイク前）
+
+        - type: text
+          text: |
+            前回のスコア: {{ previousScores }}
+            前回のフィードバック: {{ previousFeedback }}
+
+            上記の課題が改善されているか重点的に確認し、新たな問題が生じていないかも評価してください。
+
     - type: text
       text: "このテキストを評価し、JSON形式で回答してください。"

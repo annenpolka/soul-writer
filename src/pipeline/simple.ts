@@ -275,24 +275,28 @@ export class SimplePipeline {
     let readerRetakeCount = 0;
 
     const MAX_READER_RETAKES = 2;
+    const feedbackHistory: string[] = [];
     for (let i = 0; i < MAX_READER_RETAKES && !readerJuryResult.passed; i++) {
       this.logger?.section(`Reader Jury Retake ${i + 1}/${MAX_READER_RETAKES}`);
       const prevScore = readerJuryResult.aggregatedScore;
       const prevText = finalText;
       const prevResult = readerJuryResult;
 
-      const readerFeedback = readerJuryResult.evaluations
+      const currentFeedback = readerJuryResult.evaluations
         .map((e) => `${e.personaName}: ${e.feedback}`)
         .join('\n');
+      feedbackHistory.push(currentFeedback);
+
+      const feedbackMessage = feedbackHistory.length === 1
+        ? `読者陪審員から以下のフィードバックを受けました。改善してください:\n${currentFeedback}`
+        : `読者陪審員から複数回のフィードバックを受けています。前回の改善点も踏まえて修正してください:\n\n` +
+          feedbackHistory.map((fb, idx) => `【第${idx + 1}回レビュー】\n${fb}`).join('\n\n');
 
       const retakeAgent = new RetakeAgent(this.llmClient, soulText, this.narrativeRules);
-      const retakeResult = await retakeAgent.retake(
-        finalText,
-        `読者陪審員から以下のフィードバックを受けました。改善してください:\n${readerFeedback}`,
-      );
+      const retakeResult = await retakeAgent.retake(finalText, feedbackMessage);
       finalText = retakeResult.retakenText;
       complianceResult = checker.check(finalText);
-      readerJuryResult = await readerJury.evaluate(finalText);
+      readerJuryResult = await readerJury.evaluate(finalText, readerJuryResult);
       readerRetakeCount++;
 
       this.logger?.debug(`Reader Jury Retake ${i + 1} result`, readerJuryResult);

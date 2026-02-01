@@ -25,12 +25,14 @@ export class ReaderEvaluator {
   /**
    * Evaluate text from this persona's perspective
    */
-  async evaluate(text: string): Promise<PersonaEvaluation> {
+  async evaluate(text: string, previousEvaluation?: PersonaEvaluation): Promise<PersonaEvaluation> {
     const context = {
       personaName: this.persona.name,
       personaDescription: this.persona.description,
       preferencesList: this.persona.preferences.map(p => `- ${p}`).join('\n'),
       text,
+      previousFeedback: previousEvaluation?.feedback ?? '',
+      previousScores: previousEvaluation ? JSON.stringify(previousEvaluation.categoryScores) : '',
     };
 
     const { system: systemPrompt, user: userPrompt } = buildPrompt('reader-evaluator', context);
