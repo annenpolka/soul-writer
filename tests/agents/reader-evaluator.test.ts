@@ -113,8 +113,8 @@ describe('ReaderEvaluator', () => {
       const result = await evaluator.evaluate('テスト小説テキスト');
 
       expect(result.feedback).toBeDefined();
-      expect(typeof result.feedback).toBe('string');
-      expect(result.feedback).toContain('世界観');
+      expect(typeof result.feedback).toBe('object');
+      expect(result.feedback.strengths).toContain('世界観');
     });
   });
 

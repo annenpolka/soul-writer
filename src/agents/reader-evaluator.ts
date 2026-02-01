@@ -1,7 +1,7 @@
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import type { ReaderPersona } from '../schemas/reader-personas.js';
-import type { PersonaEvaluation, CategoryScores } from './types.js';
+import type { PersonaEvaluation, PersonaFeedback, CategoryScores } from './types.js';
 import { buildPrompt } from '../template/composer.js';
 
 /**
@@ -31,7 +31,9 @@ export class ReaderEvaluator {
       personaDescription: this.persona.description,
       preferencesList: this.persona.preferences.map(p => `- ${p}`).join('\n'),
       text,
-      previousFeedback: previousEvaluation?.feedback ?? '',
+      previousFeedback: previousEvaluation
+        ? `[良] ${previousEvaluation.feedback.strengths} [課題] ${previousEvaluation.feedback.weaknesses} [提案] ${previousEvaluation.feedback.suggestion}`
+        : '',
       previousScores: previousEvaluation ? JSON.stringify(previousEvaluation.categoryScores) : '',
     };
 
@@ -49,7 +51,13 @@ export class ReaderEvaluator {
     const jsonMatch = response.match(/\{[\s\S]*\}/);
 
     let categoryScores: CategoryScores;
-    let feedback: string;
+    let feedback: PersonaFeedback;
+
+    const defaultFeedback: PersonaFeedback = {
+      strengths: '',
+      weaknesses: '',
+      suggestion: '',
+    };
 
     if (jsonMatch) {
       try {
@@ -57,19 +65,21 @@ export class ReaderEvaluator {
         categoryScores = this.normalizeScores(parsed.categoryScores);
         if (parsed.feedback && typeof parsed.feedback === 'object') {
           const fb = parsed.feedback;
-          feedback = `[良] ${fb.strengths || ''} [課題] ${fb.weaknesses || ''} [提案] ${fb.suggestion || ''}`;
+          feedback = {
+            strengths: fb.strengths || '',
+            weaknesses: fb.weaknesses || '',
+            suggestion: fb.suggestion || '',
+          };
         } else {
-          feedback = parsed.feedback || 'フィードバックなし';
+          feedback = { ...defaultFeedback, strengths: parsed.feedback || 'フィードバックなし' };
         }
       } catch {
-        // Fallback on parse error
         categoryScores = this.getDefaultScores();
-        feedback = 'JSON解析エラー: ' + response.slice(0, 100);
+        feedback = { ...defaultFeedback, weaknesses: 'JSON解析エラー: ' + response.slice(0, 100) };
       }
     } else {
-      // Fallback when no JSON found
       categoryScores = this.getDefaultScores();
-      feedback = 'JSON未検出: ' + response.slice(0, 100);
+      feedback = { ...defaultFeedback, weaknesses: 'JSON未検出: ' + response.slice(0, 100) };
     }
 
     const weightedScore = this.calculateWeightedScore(categoryScores);
