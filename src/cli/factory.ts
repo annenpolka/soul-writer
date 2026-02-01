@@ -25,6 +25,7 @@ export interface FactoryOptions {
   taskDelayMs?: number;
   verbose?: boolean;
   mode?: string;
+  includeRawSoultext?: boolean;
 }
 
 export async function factory(options: FactoryOptions): Promise<void> {
@@ -88,6 +89,9 @@ export async function factory(options: FactoryOptions): Promise<void> {
   // 3. Load soul text
   console.log(`Loading soul text from "${config.soulPath}"...`);
   const soulManager = await SoulTextManager.load(config.soulPath);
+  if (!options.includeRawSoultext) {
+    soulManager.clearRawSoultext();
+  }
   console.log(`✓ Loaded: ${soulManager.getConstitution().meta.soul_name}\n`);
 
   // 4. Initialize database
