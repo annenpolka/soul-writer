@@ -12,6 +12,7 @@ import { ThemeGeneratorAgent, type ThemeResult } from './theme-generator.js';
 import { CharacterDeveloperAgent, type CharacterDevelopResult, type DevelopedCharacters } from './character-developer.js';
 import { FullPipeline } from '../pipeline/full.js';
 import { FileWriter } from './file-writer.js';
+import { Logger } from '../logger.js';
 
 export interface BatchResult {
   totalTasks: number;
@@ -70,8 +71,9 @@ export interface StoryFileWriter {
 export interface BatchRunnerOptions {
   themeGenerator?: ThemeGenerator;
   characterDeveloper?: CharacterDeveloper;
-  pipelineFactory?: (theme: GeneratedTheme, developed?: DevelopedCharacters) => PipelineInstance;
+  pipelineFactory?: (theme: GeneratedTheme, developed?: DevelopedCharacters, logger?: Logger) => PipelineInstance;
   fileWriter?: StoryFileWriter;
+  verbose?: boolean;
 }
 
 /**
@@ -108,7 +110,7 @@ export class BatchRunner {
     const fileWriter = this.options.fileWriter ??
       new FileWriter(this.config.outputDir);
 
-    const createPipeline = this.options.pipelineFactory ?? ((theme: GeneratedTheme, developed?: DevelopedCharacters) => {
+    const createPipeline = this.options.pipelineFactory ?? ((theme: GeneratedTheme, developed?: DevelopedCharacters, logger?: Logger) => {
       const mockSoulManager = {
         getSoulText: () => this.deps.soulText,
         getConstitution: () => this.deps.soulText.constitution,
@@ -125,7 +127,8 @@ export class BatchRunner {
           chapterCount: this.config.chaptersPerStory,
           narrativeType: theme.narrative_type,
           developedCharacters: developed?.characters,
-        }
+        },
+        logger,
       );
     });
 
@@ -138,18 +141,25 @@ export class BatchRunner {
     const MAX_RECENT_THEMES = 10;
 
     // Execute a single task
+    const verbose = this.options.verbose ?? false;
+
     const executeTask = async (taskIndex: number): Promise<TaskResult> => {
       const themeId = `theme_${Date.now()}_${taskIndex}`;
+      const logger = verbose
+        ? new Logger({ verbose: true, logFile: `${this.config.outputDir}/logs/story-${taskIndex}.log` })
+        : undefined;
 
       try {
         // Generate theme with history avoidance
         const themeResult = await themeGenerator.generateTheme([...recentThemes]);
+        logger?.debug('Theme generated', themeResult.theme);
 
         // Develop characters for this theme
         const charResult = await characterDeveloper.develop(themeResult.theme);
+        logger?.debug('Characters developed', charResult.developed);
 
         // Create pipeline and generate story
-        const pipeline = createPipeline(themeResult.theme, charResult.developed);
+        const pipeline = createPipeline(themeResult.theme, charResult.developed, logger);
         const storyResult = await pipeline.generateStory(themeResult.theme.premise);
 
         // Write to file
@@ -173,12 +183,15 @@ export class BatchRunner {
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
+        logger?.debug('Task failed', { error: errorMessage });
         return {
           taskId: '',
           themeId,
           status: 'failed',
           error: errorMessage,
         };
+      } finally {
+        logger?.close();
       }
     };
 

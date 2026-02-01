@@ -8,6 +8,7 @@ import { CheckpointRepository } from '../storage/checkpoint-repository.js';
 import { CheckpointManager } from '../storage/checkpoint-manager.js';
 import { SoulCandidateRepository } from '../storage/soul-candidate-repository.js';
 import { FullPipeline } from '../pipeline/full.js';
+import { Logger } from '../logger.js';
 
 dotenv.config();
 
@@ -15,10 +16,16 @@ export interface ResumeOptions {
   taskId: string;
   soul: string;
   dbPath?: string;
+  verbose?: boolean;
 }
 
 export async function resume(options: ResumeOptions): Promise<void> {
-  const { taskId, soul, dbPath = 'soul-writer.db' } = options;
+  const { taskId, soul, dbPath = 'soul-writer.db', verbose = false } = options;
+
+  const logger = new Logger({
+    verbose,
+    logFile: verbose ? `logs/resume-${Date.now()}.log` : undefined,
+  });
 
   console.log(`\n🔄 Soul Writer - Resume Task`);
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
@@ -79,7 +86,9 @@ export async function resume(options: ResumeOptions): Promise<void> {
     checkpointManager,
     taskRepo,
     workRepo,
-    candidateRepo
+    candidateRepo,
+    {},
+    logger,
   );
 
   console.log('Resuming story generation...\n');
@@ -130,6 +139,7 @@ export async function resume(options: ResumeOptions): Promise<void> {
     console.error(`\nYou can retry with: npx tsx src/main.ts resume --task-id ${taskId} --soul ${soul}`);
     throw error;
   } finally {
+    logger.close();
     db.close();
   }
 }

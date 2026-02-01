@@ -5,6 +5,7 @@ import { JudgeAgent, type JudgeResult } from '../agents/judge.js';
 import type { GenerationResult } from '../agents/types.js';
 import type { NarrativeRules } from '../factory/narrative-rules.js';
 import type { DevelopedCharacter } from '../factory/character-developer.js';
+import type { Logger } from '../logger.js';
 
 /**
  * Result of a single match in the tournament
@@ -37,6 +38,7 @@ export class TournamentArena {
   private writerConfigs: WriterConfig[];
   private narrativeRules?: NarrativeRules;
   private developedCharacters?: DevelopedCharacter[];
+  private logger?: Logger;
 
   constructor(
     llmClient: LLMClient,
@@ -44,12 +46,14 @@ export class TournamentArena {
     writerConfigs: WriterConfig[] = DEFAULT_WRITERS,
     narrativeRules?: NarrativeRules,
     developedCharacters?: DevelopedCharacter[],
+    logger?: Logger,
   ) {
     this.llmClient = llmClient;
     this.soulText = soulText;
     this.writerConfigs = writerConfigs;
     this.narrativeRules = narrativeRules;
     this.developedCharacters = developedCharacters;
+    this.logger = logger;
   }
 
   /**
@@ -66,6 +70,14 @@ export class TournamentArena {
     // Generate texts from all writers
     const generations = await this.generateAllTexts(writers, prompt);
 
+    // Verbose: log all writer generations
+    if (this.logger) {
+      this.logger.section('Tournament: Writer Generations');
+      for (const gen of generations) {
+        this.logger.debug(`${gen.writerId} (${gen.text.length}文字, ${gen.tokensUsed} tokens)`, gen.text);
+      }
+    }
+
     // Run tournament bracket
     const rounds: MatchResult[] = [];
 
@@ -76,6 +88,7 @@ export class TournamentArena {
       generations[1]
     );
     rounds.push(semi1);
+    this.logMatchResult(semi1);
 
     // Semifinal 2: Writer 3 vs Writer 4
     const semi2 = await this.runMatch(
@@ -84,18 +97,22 @@ export class TournamentArena {
       generations[3]
     );
     rounds.push(semi2);
+    this.logMatchResult(semi2);
 
     // Final: Winner of Semi1 vs Winner of Semi2
     const finalist1 = this.getGenerationByWriterId(generations, semi1.winner);
     const finalist2 = this.getGenerationByWriterId(generations, semi2.winner);
     const final = await this.runMatch('final', finalist1, finalist2);
     rounds.push(final);
+    this.logMatchResult(final);
 
     // Get champion's text
     const championGeneration = this.getGenerationByWriterId(
       generations,
       final.winner
     );
+
+    this.logger?.section(`Tournament Champion: ${final.winner}`);
 
     return {
       champion: final.winner,
@@ -137,6 +154,14 @@ export class TournamentArena {
       winner,
       judgeResult,
     };
+  }
+
+  private logMatchResult(match: MatchResult): void {
+    if (!this.logger) return;
+    this.logger.debug(`Match ${match.matchName}: ${match.winner} wins (${match.contestantA} vs ${match.contestantB})`, {
+      scores: match.judgeResult.scores,
+      reasoning: match.judgeResult.reasoning,
+    });
   }
 
   private getGenerationByWriterId(

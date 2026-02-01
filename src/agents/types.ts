@@ -195,6 +195,7 @@ export interface FullPipelineConfig {
   dbPath: string;
   narrativeType?: string;
   developedCharacters?: import('../factory/character-developer.js').DevelopedCharacter[];
+  verbose?: boolean;
 }
 
 /**

@@ -64,6 +64,9 @@ Examples:
 
   # Config file with CLI overrides
   npx tsx src/main.ts factory --config factory-config.json --count 20
+
+Global Options:
+  --verbose    Enable detailed logging of each pipeline step
   `);
 }
 
@@ -105,6 +108,7 @@ async function main(): Promise<void> {
       const chapters = options.chapters ? parseInt(options.chapters, 10) : undefined;
       const dbPath = options.db || 'soul-writer.db';
       const simple = options.simple === 'true';
+      const verbose = options.verbose === 'true';
 
       if (!prompt && !autoTheme) {
         console.error('Error: --prompt or --auto-theme is required');
@@ -112,7 +116,7 @@ async function main(): Promise<void> {
         process.exit(1);
       }
 
-      await generate({ soul, prompt, autoTheme, chapters, dbPath, simple });
+      await generate({ soul, prompt, autoTheme, chapters, dbPath, simple, verbose });
       break;
     }
 
@@ -120,6 +124,7 @@ async function main(): Promise<void> {
       const soul = options.soul || 'soul';
       const taskId = options['task-id'];
       const dbPath = options.db || 'soul-writer.db';
+      const verbose = options.verbose === 'true';
 
       if (!taskId) {
         console.error('Error: --task-id is required');
@@ -127,7 +132,7 @@ async function main(): Promise<void> {
         process.exit(1);
       }
 
-      await resume({ taskId, soul, dbPath });
+      await resume({ taskId, soul, dbPath, verbose });
       break;
     }
 
@@ -140,9 +145,11 @@ async function main(): Promise<void> {
     }
 
     case 'factory': {
+      const verbose = options.verbose === 'true';
       await factory({
         config: options.config,
         resume: options.resume === 'true',
+        verbose,
         count: options.count ? parseInt(options.count, 10) : undefined,
         parallel: options.parallel ? parseInt(options.parallel, 10) : undefined,
         chaptersPerStory: options['chapters-per-story'] ? parseInt(options['chapters-per-story'], 10) : undefined,

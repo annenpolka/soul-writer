@@ -23,6 +23,7 @@ export interface FactoryOptions {
   outputDir?: string;
   dbPath?: string;
   taskDelayMs?: number;
+  verbose?: boolean;
 }
 
 export async function factory(options: FactoryOptions): Promise<void> {
@@ -110,7 +111,7 @@ export async function factory(options: FactoryOptions): Promise<void> {
     workRepo,
     checkpointManager,
     candidateRepo,
-  });
+  }, { verbose: options.verbose });
 
   console.log('Starting batch generation...\n');
 
