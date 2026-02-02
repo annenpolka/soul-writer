@@ -11,6 +11,21 @@ function createMockLLMClient(response: string): LLMClient {
       tokens += 100;
       return Promise.resolve(response);
     }),
+    completeWithTools: vi.fn().mockImplementation(() => {
+      tokens += 100;
+      return Promise.resolve({
+        toolCalls: [{
+          id: 'tc-1',
+          type: 'function',
+          function: {
+            name: 'submit_facilitation',
+            arguments: response,
+          },
+        }],
+        content: null,
+        tokensUsed: 100,
+      });
+    }),
     getTotalTokens: vi.fn().mockImplementation(() => tokens),
   };
 }
@@ -28,6 +43,39 @@ function createEmptyState(overrides?: Partial<CollaborationState>): Collaboratio
 
 describe('ModeratorAgent', () => {
   describe('facilitateRound', () => {
+    it('should use tool calling for facilitation', async () => {
+      const llm: LLMClient = {
+        complete: vi.fn().mockResolvedValue('ignored text'),
+        completeWithTools: vi.fn().mockResolvedValue({
+          toolCalls: [{
+            id: 'tc-1',
+            type: 'function',
+            function: {
+              name: 'submit_facilitation',
+              arguments: JSON.stringify({
+                nextPhase: 'discussion',
+                assignments: { opening: 'writer_1' },
+                summary: 'ツール経由の要約',
+                shouldTerminate: false,
+                consensusScore: 0.2,
+                continueRounds: 0,
+              }),
+            },
+          }],
+          content: null,
+          tokensUsed: 50,
+        }),
+        getTotalTokens: vi.fn().mockReturnValue(100),
+      };
+      const soulText = createMockSoulText();
+      const moderator = new ModeratorAgent(llm, soulText);
+
+      const result = await moderator.facilitateRound(createEmptyState(), [], []);
+
+      expect(llm.completeWithTools).toHaveBeenCalledTimes(1);
+      expect(result.nextPhase).toBe('discussion');
+    });
+
     it('should parse facilitation result from LLM response', async () => {
       const llm = createMockLLMClient(JSON.stringify({
         nextPhase: 'discussion',
@@ -79,20 +127,14 @@ describe('ModeratorAgent', () => {
       expect(result.consensusScore).toBe(0.9);
     });
 
-    it('should handle JSON wrapped in markdown code block', async () => {
-      const llm = createMockLLMClient('```json\n' + JSON.stringify({
-        nextPhase: 'drafting',
-        assignments: { opening: 'writer_1' },
-        summary: 'test',
-        shouldTerminate: false,
-        consensusScore: 0.5,
-      }) + '\n```');
+    it('should fallback on invalid tool arguments', async () => {
+      const llm = createMockLLMClient('not json');
       const soulText = createMockSoulText();
       const moderator = new ModeratorAgent(llm, soulText);
 
       const result = await moderator.facilitateRound(createEmptyState(), [], []);
 
-      expect(result.nextPhase).toBe('drafting');
+      expect(result.summary).toContain('解析に失敗');
     });
   });
 

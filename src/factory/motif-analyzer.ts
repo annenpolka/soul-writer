@@ -1,6 +1,27 @@
-import type { LLMClient } from '../llm/types.js';
+import type { LLMClient, ToolDefinition, ToolCallResponse } from '../llm/types.js';
+import { assertToolCallingClient, parseToolArguments } from '../llm/tooling.js';
 import type { Work } from '../storage/work-repository.js';
 import { buildPrompt } from '../template/composer.js';
+
+const SUBMIT_MOTIF_ANALYSIS_TOOL: ToolDefinition = {
+  type: 'function',
+  function: {
+    name: 'submit_motif_analysis',
+    description: '頻出モチーフ分析の結果を提出する',
+    parameters: {
+      type: 'object',
+      properties: {
+        frequent_motifs: {
+          type: 'array',
+          items: { type: 'string' },
+        },
+      },
+      required: ['frequent_motifs'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+};
 
 export interface MotifAnalysisResult {
   frequentMotifs: string[];
@@ -35,11 +56,18 @@ export class MotifAnalyzerAgent {
 
     const { system: systemPrompt, user: userPrompt } = buildPrompt('motif-analyzer', context);
 
-    const response = await this.llmClient.complete(systemPrompt, userPrompt, {
-      temperature: 0.3,
-    });
+    assertToolCallingClient(this.llmClient);
+    const response = await this.llmClient.completeWithTools(
+      systemPrompt,
+      userPrompt,
+      [SUBMIT_MOTIF_ANALYSIS_TOOL],
+      {
+        toolChoice: { type: 'function', function: { name: 'submit_motif_analysis' } },
+        temperature: 0.3,
+      },
+    );
 
-    const motifs = this.parseResponse(response);
+    const motifs = this.parseToolResponse(response);
     const tokensAfter = this.llmClient.getTotalTokens();
 
     return {
@@ -48,17 +76,17 @@ export class MotifAnalyzerAgent {
     };
   }
 
-  private parseResponse(response: string): string[] {
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return [];
-    }
-
+  private parseToolResponse(response: ToolCallResponse): string[] {
+    let parsed: unknown;
     try {
-      const parsed = JSON.parse(jsonMatch[0]) as { frequent_motifs?: string[] };
-      return parsed.frequent_motifs ?? [];
+      parsed = parseToolArguments<unknown>(response, 'submit_motif_analysis');
     } catch {
       return [];
     }
+
+    if (!parsed || typeof parsed !== 'object') return [];
+    const raw = parsed as { frequentMotifs?: unknown; frequent_motifs?: unknown };
+    const motifs = raw.frequent_motifs ?? raw.frequentMotifs;
+    return Array.isArray(motifs) ? motifs.filter((m) => typeof m === 'string') : [];
   }
 }

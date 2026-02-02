@@ -1,4 +1,5 @@
-import type { LLMClient } from '../llm/types.js';
+import type { LLMClient, ToolDefinition, ToolCallResponse } from '../llm/types.js';
+import { assertToolCallingClient, parseToolArguments } from '../llm/tooling.js';
 import type { SoulText } from '../soul/manager.js';
 import { PlotSchema, type Plot } from '../schemas/plot.js';
 import {
@@ -9,6 +10,39 @@ import {
 import { buildPrompt } from '../template/composer.js';
 
 export { type PlotterConfig, type PlotResult };
+
+const SUBMIT_PLOT_TOOL: ToolDefinition = {
+  type: 'function',
+  function: {
+    name: 'submit_plot',
+    description: '物語のプロット構造を提出する',
+    parameters: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        theme: { type: 'string' },
+        chapters: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              index: { type: 'number' },
+              title: { type: 'string' },
+              summary: { type: 'string' },
+              key_events: { type: 'array', items: { type: 'string' } },
+              target_length: { type: 'number' },
+            },
+            required: ['index', 'title', 'summary', 'key_events', 'target_length'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['title', 'theme', 'chapters'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+};
 
 /**
  * Plotter agent that generates plot structures for stories
@@ -41,11 +75,18 @@ export class PlotterAgent {
     const context = this.buildContext();
     const { system: systemPrompt, user: userPrompt } = buildPrompt('plotter', context);
 
-    const response = await this.llmClient.complete(systemPrompt, userPrompt, {
-      temperature: this.config.temperature,
-    });
+    assertToolCallingClient(this.llmClient);
+    const response = await this.llmClient.completeWithTools(
+      systemPrompt,
+      userPrompt,
+      [SUBMIT_PLOT_TOOL],
+      {
+        toolChoice: { type: 'function', function: { name: 'submit_plot' } },
+        temperature: this.config.temperature,
+      },
+    );
 
-    const plot = this.parseResponse(response);
+    const plot = this.parseToolResponse(response);
     const tokensAfter = this.llmClient.getTotalTokens();
 
     return {
@@ -126,17 +167,12 @@ export class PlotterAgent {
     return ctx;
   }
 
-  private parseResponse(response: string): Plot {
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('Failed to extract JSON from response');
-    }
-
+  private parseToolResponse(response: ToolCallResponse): Plot {
     let parsed: unknown;
     try {
-      parsed = JSON.parse(jsonMatch[0]);
+      parsed = parseToolArguments<unknown>(response, 'submit_plot');
     } catch {
-      throw new Error('Failed to parse JSON response');
+      throw new Error('Failed to parse tool call arguments');
     }
 
     const result = PlotSchema.safeParse(parsed);

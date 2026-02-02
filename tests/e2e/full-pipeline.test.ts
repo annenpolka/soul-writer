@@ -67,6 +67,36 @@ const createMockLLMClient = (): LLMClient => {
       // Default response
       return Promise.resolve('透心は静かに窓の外を見つめていた。');
     }),
+    completeWithTools: vi.fn().mockImplementation((_systemPrompt: string, _userPrompt: string, tools) => {
+      const toolName = tools[0]?.function?.name;
+      if (toolName === 'submit_plot') {
+        return Promise.resolve({
+          toolCalls: [{
+            id: 'tc-1',
+            type: 'function',
+            function: {
+              name: 'submit_plot',
+              arguments: JSON.stringify({
+                title: 'テスト小説',
+                theme: 'テーマ',
+                chapters: [
+                  {
+                    index: 1,
+                    title: '第一章',
+                    summary: '始まりの章',
+                    key_events: ['出会い', '発見'],
+                    target_length: 4000,
+                  },
+                ],
+              }),
+            },
+          }],
+          content: null,
+          tokensUsed: 50,
+        });
+      }
+      return Promise.resolve({ toolCalls: [], content: null, tokensUsed: 0 });
+    }),
     getTotalTokens: vi.fn().mockReturnValue(100),
   };
 };

@@ -6,6 +6,7 @@ import type { GeneratedTheme } from '../schemas/generated-theme.js';
 
 const mockLLMClient: LLMClient = {
   complete: vi.fn(),
+  completeWithTools: vi.fn(),
   getTotalTokens: vi.fn().mockReturnValue(0),
 };
 
@@ -56,7 +57,18 @@ describe('CharacterDeveloperAgent', () => {
       ],
       castingRationale: 'テーマに合わせた構成',
     });
-    (mockLLMClient.complete as ReturnType<typeof vi.fn>).mockResolvedValue(response);
+    (mockLLMClient.completeWithTools as ReturnType<typeof vi.fn>).mockResolvedValue({
+      toolCalls: [{
+        id: 'tc-1',
+        type: 'function',
+        function: {
+          name: 'submit_characters',
+          arguments: response,
+        },
+      }],
+      content: null,
+      tokensUsed: 50,
+    });
 
     const agent = new CharacterDeveloperAgent(mockLLMClient, mockSoulText);
     const result = await agent.develop(baseTheme);
@@ -68,8 +80,51 @@ describe('CharacterDeveloperAgent', () => {
     expect(result.tokensUsed).toBe(100);
   });
 
+  it('should use tool calling for character development', async () => {
+    const toolArgs = {
+      characters: [
+        { name: '御鐘透心', isNew: false, role: '観察者', voice: '冷徹な独白' },
+        { name: '新キャラ', isNew: true, role: '転校生', description: '無口な少年', voice: '単語のみ' },
+      ],
+      castingRationale: 'ツール経由の構成',
+    };
+    const llm: LLMClient = {
+      complete: vi.fn().mockResolvedValue('ignored text'),
+      completeWithTools: vi.fn().mockResolvedValue({
+        toolCalls: [{
+          id: 'tc-1',
+          type: 'function',
+          function: {
+            name: 'submit_characters',
+            arguments: JSON.stringify(toolArgs),
+          },
+        }],
+        content: null,
+        tokensUsed: 50,
+      }),
+      getTotalTokens: vi.fn().mockReturnValue(100),
+    };
+
+    const agent = new CharacterDeveloperAgent(llm, mockSoulText);
+    const result = await agent.develop(baseTheme);
+
+    expect(llm.completeWithTools).toHaveBeenCalledTimes(1);
+    expect(result.developed.castingRationale).toBe('ツール経由の構成');
+  });
+
   it('falls back to theme characters on invalid JSON', async () => {
-    (mockLLMClient.complete as ReturnType<typeof vi.fn>).mockResolvedValue('invalid response');
+    (mockLLMClient.completeWithTools as ReturnType<typeof vi.fn>).mockResolvedValue({
+      toolCalls: [{
+        id: 'tc-1',
+        type: 'function',
+        function: {
+          name: 'submit_characters',
+          arguments: 'invalid response',
+        },
+      }],
+      content: null,
+      tokensUsed: 50,
+    });
 
     const agent = new CharacterDeveloperAgent(mockLLMClient, mockSoulText);
     const result = await agent.develop(baseTheme);
@@ -80,7 +135,18 @@ describe('CharacterDeveloperAgent', () => {
 
   it('falls back on empty characters array', async () => {
     const response = JSON.stringify({ characters: [], castingRationale: '' });
-    (mockLLMClient.complete as ReturnType<typeof vi.fn>).mockResolvedValue(response);
+    (mockLLMClient.completeWithTools as ReturnType<typeof vi.fn>).mockResolvedValue({
+      toolCalls: [{
+        id: 'tc-1',
+        type: 'function',
+        function: {
+          name: 'submit_characters',
+          arguments: response,
+        },
+      }],
+      content: null,
+      tokensUsed: 50,
+    });
 
     const agent = new CharacterDeveloperAgent(mockLLMClient, mockSoulText);
     const result = await agent.develop(baseTheme);
@@ -97,12 +163,23 @@ describe('CharacterDeveloperAgent', () => {
       characters: [{ name: 'テスト', isNew: true, role: 'test' }],
       castingRationale: 'test',
     });
-    (mockLLMClient.complete as ReturnType<typeof vi.fn>).mockResolvedValue(response);
+    (mockLLMClient.completeWithTools as ReturnType<typeof vi.fn>).mockResolvedValue({
+      toolCalls: [{
+        id: 'tc-1',
+        type: 'function',
+        function: {
+          name: 'submit_characters',
+          arguments: response,
+        },
+      }],
+      content: null,
+      tokensUsed: 50,
+    });
 
     const agent = new CharacterDeveloperAgent(mockLLMClient, mockSoulText);
     await agent.develop(themeWithNarrative);
 
-    const userPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    const userPrompt = (mockLLMClient.completeWithTools as ReturnType<typeof vi.fn>).mock.calls[0][1];
     expect(userPrompt).toContain('群像劇');
   });
 
@@ -111,12 +188,23 @@ describe('CharacterDeveloperAgent', () => {
       characters: [{ name: 'テスト', isNew: true, role: 'test' }],
       castingRationale: 'test',
     });
-    (mockLLMClient.complete as ReturnType<typeof vi.fn>).mockResolvedValue(response);
+    (mockLLMClient.completeWithTools as ReturnType<typeof vi.fn>).mockResolvedValue({
+      toolCalls: [{
+        id: 'tc-1',
+        type: 'function',
+        function: {
+          name: 'submit_characters',
+          arguments: response,
+        },
+      }],
+      content: null,
+      tokensUsed: 50,
+    });
 
     const agent = new CharacterDeveloperAgent(mockLLMClient, mockSoulText);
     await agent.develop(baseTheme);
 
-    const systemPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const systemPrompt = (mockLLMClient.completeWithTools as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(systemPrompt).toContain('叔父');
     expect(systemPrompt).toContain('不可欠な場合');
   });
@@ -140,12 +228,23 @@ describe('CharacterDeveloperAgent', () => {
       characters: [{ name: 'テスト', isNew: true, role: 'test' }],
       castingRationale: 'test',
     });
-    (mockLLMClient.complete as ReturnType<typeof vi.fn>).mockResolvedValue(response);
+    (mockLLMClient.completeWithTools as ReturnType<typeof vi.fn>).mockResolvedValue({
+      toolCalls: [{
+        id: 'tc-1',
+        type: 'function',
+        function: {
+          name: 'submit_characters',
+          arguments: response,
+        },
+      }],
+      content: null,
+      tokensUsed: 50,
+    });
 
     const agent = new CharacterDeveloperAgent(mockLLMClient, soulTextWithConfig);
     await agent.develop(baseTheme);
 
-    const systemPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const systemPrompt = (mockLLMClient.completeWithTools as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(systemPrompt).toContain('カスタムキャスティングルール1');
     expect(systemPrompt).toContain('カスタムキャスティングルール2');
   });
