@@ -1,8 +1,40 @@
-import type { LLMClient } from '../llm/types.js';
+import type { LLMClient, ToolDefinition, ToolCallResponse } from '../llm/types.js';
+import { assertToolCallingClient, parseToolArguments } from '../llm/tooling.js';
 import type { SoulText } from '../soul/manager.js';
 import type { GeneratedTheme } from '../schemas/generated-theme.js';
 import { PlotMacGuffinSchema, type PlotMacGuffin, type CharacterMacGuffin } from '../schemas/macguffin.js';
 import { buildPrompt } from '../template/composer.js';
+
+const SUBMIT_PLOT_MACGUFFINS_TOOL: ToolDefinition = {
+  type: 'function',
+  function: {
+    name: 'submit_plot_macguffins',
+    description: 'プロット用のマクガフィンを提出する',
+    parameters: {
+      type: 'object',
+      properties: {
+        plotMacGuffins: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              surfaceAppearance: { type: 'string' },
+              hiddenLayer: { type: 'string' },
+              tensionQuestions: { type: 'array', items: { type: 'string' } },
+              presenceHint: { type: 'string' },
+            },
+            required: ['name', 'surfaceAppearance', 'hiddenLayer', 'tensionQuestions', 'presenceHint'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['plotMacGuffins'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+};
 
 export interface PlotMacGuffinResult {
   macguffins: PlotMacGuffin[];
@@ -23,11 +55,18 @@ export class PlotMacGuffinAgent {
 
     const context = this.buildContext(theme, charMacGuffins);
     const { system: systemPrompt, user: userPrompt } = buildPrompt('plot-macguffin', context);
-    const response = await this.llmClient.complete(systemPrompt, userPrompt, {
-      temperature: 0.9,
-    });
+    assertToolCallingClient(this.llmClient);
+    const response = await this.llmClient.completeWithTools(
+      systemPrompt,
+      userPrompt,
+      [SUBMIT_PLOT_MACGUFFINS_TOOL],
+      {
+        toolChoice: { type: 'function', function: { name: 'submit_plot_macguffins' } },
+        temperature: 0.9,
+      },
+    );
 
-    const macguffins = this.parseResponse(response);
+    const macguffins = this.parseToolResponse(response);
     const tokensUsed = this.llmClient.getTotalTokens() - tokensBefore;
 
     return { macguffins, tokensUsed };
@@ -70,27 +109,23 @@ export class PlotMacGuffinAgent {
     return ctx;
   }
 
-  private parseResponse(response: string): PlotMacGuffin[] {
-    const jsonMatch = response.match(/\[[\s\S]*\]/) || response.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return this.fallback();
-    }
-
+  private parseToolResponse(response: ToolCallResponse): PlotMacGuffin[] {
+    let raw: unknown;
     try {
-      let raw = JSON.parse(jsonMatch[0]);
-      if (!Array.isArray(raw) && raw.plotMacGuffins) {
-        raw = raw.plotMacGuffins;
-      }
-      if (!Array.isArray(raw)) {
-        raw = [raw];
-      }
-      const validated = raw.map((item: unknown) => PlotMacGuffinSchema.safeParse(item))
-        .filter((r: { success: boolean }) => r.success)
-        .map((r: { success: true; data: PlotMacGuffin }) => r.data);
-      return validated.length > 0 ? validated : this.fallback();
+      raw = parseToolArguments<unknown>(response, 'submit_plot_macguffins');
     } catch {
       return this.fallback();
     }
+
+    const items = Array.isArray(raw) ? raw : (raw as { plotMacGuffins?: unknown }).plotMacGuffins;
+    if (!Array.isArray(items)) {
+      return this.fallback();
+    }
+
+    const validated = items.map((item: unknown) => PlotMacGuffinSchema.safeParse(item))
+      .filter((r: { success: boolean }) => r.success)
+      .map((r: { success: true; data: PlotMacGuffin }) => r.data);
+    return validated.length > 0 ? validated : this.fallback();
   }
 
   private fallback(): PlotMacGuffin[] {

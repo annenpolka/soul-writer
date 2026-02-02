@@ -46,6 +46,71 @@ describe('BatchRunner', () => {
     soulText: mockSoulText as any,
     llmClient: {
       complete: vi.fn().mockResolvedValue('{}'),
+      completeWithTools: vi.fn().mockImplementation((_systemPrompt, _userPrompt, tools) => {
+        const toolName = tools[0]?.function?.name;
+        if (toolName === 'submit_character_macguffins') {
+          return Promise.resolve({
+            toolCalls: [{
+              id: 'tc-1',
+              type: 'function',
+              function: {
+                name: 'submit_character_macguffins',
+                arguments: JSON.stringify({
+                  characterMacGuffins: [
+                    {
+                      characterName: '透心',
+                      secret: 'テスト秘密',
+                      surfaceSigns: ['沈黙'],
+                      narrativeFunction: 'テスト用',
+                    },
+                  ],
+                }),
+              },
+            }],
+            content: null,
+            tokensUsed: 50,
+          });
+        }
+        if (toolName === 'submit_plot_macguffins') {
+          return Promise.resolve({
+            toolCalls: [{
+              id: 'tc-1',
+              type: 'function',
+              function: {
+                name: 'submit_plot_macguffins',
+                arguments: JSON.stringify({
+                  plotMacGuffins: [
+                    {
+                      name: '不可解なログ',
+                      surfaceAppearance: 'テスト',
+                      hiddenLayer: 'テスト',
+                      tensionQuestions: ['なぜ？'],
+                      presenceHint: '冒頭',
+                    },
+                  ],
+                }),
+              },
+            }],
+            content: null,
+            tokensUsed: 50,
+          });
+        }
+        if (toolName === 'submit_motif_analysis') {
+          return Promise.resolve({
+            toolCalls: [{
+              id: 'tc-1',
+              type: 'function',
+              function: {
+                name: 'submit_motif_analysis',
+                arguments: JSON.stringify({ frequent_motifs: [] }),
+              },
+            }],
+            content: null,
+            tokensUsed: 50,
+          });
+        }
+        return Promise.resolve({ toolCalls: [], content: null, tokensUsed: 0 });
+      }),
       getTotalTokens: vi.fn().mockReturnValue(0),
     },
     taskRepo: {

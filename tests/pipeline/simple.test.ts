@@ -63,6 +63,55 @@ const createMockLLMClient = (): LLMClient => {
       // Default writer response
       return Promise.resolve('透心は静かに窓の外を見つめていた。ARタグが揺らめく朝の光の中で。');
     }),
+    completeWithTools: vi.fn().mockImplementation((_systemPrompt: string, _userPrompt: string, tools) => {
+      const toolName = tools[0]?.function?.name;
+      if (toolName === 'submit_judgement') {
+        return Promise.resolve({
+          toolCalls: [{
+            id: 'tc-1',
+            type: 'function',
+            function: {
+              name: 'submit_judgement',
+              arguments: JSON.stringify({
+                winner: 'A',
+                reasoning: 'Aの方が文体が優れている',
+                scores: {
+                  A: { style: 0.9, compliance: 0.85, overall: 0.87 },
+                  B: { style: 0.8, compliance: 0.82, overall: 0.81 },
+                },
+                praised_excerpts: { A: [], B: [] },
+              }),
+            },
+          }],
+          content: null,
+          tokensUsed: 50,
+        });
+      }
+      if (toolName === 'submit_reader_evaluation') {
+        return Promise.resolve({
+          toolCalls: [{
+            id: 'tc-1',
+            type: 'function',
+            function: {
+              name: 'submit_reader_evaluation',
+              arguments: JSON.stringify({
+                categoryScores: {
+                  style: 0.85,
+                  plot: 0.82,
+                  character: 0.88,
+                  worldbuilding: 0.80,
+                  readability: 0.90,
+                },
+                feedback: '全体的に良い作品です。',
+              }),
+            },
+          }],
+          content: null,
+          tokensUsed: 50,
+        });
+      }
+      return Promise.resolve({ toolCalls: [], content: null, tokensUsed: 0 });
+    }),
     getTotalTokens: vi.fn().mockReturnValue(1000),
   };
 };

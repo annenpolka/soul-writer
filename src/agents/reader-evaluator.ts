@@ -1,8 +1,47 @@
-import type { LLMClient } from '../llm/types.js';
+import type { LLMClient, ToolDefinition, ToolCallResponse } from '../llm/types.js';
+import { assertToolCallingClient, parseToolArguments } from '../llm/tooling.js';
 import type { SoulText } from '../soul/manager.js';
 import type { ReaderPersona } from '../schemas/reader-personas.js';
 import type { PersonaEvaluation, PersonaFeedback, CategoryScores } from './types.js';
 import { buildPrompt } from '../template/composer.js';
+
+const SUBMIT_READER_EVALUATION_TOOL: ToolDefinition = {
+  type: 'function',
+  function: {
+    name: 'submit_reader_evaluation',
+    description: '読者評価のスコアとフィードバックを提出する',
+    parameters: {
+      type: 'object',
+      properties: {
+        categoryScores: {
+          type: 'object',
+          properties: {
+            style: { type: 'number' },
+            plot: { type: 'number' },
+            character: { type: 'number' },
+            worldbuilding: { type: 'number' },
+            readability: { type: 'number' },
+          },
+          required: ['style', 'plot', 'character', 'worldbuilding', 'readability'],
+          additionalProperties: false,
+        },
+        feedback: {
+          type: 'object',
+          properties: {
+            strengths: { type: 'string' },
+            weaknesses: { type: 'string' },
+            suggestion: { type: 'string' },
+          },
+          required: ['strengths', 'weaknesses', 'suggestion'],
+          additionalProperties: false,
+        },
+      },
+      required: ['categoryScores', 'feedback'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+};
 
 /**
  * Reader evaluator that evaluates text from a single persona's perspective
@@ -39,17 +78,21 @@ export class ReaderEvaluator {
 
     const { system: systemPrompt, user: userPrompt } = buildPrompt('reader-evaluator', context);
 
-    const response = await this.llmClient.complete(systemPrompt, userPrompt, {
-      temperature: 0.3,
-    });
+    assertToolCallingClient(this.llmClient);
+    const response = await this.llmClient.completeWithTools(
+      systemPrompt,
+      userPrompt,
+      [SUBMIT_READER_EVALUATION_TOOL],
+      {
+        toolChoice: { type: 'function', function: { name: 'submit_reader_evaluation' } },
+        temperature: 0.3,
+      },
+    );
 
-    return this.parseResponse(response);
+    return this.parseToolResponse(response);
   }
 
-  private parseResponse(response: string): PersonaEvaluation {
-    // Extract JSON from response
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-
+  private parseToolResponse(response: ToolCallResponse): PersonaEvaluation {
     let categoryScores: CategoryScores;
     let feedback: PersonaFeedback;
 
@@ -59,27 +102,32 @@ export class ReaderEvaluator {
       suggestion: '',
     };
 
-    if (jsonMatch) {
-      try {
-        const parsed = JSON.parse(jsonMatch[0]);
-        categoryScores = this.normalizeScores(parsed.categoryScores);
-        if (parsed.feedback && typeof parsed.feedback === 'object') {
-          const fb = parsed.feedback;
-          feedback = {
-            strengths: fb.strengths || '',
-            weaknesses: fb.weaknesses || '',
-            suggestion: fb.suggestion || '',
-          };
-        } else {
-          feedback = { ...defaultFeedback, strengths: parsed.feedback || 'フィードバックなし' };
-        }
-      } catch {
-        categoryScores = this.getDefaultScores();
-        feedback = { ...defaultFeedback, weaknesses: 'JSON解析エラー: ' + response.slice(0, 100) };
+    let parsed: unknown;
+    try {
+      parsed = parseToolArguments<unknown>(response, 'submit_reader_evaluation');
+    } catch {
+      parsed = null;
+    }
+
+    if (parsed && typeof parsed === 'object') {
+      const candidate = parsed as {
+        categoryScores?: Partial<CategoryScores>;
+        feedback?: Partial<PersonaFeedback> | string;
+      };
+      categoryScores = this.normalizeScores(candidate.categoryScores);
+      if (candidate.feedback && typeof candidate.feedback === 'object') {
+        const fb = candidate.feedback as Partial<PersonaFeedback>;
+        feedback = {
+          strengths: fb.strengths || '',
+          weaknesses: fb.weaknesses || '',
+          suggestion: fb.suggestion || '',
+        };
+      } else {
+        feedback = { ...defaultFeedback, strengths: typeof candidate.feedback === 'string' ? candidate.feedback : 'フィードバックなし' };
       }
     } else {
       categoryScores = this.getDefaultScores();
-      feedback = { ...defaultFeedback, weaknesses: 'JSON未検出: ' + response.slice(0, 100) };
+      feedback = { ...defaultFeedback, weaknesses: 'ツール呼び出しの解析に失敗' };
     }
 
     const weightedScore = this.calculateWeightedScore(categoryScores);

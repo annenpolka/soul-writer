@@ -1,4 +1,5 @@
-import type { LLMClient } from '../llm/types.js';
+import type { LLMClient, ToolDefinition, ToolCallResponse } from '../llm/types.js';
+import { assertToolCallingClient, parseToolArguments } from '../llm/tooling.js';
 import type { SoulText } from '../soul/manager.js';
 import { buildPrompt } from '../template/composer.js';
 import {
@@ -8,6 +9,28 @@ import {
   type FacilitationResult,
   type FeedbackAction,
 } from './types.js';
+
+const SUBMIT_FACILITATION_TOOL: ToolDefinition = {
+  type: 'function',
+  function: {
+    name: 'submit_facilitation',
+    description: 'モデレーターのファシリテーション結果を提出する',
+    parameters: {
+      type: 'object',
+      properties: {
+        nextPhase: { type: 'string' },
+        assignments: { type: 'object', additionalProperties: { type: 'string' } },
+        summary: { type: 'string' },
+        shouldTerminate: { type: 'boolean' },
+        consensusScore: { type: 'number' },
+        continueRounds: { type: 'number' },
+      },
+      required: ['nextPhase', 'assignments', 'summary', 'shouldTerminate', 'consensusScore'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+};
 
 interface WriterInfo {
   id: string;
@@ -33,14 +56,21 @@ export class ModeratorAgent {
   ): Promise<FacilitationResult> {
     const context = this.buildFacilitationContext(state, actions, writers);
     const { system, user } = buildPrompt('moderator', context);
+    assertToolCallingClient(this.llmClient);
 
     for (let attempt = 0; attempt <= ModeratorAgent.FACILITATE_MAX_RETRIES; attempt++) {
       try {
-        const response = await this.llmClient.complete(system, user, {
-          temperature: 0.3,
-        });
+        const response = await this.llmClient.completeWithTools(
+          system,
+          user,
+          [SUBMIT_FACILITATION_TOOL],
+          {
+            toolChoice: { type: 'function', function: { name: 'submit_facilitation' } },
+            temperature: 0.3,
+          },
+        );
 
-        return this.parseFacilitationResponse(response);
+        return this.parseToolResponse(response);
       } catch {
         if (attempt === ModeratorAgent.FACILITATE_MAX_RETRIES) {
           // フォールバック: 安全なデフォルト結果で続行
@@ -234,23 +264,8 @@ export class ModeratorAgent {
     }
   }
 
-  private parseFacilitationResponse(response: string): FacilitationResult {
-    const jsonStr = this.extractJson(response);
-    const parsed = JSON.parse(jsonStr);
+  private parseToolResponse(response: ToolCallResponse): FacilitationResult {
+    const parsed = parseToolArguments<unknown>(response, 'submit_facilitation');
     return FacilitationResultSchema.parse(parsed);
-  }
-
-  private extractJson(text: string): string {
-    // Try to extract JSON from markdown code block
-    const codeBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-    if (codeBlockMatch) {
-      return codeBlockMatch[1].trim();
-    }
-    // Try raw JSON
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return jsonMatch[0];
-    }
-    return text;
   }
 }

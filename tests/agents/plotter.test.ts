@@ -7,7 +7,19 @@ import { createMockSoulText } from '../helpers/mock-soul-text.js';
 
 // Mock LLM Client
 const createMockLLMClient = (response: string): LLMClient => ({
-  complete: vi.fn().mockResolvedValue(response),
+  complete: vi.fn(),
+  completeWithTools: vi.fn().mockResolvedValue({
+    toolCalls: [{
+      id: 'tc-1',
+      type: 'function',
+      function: {
+        name: 'submit_plot',
+        arguments: response,
+      },
+    }],
+    content: null,
+    tokensUsed: 50,
+  }),
   getTotalTokens: vi.fn().mockReturnValue(100),
 });
 
@@ -65,6 +77,30 @@ describe('PlotterAgent', () => {
   });
 
   describe('generatePlot', () => {
+    it('should use tool calling for plot generation', async () => {
+      const mockLLMClient: LLMClient = {
+        complete: vi.fn().mockResolvedValue('ignored text'),
+        completeWithTools: vi.fn().mockResolvedValue({
+          toolCalls: [{
+            id: 'tc-1',
+            type: 'function',
+            function: {
+              name: 'submit_plot',
+              arguments: validPlotResponse,
+            },
+          }],
+          content: null,
+          tokensUsed: 50,
+        }),
+        getTotalTokens: vi.fn().mockReturnValue(100),
+      };
+      const plotter = new PlotterAgent(mockLLMClient, mockSoulText);
+      const result = await plotter.generatePlot();
+
+      expect(mockLLMClient.completeWithTools).toHaveBeenCalledTimes(1);
+      expect(result.plot.title).toBe('透心の朝');
+    });
+
     it('should generate a valid plot structure', async () => {
       const mockLLMClient = createMockLLMClient(validPlotResponse);
       const plotter = new PlotterAgent(mockLLMClient, mockSoulText);
@@ -79,7 +115,19 @@ describe('PlotterAgent', () => {
     it('should track token usage', async () => {
       let tokenCount = 50;
       const mockLLMClient: LLMClient = {
-        complete: vi.fn().mockResolvedValue(validPlotResponse),
+        complete: vi.fn(),
+        completeWithTools: vi.fn().mockResolvedValue({
+          toolCalls: [{
+            id: 'tc-1',
+            type: 'function',
+            function: {
+              name: 'submit_plot',
+              arguments: validPlotResponse,
+            },
+          }],
+          content: null,
+          tokensUsed: 50,
+        }),
         getTotalTokens: vi.fn().mockImplementation(() => {
           tokenCount += 50;
           return tokenCount;
@@ -97,7 +145,7 @@ describe('PlotterAgent', () => {
       const plotter = new PlotterAgent(mockLLMClient, mockSoulText);
       await plotter.generatePlot();
 
-      const systemPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>).mock
+      const systemPrompt = (mockLLMClient.completeWithTools as ReturnType<typeof vi.fn>).mock
         .calls[0][0];
       expect(systemPrompt).toContain('プロット設計者');
       expect(systemPrompt).toContain('存在確認');
@@ -108,13 +156,13 @@ describe('PlotterAgent', () => {
       const plotter = new PlotterAgent(mockLLMClient, mockSoulText);
       await plotter.generatePlot();
 
-      const systemPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>).mock
+      const systemPrompt = (mockLLMClient.completeWithTools as ReturnType<typeof vi.fn>).mock
         .calls[0][0];
       expect(systemPrompt).toContain('透心');
     });
   });
 
-  describe('parseResponse', () => {
+  describe('parseToolResponse', () => {
     it('should parse valid JSON response', async () => {
       const mockLLMClient = createMockLLMClient(validPlotResponse);
       const plotter = new PlotterAgent(mockLLMClient, mockSoulText);
@@ -124,24 +172,7 @@ describe('PlotterAgent', () => {
       expect(result.plot.chapters[0].index).toBe(1);
     });
 
-    it('should extract JSON from markdown code block', async () => {
-      const responseWithCodeBlock = `
-Here is the plot structure:
-
-\`\`\`json
-${validPlotResponse}
-\`\`\`
-
-This plot focuses on the theme of existence.
-`;
-      const mockLLMClient = createMockLLMClient(responseWithCodeBlock);
-      const plotter = new PlotterAgent(mockLLMClient, mockSoulText);
-      const result = await plotter.generatePlot();
-
-      expect(result.plot.title).toBe('透心の朝');
-    });
-
-    it('should throw on invalid JSON', async () => {
+    it('should throw on invalid tool arguments', async () => {
       const mockLLMClient = createMockLLMClient('This is not JSON');
       const plotter = new PlotterAgent(mockLLMClient, mockSoulText);
 
@@ -181,7 +212,7 @@ This plot focuses on the theme of existence.
 
       await plotter.generatePlot();
 
-      const userPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      const userPrompt = (mockLLMClient.completeWithTools as ReturnType<typeof vi.fn>).mock.calls[0][1];
       expect(userPrompt).toContain('感情: 孤独');
       expect(userPrompt).toContain('時間軸: 出会い前');
       expect(userPrompt).toContain('テスト前提文');
@@ -196,7 +227,7 @@ This plot focuses on the theme of existence.
 
       await plotter.generatePlot();
 
-      const userPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      const userPrompt = (mockLLMClient.completeWithTools as ReturnType<typeof vi.fn>).mock.calls[0][1];
       expect(userPrompt).toContain('新キャラ');
       expect(userPrompt).toContain('テスト用の新キャラクター');
     });
@@ -210,7 +241,7 @@ This plot focuses on the theme of existence.
 
       await plotter.generatePlot();
 
-      const userPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>).mock.calls[0][1];
+      const userPrompt = (mockLLMClient.completeWithTools as ReturnType<typeof vi.fn>).mock.calls[0][1];
       expect(userPrompt).toContain('- 御鐘透心');
       expect(userPrompt).not.toContain('御鐘透心（新規）');
     });

@@ -6,7 +6,19 @@ import { createMockSoulText } from '../helpers/mock-soul-text.js';
 
 // Mock LLM Client
 const createMockLLMClient = (response: string): LLMClient => ({
-  complete: vi.fn().mockResolvedValue(response),
+  complete: vi.fn(),
+  completeWithTools: vi.fn().mockResolvedValue({
+    toolCalls: [{
+      id: 'tc-1',
+      type: 'function',
+      function: {
+        name: 'submit_reader_evaluation',
+        arguments: response,
+      },
+    }],
+    content: null,
+    tokensUsed: 50,
+  }),
   getTotalTokens: vi.fn().mockReturnValue(100),
 });
 
@@ -58,6 +70,49 @@ describe('ReaderEvaluator', () => {
   });
 
   describe('evaluate', () => {
+    it('should use tool calling for evaluation', async () => {
+      const toolArgs = {
+        categoryScores: {
+          style: 0.8,
+          plot: 0.75,
+          character: 0.7,
+          worldbuilding: 0.9,
+          readability: 0.85,
+        },
+        feedback: {
+          strengths: '世界観の構築が優れている',
+          weaknesses: '課題は少ない',
+          suggestion: 'さらに描写を深める',
+        },
+      };
+      const mockLLMClient: LLMClient = {
+        complete: vi.fn().mockResolvedValue('ignored text'),
+        completeWithTools: vi.fn().mockResolvedValue({
+          toolCalls: [{
+            id: 'tc-1',
+            type: 'function',
+            function: {
+              name: 'submit_reader_evaluation',
+              arguments: JSON.stringify(toolArgs),
+            },
+          }],
+          content: null,
+          tokensUsed: 50,
+        }),
+        getTotalTokens: vi.fn().mockReturnValue(100),
+      };
+      const evaluator = new ReaderEvaluator(
+        mockLLMClient,
+        mockSoulText,
+        mockPersona
+      );
+
+      const result = await evaluator.evaluate('テスト小説テキスト');
+
+      expect(mockLLMClient.completeWithTools).toHaveBeenCalledTimes(1);
+      expect(result.categoryScores.style).toBe(0.8);
+    });
+
     it('should return evaluation with category scores', async () => {
       const mockLLMClient = createMockLLMClient(validEvaluationResponse);
       const evaluator = new ReaderEvaluator(
@@ -129,7 +184,7 @@ describe('ReaderEvaluator', () => {
 
       await evaluator.evaluate('テスト');
 
-      const systemPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>)
+      const systemPrompt = (mockLLMClient.completeWithTools as ReturnType<typeof vi.fn>)
         .mock.calls[0][0];
       expect(systemPrompt).toContain('SF愛好家');
       expect(systemPrompt).toContain('世界設定の緻密さ');
@@ -145,36 +200,16 @@ describe('ReaderEvaluator', () => {
 
       await evaluator.evaluate('テスト');
 
-      const systemPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>)
+      const systemPrompt = (mockLLMClient.completeWithTools as ReturnType<typeof vi.fn>)
         .mock.calls[0][0];
       expect(systemPrompt).toContain('style');
       expect(systemPrompt).toContain('worldbuilding');
     });
   });
 
-  describe('parseResponse', () => {
+  describe('parseToolResponse', () => {
     it('should parse valid JSON response', async () => {
       const mockLLMClient = createMockLLMClient(validEvaluationResponse);
-      const evaluator = new ReaderEvaluator(
-        mockLLMClient,
-        mockSoulText,
-        mockPersona
-      );
-
-      const result = await evaluator.evaluate('テスト');
-
-      expect(result.categoryScores.style).toBe(0.8);
-    });
-
-    it('should extract JSON from markdown code block', async () => {
-      const responseWithCodeBlock = `
-評価結果:
-
-\`\`\`json
-${validEvaluationResponse}
-\`\`\`
-`;
-      const mockLLMClient = createMockLLMClient(responseWithCodeBlock);
       const evaluator = new ReaderEvaluator(
         mockLLMClient,
         mockSoulText,

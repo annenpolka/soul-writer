@@ -98,6 +98,88 @@ const createMockLLMClient = (): LLMClient => {
       // Default writer response - clean text without violations
       return Promise.resolve('透心は静かに窓の外を見つめていた。ARタグが揺らめく朝の光の中で。');
     }),
+    completeWithTools: vi.fn().mockImplementation((_systemPrompt: string, _userPrompt: string, tools) => {
+      const toolName = tools[0]?.function?.name;
+      if (toolName === 'submit_plot') {
+        return Promise.resolve({
+          toolCalls: [{
+            id: 'tc-1',
+            type: 'function',
+            function: {
+              name: 'submit_plot',
+              arguments: JSON.stringify({
+                title: 'テスト小説',
+                theme: 'テーマ',
+                chapters: [
+                  {
+                    index: 1,
+                    title: '第一章',
+                    summary: '始まりの章',
+                    key_events: ['出会い', '発見'],
+                    target_length: 4000,
+                  },
+                  {
+                    index: 2,
+                    title: '第二章',
+                    summary: '展開の章',
+                    key_events: ['対立', '決断'],
+                    target_length: 4000,
+                  },
+                ],
+              }),
+            },
+          }],
+          content: null,
+          tokensUsed: 50,
+        });
+      }
+      if (toolName === 'submit_reader_evaluation') {
+        return Promise.resolve({
+          toolCalls: [{
+            id: 'tc-1',
+            type: 'function',
+            function: {
+              name: 'submit_reader_evaluation',
+              arguments: JSON.stringify({
+                categoryScores: {
+                  style: 0.5,
+                  plot: 0.5,
+                  character: 0.5,
+                  worldbuilding: 0.5,
+                  readability: 0.5,
+                },
+                feedback: '評価は低め',
+              }),
+            },
+          }],
+          content: null,
+          tokensUsed: 50,
+        });
+      }
+      if (toolName === 'submit_judgement') {
+        return Promise.resolve({
+          toolCalls: [{
+            id: 'tc-1',
+            type: 'function',
+            function: {
+              name: 'submit_judgement',
+              arguments: JSON.stringify({
+                winner: 'A',
+                reasoning: 'Aの方が文体が優れている',
+                scores: {
+                  A: { style: 0.9, compliance: 0.85, overall: 0.87 },
+                  B: { style: 0.8, compliance: 0.82, overall: 0.81 },
+                },
+                praised_excerpts: { A: [], B: [] },
+              }),
+            },
+          }],
+          content: null,
+          tokensUsed: 50,
+        });
+      }
+      return Promise.resolve({ toolCalls: [], content: null, tokensUsed: 0 });
+    }),
     getTotalTokens: vi.fn().mockReturnValue(100),
   };
 };

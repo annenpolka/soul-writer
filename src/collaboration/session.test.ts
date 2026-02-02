@@ -10,8 +10,8 @@ function createMockLLMClient(opts: {
   composeFinalResponse?: string;
   writerToolResponses?: ToolCallResponse[];
 }): LLMClient {
-  let callIndex = 0;
   let toolCallIndex = 0;
+  let facilitationCallIndex = 0;
   let tokens = 0;
 
   const facilitationResponses = [...opts.facilitationResponses];
@@ -31,15 +31,28 @@ function createMockLLMClient(opts: {
   return {
     complete: vi.fn().mockImplementation(() => {
       tokens += 100;
-      const idx = callIndex++;
-      // Last complete call is composeFinal
-      if (idx >= facilitationResponses.length) {
-        return Promise.resolve(opts.composeFinalResponse ?? '最終テキスト');
-      }
-      return Promise.resolve(facilitationResponses[idx]);
+      return Promise.resolve(opts.composeFinalResponse ?? '最終テキスト');
     }),
-    completeWithTools: vi.fn().mockImplementation(() => {
+    completeWithTools: vi.fn().mockImplementation((_systemPrompt, _userPrompt, tools) => {
       tokens += 50;
+      const toolNames = tools.map((t) => t.function.name);
+      if (toolNames.includes('submit_facilitation')) {
+        const idx = Math.min(facilitationCallIndex, facilitationResponses.length - 1);
+        const response = facilitationResponses[idx];
+        facilitationCallIndex++;
+        return Promise.resolve({
+          toolCalls: [{
+            id: 'call_f',
+            type: 'function',
+            function: {
+              name: 'submit_facilitation',
+              arguments: response,
+            },
+          }],
+          content: null,
+          tokensUsed: 50,
+        });
+      }
       if (opts.writerToolResponses) {
         const resp = opts.writerToolResponses[toolCallIndex % opts.writerToolResponses.length];
         toolCallIndex++;

@@ -1,10 +1,73 @@
-import type { LLMClient } from '../llm/types.js';
+import type { LLMClient, ToolDefinition, ToolCallResponse } from '../llm/types.js';
+import { assertToolCallingClient, parseToolArguments } from '../llm/tooling.js';
 import type { SoulText } from '../soul/manager.js';
 import type { JudgeResult, ScoreBreakdown } from './types.js';
 import { type NarrativeRules, resolveNarrativeRules } from '../factory/narrative-rules.js';
 import { buildPrompt } from '../template/composer.js';
 
 export type { JudgeResult };
+
+const SUBMIT_JUDGEMENT_TOOL: ToolDefinition = {
+  type: 'function',
+  function: {
+    name: 'submit_judgement',
+    description: '勝者判定とスコアを提出する',
+    parameters: {
+      type: 'object',
+      properties: {
+        winner: { type: 'string', enum: ['A', 'B'] },
+        reasoning: { type: 'string' },
+        scores: {
+          type: 'object',
+          properties: {
+            A: {
+              type: 'object',
+              properties: {
+                style: { type: 'number' },
+                compliance: { type: 'number' },
+                overall: { type: 'number' },
+                voice_accuracy: { type: 'number' },
+                originality_fidelity: { type: 'number' },
+                narrative_quality: { type: 'number' },
+                novelty: { type: 'number' },
+              },
+              required: ['style', 'compliance', 'overall'],
+              additionalProperties: false,
+            },
+            B: {
+              type: 'object',
+              properties: {
+                style: { type: 'number' },
+                compliance: { type: 'number' },
+                overall: { type: 'number' },
+                voice_accuracy: { type: 'number' },
+                originality_fidelity: { type: 'number' },
+                narrative_quality: { type: 'number' },
+                novelty: { type: 'number' },
+              },
+              required: ['style', 'compliance', 'overall'],
+              additionalProperties: false,
+            },
+          },
+          required: ['A', 'B'],
+          additionalProperties: false,
+        },
+        praised_excerpts: {
+          type: 'object',
+          properties: {
+            A: { type: 'array', items: { type: 'string' } },
+            B: { type: 'array', items: { type: 'string' } },
+          },
+          required: ['A', 'B'],
+          additionalProperties: false,
+        },
+      },
+      required: ['winner', 'reasoning', 'scores'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+};
 
 /**
  * Judge agent that evaluates and compares two texts
@@ -27,11 +90,18 @@ export class JudgeAgent {
     const context = this.buildContext(textA, textB);
     const { system: systemPrompt, user: userPrompt } = buildPrompt('judge', context);
 
-    const response = await this.llmClient.complete(systemPrompt, userPrompt, {
-      temperature: 0.3,
-    });
+    assertToolCallingClient(this.llmClient);
+    const response = await this.llmClient.completeWithTools(
+      systemPrompt,
+      userPrompt,
+      [SUBMIT_JUDGEMENT_TOOL],
+      {
+        toolChoice: { type: 'function', function: { name: 'submit_judgement' } },
+        temperature: 0.3,
+      },
+    );
 
-    return this.parseResponse(response);
+    return this.parseToolResponse(response);
   }
 
   private buildContext(textA: string, textB: string): Record<string, unknown> {
@@ -119,28 +189,35 @@ export class JudgeAgent {
     };
   }
 
-  private parseResponse(response: string): JudgeResult {
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return this.createFallbackResult(response);
+  private parseToolResponse(response: ToolCallResponse): JudgeResult {
+    let parsed: unknown;
+    try {
+      parsed = parseToolArguments<unknown>(response, 'submit_judgement');
+    } catch {
+      return this.createFallbackResult();
     }
 
     try {
-      const parsed = JSON.parse(jsonMatch[0]);
+      const candidate = parsed as {
+        winner?: string;
+        reasoning?: string;
+        scores?: { A?: Partial<ScoreBreakdown>; B?: Partial<ScoreBreakdown> };
+        praised_excerpts?: { A?: unknown; B?: unknown };
+      };
       return {
-        winner: parsed.winner === 'B' ? 'B' : 'A',
-        reasoning: parsed.reasoning || 'No reasoning provided',
+        winner: candidate.winner === 'B' ? 'B' : 'A',
+        reasoning: candidate.reasoning || 'No reasoning provided',
         scores: {
-          A: this.normalizeScore(parsed.scores?.A),
-          B: this.normalizeScore(parsed.scores?.B),
+          A: this.normalizeScore(candidate.scores?.A),
+          B: this.normalizeScore(candidate.scores?.B),
         },
         praised_excerpts: {
-          A: Array.isArray(parsed.praised_excerpts?.A) ? parsed.praised_excerpts.A : [],
-          B: Array.isArray(parsed.praised_excerpts?.B) ? parsed.praised_excerpts.B : [],
+          A: Array.isArray(candidate.praised_excerpts?.A) ? candidate.praised_excerpts?.A as string[] : [],
+          B: Array.isArray(candidate.praised_excerpts?.B) ? candidate.praised_excerpts?.B as string[] : [],
         },
       };
     } catch {
-      return this.createFallbackResult(response);
+      return this.createFallbackResult();
     }
   }
 
@@ -160,13 +237,10 @@ export class JudgeAgent {
     };
   }
 
-  private createFallbackResult(response: string): JudgeResult {
-    const mentionsA = (response.match(/[Aa].*better|prefer.*[Aa]|choose.*[Aa]/gi) || []).length;
-    const mentionsB = (response.match(/[Bb].*better|prefer.*[Bb]|choose.*[Bb]/gi) || []).length;
-
+  private createFallbackResult(): JudgeResult {
     return {
-      winner: mentionsB > mentionsA ? 'B' : 'A',
-      reasoning: 'Fallback parsing: ' + response.slice(0, 100),
+      winner: 'A',
+      reasoning: 'Fallback: tool call parsing failed',
       scores: {
         A: { style: 0.5, compliance: 0.5, voice_accuracy: 0.5, originality_fidelity: 0.5, narrative_quality: 0.5, novelty: 0.5, overall: 0.5 },
         B: { style: 0.5, compliance: 0.5, voice_accuracy: 0.5, originality_fidelity: 0.5, narrative_quality: 0.5, novelty: 0.5, overall: 0.5 },

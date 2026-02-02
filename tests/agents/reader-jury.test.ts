@@ -6,17 +6,29 @@ import { createMockSoulText } from '../helpers/mock-soul-text.js';
 
 // Mock LLM Client
 const createMockLLMClient = (): LLMClient => ({
-  complete: vi.fn().mockImplementation(async () => {
-    return JSON.stringify({
-      categoryScores: {
-        style: 0.8,
-        plot: 0.75,
-        character: 0.7,
-        worldbuilding: 0.85,
-        readability: 0.8,
-      },
-      feedback: '良い評価です。',
-    });
+  complete: vi.fn(),
+  completeWithTools: vi.fn().mockImplementation(async () => {
+    return {
+      toolCalls: [{
+        id: 'tc-1',
+        type: 'function',
+        function: {
+          name: 'submit_reader_evaluation',
+          arguments: JSON.stringify({
+            categoryScores: {
+              style: 0.8,
+              plot: 0.75,
+              character: 0.7,
+              worldbuilding: 0.85,
+              readability: 0.8,
+            },
+            feedback: '良い評価です。',
+          }),
+        },
+      }],
+      content: null,
+      tokensUsed: 50,
+    };
   }),
   getTotalTokens: vi.fn().mockReturnValue(100),
 });
@@ -166,7 +178,7 @@ describe('ReaderJuryAgent', () => {
       await jury.evaluate('テスト小説');
 
       // All 4 personas should be called
-      expect(mockLLMClient.complete).toHaveBeenCalledTimes(4);
+      expect(mockLLMClient.completeWithTools).toHaveBeenCalledTimes(4);
     });
   });
 
@@ -174,18 +186,28 @@ describe('ReaderJuryAgent', () => {
     it('should use 0.80 as passing threshold', async () => {
       // Mock high scores
       const highScoreLLMClient: LLMClient = {
-        complete: vi.fn().mockResolvedValue(
-          JSON.stringify({
-            categoryScores: {
-              style: 0.9,
-              plot: 0.9,
-              character: 0.9,
-              worldbuilding: 0.9,
-              readability: 0.9,
+        complete: vi.fn(),
+        completeWithTools: vi.fn().mockResolvedValue({
+          toolCalls: [{
+            id: 'tc-1',
+            type: 'function',
+            function: {
+              name: 'submit_reader_evaluation',
+              arguments: JSON.stringify({
+                categoryScores: {
+                  style: 0.9,
+                  plot: 0.9,
+                  character: 0.9,
+                  worldbuilding: 0.9,
+                  readability: 0.9,
+                },
+                feedback: '素晴らしい',
+              }),
             },
-            feedback: '素晴らしい',
-          })
-        ),
+          }],
+          content: null,
+          tokensUsed: 50,
+        }),
         getTotalTokens: vi.fn().mockReturnValue(100),
       };
 
@@ -199,18 +221,28 @@ describe('ReaderJuryAgent', () => {
     it('should return passed=false when score < 0.80', async () => {
       // Mock low scores
       const lowScoreLLMClient: LLMClient = {
-        complete: vi.fn().mockResolvedValue(
-          JSON.stringify({
-            categoryScores: {
-              style: 0.5,
-              plot: 0.5,
-              character: 0.5,
-              worldbuilding: 0.5,
-              readability: 0.5,
+        complete: vi.fn(),
+        completeWithTools: vi.fn().mockResolvedValue({
+          toolCalls: [{
+            id: 'tc-1',
+            type: 'function',
+            function: {
+              name: 'submit_reader_evaluation',
+              arguments: JSON.stringify({
+                categoryScores: {
+                  style: 0.5,
+                  plot: 0.5,
+                  character: 0.5,
+                  worldbuilding: 0.5,
+                  readability: 0.5,
+                },
+                feedback: '改善が必要',
+              }),
             },
-            feedback: '改善が必要',
-          })
-        ),
+          }],
+          content: null,
+          tokensUsed: 50,
+        }),
         getTotalTokens: vi.fn().mockReturnValue(100),
       };
 

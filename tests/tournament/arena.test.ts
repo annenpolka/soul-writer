@@ -5,6 +5,7 @@ import { createMockSoulText } from '../helpers/mock-soul-text.js';
 
 // Mock LLM Client
 let callCount = 0;
+let judgeCallCount = 0;
 const mockLLMClient: LLMClient = {
   complete: vi.fn().mockImplementation(() => {
     callCount++;
@@ -12,18 +13,31 @@ const mockLLMClient: LLMClient = {
     if (callCount <= 4) {
       return Promise.resolve(`Generated text from writer ${callCount}`);
     }
-    // Judges return evaluation results
-    const isFirstMatch = callCount <= 6;
-    return Promise.resolve(
-      JSON.stringify({
-        winner: isFirstMatch ? 'A' : 'B',
-        reasoning: 'Test reasoning',
-        scores: {
-          A: { style: 0.8, compliance: 0.9, overall: 0.85 },
-          B: { style: 0.7, compliance: 0.8, overall: 0.75 },
+    return Promise.resolve('unused');
+  }),
+  completeWithTools: vi.fn().mockImplementation(() => {
+    judgeCallCount++;
+    const isFirstMatch = judgeCallCount <= 2;
+    return Promise.resolve({
+      toolCalls: [{
+        id: 'tc-1',
+        type: 'function',
+        function: {
+          name: 'submit_judgement',
+          arguments: JSON.stringify({
+            winner: isFirstMatch ? 'A' : 'B',
+            reasoning: 'Test reasoning',
+            scores: {
+              A: { style: 0.8, compliance: 0.9, overall: 0.85 },
+              B: { style: 0.7, compliance: 0.8, overall: 0.75 },
+            },
+            praised_excerpts: { A: [], B: [] },
+          }),
         },
-      })
-    );
+      }],
+      content: null,
+      tokensUsed: 50,
+    });
   }),
   getTotalTokens: vi.fn().mockReturnValue(500),
 };
@@ -34,6 +48,7 @@ describe('TournamentArena', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     callCount = 0;
+    judgeCallCount = 0;
   });
 
   describe('constructor', () => {

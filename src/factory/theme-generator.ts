@@ -1,4 +1,5 @@
-import type { LLMClient } from '../llm/types.js';
+import type { LLMClient, ToolDefinition, ToolCallResponse } from '../llm/types.js';
+import { assertToolCallingClient, parseToolArguments } from '../llm/tooling.js';
 import type { SoulText } from '../soul/manager.js';
 import { GeneratedThemeSchema, type GeneratedTheme } from '../schemas/generated-theme.js';
 import {
@@ -12,6 +13,40 @@ import {
   pickRandom,
 } from './diversity-catalog.js';
 import { buildPrompt } from '../template/composer.js';
+
+const SUBMIT_THEME_TOOL: ToolDefinition = {
+  type: 'function',
+  function: {
+    name: 'submit_theme',
+    description: '物語のテーマ構造を提出する',
+    parameters: {
+      type: 'object',
+      properties: {
+        emotion: { type: 'string' },
+        timeline: { type: 'string' },
+        characters: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              isNew: { type: 'boolean' },
+              description: { type: 'string' },
+            },
+            required: ['name', 'isNew'],
+            additionalProperties: false,
+          },
+        },
+        premise: { type: 'string' },
+        scene_types: { type: 'array', items: { type: 'string' } },
+        narrative_type: { type: 'string' },
+      },
+      required: ['emotion', 'timeline', 'characters', 'premise', 'scene_types'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+};
 
 export interface ThemeResult {
   theme: GeneratedTheme;
@@ -46,11 +81,18 @@ export class ThemeGeneratorAgent {
     const stage2Context = this.buildStage2Context(wildIdea, recentThemes, motifAvoidance);
     const { system: systemPrompt, user: userPrompt } = buildPrompt('theme-generator-stage2', stage2Context);
 
-    const response = await this.llmClient.complete(systemPrompt, userPrompt, {
-      temperature: 0.9,
-    });
+    assertToolCallingClient(this.llmClient);
+    const response = await this.llmClient.completeWithTools(
+      systemPrompt,
+      userPrompt,
+      [SUBMIT_THEME_TOOL],
+      {
+        toolChoice: { type: 'function', function: { name: 'submit_theme' } },
+        temperature: 0.9,
+      },
+    );
 
-    const theme = this.parseResponse(response);
+    const theme = this.parseToolResponse(response);
     const tokensAfter = this.llmClient.getTotalTokens();
 
     return {
@@ -178,18 +220,12 @@ export class ThemeGeneratorAgent {
     return ctx;
   }
 
-  private parseResponse(response: string): GeneratedTheme {
-    // Extract JSON from response (may be wrapped in markdown code block)
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('Failed to extract JSON from response');
-    }
-
+  private parseToolResponse(response: ToolCallResponse): GeneratedTheme {
     let parsed: unknown;
     try {
-      parsed = JSON.parse(jsonMatch[0]);
+      parsed = parseToolArguments<GeneratedTheme>(response, 'submit_theme');
     } catch {
-      throw new Error('Failed to parse JSON response');
+      throw new Error('Failed to parse tool call arguments');
     }
 
     // Validate with Zod schema

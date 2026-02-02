@@ -1,9 +1,42 @@
 import { z } from 'zod';
-import type { LLMClient } from '../llm/types.js';
+import type { LLMClient, ToolDefinition, ToolCallResponse } from '../llm/types.js';
+import { assertToolCallingClient, parseToolArguments } from '../llm/tooling.js';
 import type { SoulText } from '../soul/manager.js';
 import type { GeneratedTheme } from '../schemas/generated-theme.js';
 import type { CharacterMacGuffin } from '../schemas/macguffin.js';
 import { buildPrompt } from '../template/composer.js';
+
+const SUBMIT_CHARACTERS_TOOL: ToolDefinition = {
+  type: 'function',
+  function: {
+    name: 'submit_characters',
+    description: 'キャラクターの詳細設定を提出する',
+    parameters: {
+      type: 'object',
+      properties: {
+        characters: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              isNew: { type: 'boolean' },
+              role: { type: 'string' },
+              description: { type: 'string' },
+              voice: { type: 'string' },
+            },
+            required: ['name', 'isNew', 'role'],
+            additionalProperties: false,
+          },
+        },
+        castingRationale: { type: 'string' },
+      },
+      required: ['characters', 'castingRationale'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+};
 
 const LLMCharacterResponseSchema = z.object({
   characters: z.array(z.object({
@@ -52,11 +85,18 @@ export class CharacterDeveloperAgent {
 
     const context = this.buildContext(theme, charMacGuffins);
     const { system: systemPrompt, user: userPrompt } = buildPrompt('character-developer', context);
-    const response = await this.llmClient.complete(systemPrompt, userPrompt, {
-      temperature: 0.8,
-    });
+    assertToolCallingClient(this.llmClient);
+    const response = await this.llmClient.completeWithTools(
+      systemPrompt,
+      userPrompt,
+      [SUBMIT_CHARACTERS_TOOL],
+      {
+        toolChoice: { type: 'function', function: { name: 'submit_characters' } },
+        temperature: 0.8,
+      },
+    );
 
-    const developed = this.parseResponse(response, theme);
+    const developed = this.parseToolResponse(response, theme);
     const tokensUsed = this.llmClient.getTotalTokens() - tokensBefore;
 
     return { developed, tokensUsed };
@@ -108,25 +148,22 @@ export class CharacterDeveloperAgent {
     return ctx;
   }
 
-  private parseResponse(response: string, theme: GeneratedTheme): DevelopedCharacters {
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return this.fallback(theme);
-    }
-
+  private parseToolResponse(response: ToolCallResponse, theme: GeneratedTheme): DevelopedCharacters {
+    let raw: unknown;
     try {
-      const raw = JSON.parse(jsonMatch[0]);
-      const result = LLMCharacterResponseSchema.safeParse(raw);
-      if (!result.success || result.data.characters.length === 0) {
-        return this.fallback(theme);
-      }
-      return {
-        characters: result.data.characters,
-        castingRationale: result.data.castingRationale,
-      };
+      raw = parseToolArguments<unknown>(response, 'submit_characters');
     } catch {
       return this.fallback(theme);
     }
+
+    const result = LLMCharacterResponseSchema.safeParse(raw);
+    if (!result.success || result.data.characters.length === 0) {
+      return this.fallback(theme);
+    }
+    return {
+      characters: result.data.characters,
+      castingRationale: result.data.castingRationale,
+    };
   }
 
   private fallback(theme: GeneratedTheme): DevelopedCharacters {

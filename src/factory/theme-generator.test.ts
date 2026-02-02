@@ -4,11 +4,22 @@ import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import { createMockSoulText } from '../../tests/helpers/mock-soul-text.js';
 
-// Mock LLM Client - supports two-stage generation (2 calls)
+// Mock LLM Client - supports two-stage generation (stage 1: complete, stage 2: tool call)
 const createMockLLMClient = (response: string): LLMClient => ({
   complete: vi.fn()
-    .mockResolvedValueOnce('A wild creative idea about loneliness in a digital world')  // Stage 1
-    .mockResolvedValueOnce(response),  // Stage 2
+    .mockResolvedValueOnce('A wild creative idea about loneliness in a digital world'),  // Stage 1
+  completeWithTools: vi.fn().mockResolvedValue({
+    toolCalls: [{
+      id: 'tc-1',
+      type: 'function',
+      function: {
+        name: 'submit_theme',
+        arguments: response,
+      },
+    }],
+    content: null,
+    tokensUsed: 50,
+  }),
   getTotalTokens: vi.fn().mockReturnValue(100),
 });
 
@@ -85,8 +96,46 @@ describe('ThemeGeneratorAgent', () => {
 
       await generator.generateTheme();
 
-      // Should call LLM twice: stage 1 (wild idea) and stage 2 (refine)
-      expect(mockLLM.complete).toHaveBeenCalledTimes(2);
+      // Should call LLM twice: stage 1 (wild idea) and stage 2 (tool call)
+      expect(mockLLM.complete).toHaveBeenCalledTimes(1);
+      expect(mockLLM.completeWithTools).toHaveBeenCalledTimes(1);
+    });
+
+    it('should use tool calling for stage 2 refinement', async () => {
+      const toolTheme = {
+        emotion: '孤独',
+        timeline: '出会い前',
+        characters: [
+          { name: '御鐘透心', isNew: false },
+          { name: '愛原つるぎ', isNew: false },
+        ],
+        premise: '透心が日常の中で感じる空虚さを描く物語',
+        scene_types: ['教室独白', '日常観察'],
+      };
+      const mockLLM: LLMClient = {
+        complete: vi.fn()
+          .mockResolvedValueOnce('Wild idea for tool call')
+          .mockResolvedValueOnce('NOT JSON'),
+        completeWithTools: vi.fn().mockResolvedValue({
+          toolCalls: [{
+            id: 'tc-1',
+            type: 'function',
+            function: {
+              name: 'submit_theme',
+              arguments: JSON.stringify(toolTheme),
+            },
+          }],
+          content: null,
+          tokensUsed: 50,
+        }),
+        getTotalTokens: vi.fn().mockReturnValue(100),
+      };
+      const generator = new ThemeGeneratorAgent(mockLLM, mockSoulText);
+
+      const result = await generator.generateTheme();
+
+      expect(mockLLM.completeWithTools).toHaveBeenCalledTimes(1);
+      expect(result.theme.emotion).toBe('孤独');
     });
 
     it('should include characters in stage 2 system prompt', async () => {
@@ -96,7 +145,7 @@ describe('ThemeGeneratorAgent', () => {
       await generator.generateTheme();
 
       // Stage 2 (second call) uses full system prompt with world bible
-      const stage2SystemPrompt = (mockLLM.complete as ReturnType<typeof vi.fn>).mock.calls[1][0];
+      const stage2SystemPrompt = (mockLLM.completeWithTools as ReturnType<typeof vi.fn>).mock.calls[0][0];
       expect(stage2SystemPrompt).toContain('御鐘透心');
       expect(stage2SystemPrompt).toContain('愛原つるぎ');
     });
@@ -107,7 +156,7 @@ describe('ThemeGeneratorAgent', () => {
 
       await generator.generateTheme();
 
-      const stage2SystemPrompt = (mockLLM.complete as ReturnType<typeof vi.fn>).mock.calls[1][0];
+      const stage2SystemPrompt = (mockLLM.completeWithTools as ReturnType<typeof vi.fn>).mock.calls[0][0];
       expect(stage2SystemPrompt).toContain('存在確認');
       expect(stage2SystemPrompt).toContain('無関心な世界');
     });
@@ -130,7 +179,7 @@ describe('ThemeGeneratorAgent', () => {
       await generator.generateTheme();
 
       // Stage 2 user prompt should contain the wild idea from stage 1
-      const stage2UserPrompt = (mockLLM.complete as ReturnType<typeof vi.fn>).mock.calls[1][1];
+      const stage2UserPrompt = (mockLLM.completeWithTools as ReturnType<typeof vi.fn>).mock.calls[0][1];
       expect(stage2UserPrompt).toContain('A wild creative idea about loneliness in a digital world');
     });
 
@@ -148,7 +197,7 @@ describe('ThemeGeneratorAgent', () => {
 
       await generator.generateTheme(recentThemes);
 
-      const stage2UserPrompt = (mockLLM.complete as ReturnType<typeof vi.fn>).mock.calls[1][1];
+      const stage2UserPrompt = (mockLLM.completeWithTools as ReturnType<typeof vi.fn>).mock.calls[0][1];
       expect(stage2UserPrompt).toContain('既出テーマ');
       expect(stage2UserPrompt).toContain('孤独');
       expect(stage2UserPrompt).toContain('既出の前提文');
@@ -158,8 +207,19 @@ describe('ThemeGeneratorAgent', () => {
       let tokenCount = 0;
       const mockLLM: LLMClient = {
         complete: vi.fn()
-          .mockResolvedValueOnce('Wild idea text')  // Stage 1
-          .mockResolvedValueOnce(validThemeResponse),  // Stage 2
+          .mockResolvedValueOnce('Wild idea text'),  // Stage 1
+        completeWithTools: vi.fn().mockResolvedValue({
+          toolCalls: [{
+            id: 'tc-1',
+            type: 'function',
+            function: {
+              name: 'submit_theme',
+              arguments: validThemeResponse,
+            },
+          }],
+          content: null,
+          tokensUsed: 50,
+        }),
         getTotalTokens: vi.fn().mockImplementation(() => {
           tokenCount += 50;
           return tokenCount;
@@ -171,14 +231,26 @@ describe('ThemeGeneratorAgent', () => {
 
       // Two LLM calls (wild idea + refine), getTotalTokens called before and after
       expect(result.tokensUsed).toBeGreaterThan(0);
-      expect(mockLLM.complete).toHaveBeenCalledTimes(2);
+      expect(mockLLM.complete).toHaveBeenCalledTimes(1);
+      expect(mockLLM.completeWithTools).toHaveBeenCalledTimes(1);
     });
 
     it('should handle new character with description', async () => {
       const mockLLM: LLMClient = {
         complete: vi.fn()
-          .mockResolvedValueOnce('Wild idea about a newcomer')
-          .mockResolvedValueOnce(themeWithNewCharacter),
+          .mockResolvedValueOnce('Wild idea about a newcomer'),
+        completeWithTools: vi.fn().mockResolvedValue({
+          toolCalls: [{
+            id: 'tc-1',
+            type: 'function',
+            function: {
+              name: 'submit_theme',
+              arguments: themeWithNewCharacter,
+            },
+          }],
+          content: null,
+          tokensUsed: 50,
+        }),
         getTotalTokens: vi.fn().mockReturnValue(100),
       };
       const generator = new ThemeGeneratorAgent(mockLLM, mockSoulText);
@@ -195,8 +267,19 @@ describe('ThemeGeneratorAgent', () => {
     it('should throw on invalid JSON response', async () => {
       const mockLLM: LLMClient = {
         complete: vi.fn()
-          .mockResolvedValueOnce('Wild idea')
-          .mockResolvedValueOnce('This is not JSON'),
+          .mockResolvedValueOnce('Wild idea'),
+        completeWithTools: vi.fn().mockResolvedValue({
+          toolCalls: [{
+            id: 'tc-1',
+            type: 'function',
+            function: {
+              name: 'submit_theme',
+              arguments: 'This is not JSON',
+            },
+          }],
+          content: null,
+          tokensUsed: 50,
+        }),
         getTotalTokens: vi.fn().mockReturnValue(100),
       };
       const generator = new ThemeGeneratorAgent(mockLLM, mockSoulText);
@@ -236,7 +319,7 @@ describe('ThemeGeneratorAgent', () => {
       const generator = new ThemeGeneratorAgent(mockLLM, soulTextWithConfig);
       await generator.generateTheme();
 
-      const stage2SystemPrompt = (mockLLM.complete as ReturnType<typeof vi.fn>).mock.calls[1][0] as string;
+      const stage2SystemPrompt = (mockLLM.completeWithTools as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
       expect(stage2SystemPrompt).toContain('カスタムシーン1');
       expect(stage2SystemPrompt).toContain('カスタムシーン2');
     });
@@ -285,8 +368,19 @@ describe('ThemeGeneratorAgent', () => {
       });
       const mockLLM: LLMClient = {
         complete: vi.fn()
-          .mockResolvedValueOnce('Wild idea')
-          .mockResolvedValueOnce(invalidTheme),
+          .mockResolvedValueOnce('Wild idea'),
+        completeWithTools: vi.fn().mockResolvedValue({
+          toolCalls: [{
+            id: 'tc-1',
+            type: 'function',
+            function: {
+              name: 'submit_theme',
+              arguments: invalidTheme,
+            },
+          }],
+          content: null,
+          tokensUsed: 50,
+        }),
         getTotalTokens: vi.fn().mockReturnValue(100),
       };
       const generator = new ThemeGeneratorAgent(mockLLM, mockSoulText);

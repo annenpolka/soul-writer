@@ -6,16 +6,30 @@ import { createMockSoulText } from '../helpers/mock-soul-text.js';
 
 // Mock LLM Client
 const mockLLMClient: LLMClient = {
-  complete: vi.fn().mockResolvedValue(
-    JSON.stringify({
-      winner: 'A',
-      reasoning: 'Text A better captures the soul',
-      scores: {
-        A: { style: 0.8, compliance: 0.9, overall: 0.85 },
-        B: { style: 0.7, compliance: 0.8, overall: 0.75 },
+  complete: vi.fn(),
+  completeWithTools: vi.fn().mockResolvedValue({
+    toolCalls: [{
+      id: 'tc-1',
+      type: 'function',
+      function: {
+        name: 'submit_judgement',
+        arguments: JSON.stringify({
+          winner: 'A',
+          reasoning: 'Text A better captures the soul',
+          scores: {
+            A: { style: 0.8, compliance: 0.9, overall: 0.85 },
+            B: { style: 0.7, compliance: 0.8, overall: 0.75 },
+          },
+          praised_excerpts: {
+            A: [],
+            B: [],
+          },
+        }),
       },
-    })
-  ),
+    }],
+    content: null,
+    tokensUsed: 50,
+  }),
   getTotalTokens: vi.fn().mockReturnValue(100),
 };
 
@@ -34,6 +48,43 @@ describe('JudgeAgent', () => {
   });
 
   describe('evaluate', () => {
+    it('should use tool calling for evaluation', async () => {
+      const toolArgs = {
+        winner: 'A',
+        reasoning: 'ツール経由の理由',
+        scores: {
+          A: { style: 0.8, compliance: 0.9, overall: 0.85 },
+          B: { style: 0.7, compliance: 0.8, overall: 0.75 },
+        },
+        praised_excerpts: {
+          A: ['Aの良い部分'],
+          B: ['Bの良い部分'],
+        },
+      };
+      const llm: LLMClient = {
+        complete: vi.fn().mockResolvedValue('ignored text'),
+        completeWithTools: vi.fn().mockResolvedValue({
+          toolCalls: [{
+            id: 'tc-1',
+            type: 'function',
+            function: {
+              name: 'submit_judgement',
+              arguments: JSON.stringify(toolArgs),
+            },
+          }],
+          content: null,
+          tokensUsed: 50,
+        }),
+        getTotalTokens: vi.fn().mockReturnValue(100),
+      };
+
+      const judge = new JudgeAgent(llm, mockSoulText);
+      const result = await judge.evaluate('Text A content', 'Text B content');
+
+      expect(llm.completeWithTools).toHaveBeenCalledTimes(1);
+      expect(result.winner).toBe('A');
+    });
+
     it('should evaluate two texts and return winner', async () => {
       const judge = new JudgeAgent(mockLLMClient, mockSoulText);
       const result = await judge.evaluate('Text A content', 'Text B content');
@@ -47,14 +98,16 @@ describe('JudgeAgent', () => {
       const judge = new JudgeAgent(mockLLMClient, mockSoulText);
       await judge.evaluate('First text', 'Second text');
 
-      expect(mockLLMClient.complete).toHaveBeenCalledWith(
+      expect(mockLLMClient.completeWithTools).toHaveBeenCalledWith(
         expect.any(String),
         expect.stringContaining('First text'),
+        expect.any(Array),
         expect.any(Object)
       );
-      expect(mockLLMClient.complete).toHaveBeenCalledWith(
+      expect(mockLLMClient.completeWithTools).toHaveBeenCalledWith(
         expect.any(String),
         expect.stringContaining('Second text'),
+        expect.any(Array),
         expect.any(Object)
       );
     });
@@ -79,7 +132,7 @@ describe('JudgeAgent', () => {
       const judge = new JudgeAgent(mockLLMClient, soulTextWithConfig);
       await judge.evaluate('text A', 'text B');
 
-      const systemPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+      const systemPrompt = (mockLLMClient.completeWithTools as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
       expect(systemPrompt).toContain('つるぎの台詞が説明的・解説的になっている → 減点');
       expect(systemPrompt).toContain('AR/MRの設定説明が長すぎる → 減点');
     });
@@ -102,7 +155,7 @@ describe('JudgeAgent', () => {
       const judge = new JudgeAgent(mockLLMClient, soulTextWithConfig);
       await judge.evaluate('text A', 'text B');
 
-      const systemPrompt = (mockLLMClient.complete as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+      const systemPrompt = (mockLLMClient.completeWithTools as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
       expect(systemPrompt).toContain('愛原つるぎ: 短い台詞、皮肉混じり、哲学的');
       expect(systemPrompt).toContain('御鐘透心: 内面独白的、冷徹だが感受性豊か');
     });
