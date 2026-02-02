@@ -9,8 +9,9 @@ import {
   OPENING_CONSTRAINTS,
   IDEATION_STRATEGIES,
   CONCEPT_SEEDS,
-  TONE_DIRECTIVES,
   pickRandom,
+  pickToneAxes,
+  type ToneAxisSelection,
 } from './diversity-catalog.js';
 import { buildPrompt } from '../template/composer.js';
 
@@ -75,10 +76,10 @@ export class ThemeGeneratorAgent {
     const tokensBefore = this.llmClient.getTotalTokens();
 
     // Stage 1: Wild idea generation (minimal world context, high creativity)
-    const wildIdea = await this.generateWildIdea();
+    const { wildIdea, toneSelection } = await this.generateWildIdea();
 
     // Stage 2: Refine into structured theme (full world context)
-    const stage2Context = this.buildStage2Context(wildIdea, recentThemes, motifAvoidance);
+    const stage2Context = this.buildStage2Context(wildIdea, toneSelection, recentThemes, motifAvoidance);
     const { system: systemPrompt, user: userPrompt } = buildPrompt('theme-generator-stage2', stage2Context);
 
     assertToolCallingClient(this.llmClient);
@@ -104,7 +105,7 @@ export class ThemeGeneratorAgent {
   /**
    * Stage 1: Generate an unconstrained creative idea
    */
-  private async generateWildIdea(): Promise<string> {
+  private async generateWildIdea(): Promise<{ wildIdea: string; toneSelection: ToneAxisSelection }> {
     const ideationStrategies = this.soulText.promptConfig?.ideation_strategies ?? IDEATION_STRATEGIES;
     const timelineCatalog = this.soulText.promptConfig?.timeline_catalog ?? TIMELINE_CATALOG;
     const strategy = pickRandom(ideationStrategies);
@@ -115,8 +116,12 @@ export class ThemeGeneratorAgent {
     const worldDescription = this.soulText.promptConfig?.agents?.theme_generator?.world_description
       ?? 'AR/MRテクノロジーが浸透した近未来。無関心な社会。主要人物も無名の住人も存在する。';
 
-    const toneDirectives = this.soulText.promptConfig?.tone_directives ?? TONE_DIRECTIVES;
-    const tone = pickRandom(toneDirectives);
+    // 5-axis tone selection with backward compat for old tone_directives
+    const toneAxesOverride = this.soulText.promptConfig?.tone_axes
+      ?? (this.soulText.promptConfig?.tone_directives
+        ? { aesthetic_direction: this.soulText.promptConfig.tone_directives }
+        : undefined);
+    const toneSelection = pickToneAxes(toneAxesOverride);
 
     const stage1Context = {
       strategy,
@@ -124,17 +129,19 @@ export class ThemeGeneratorAgent {
       worldDescription,
       emotion,
       timeline,
-      tone,
+      ...toneSelection,
     };
 
     const { system: systemPrompt, user: userPrompt } = buildPrompt('theme-generator-stage1', stage1Context);
 
-    return await this.llmClient.complete(systemPrompt, userPrompt, {
+    const wildIdea = await this.llmClient.complete(systemPrompt, userPrompt, {
       temperature: 1.0,
     });
+
+    return { wildIdea, toneSelection };
   }
 
-  private buildStage2Context(wildIdea: string, recentThemes?: GeneratedTheme[], motifAvoidance?: string[]): Record<string, unknown> {
+  private buildStage2Context(wildIdea: string, toneSelection: ToneAxisSelection, recentThemes?: GeneratedTheme[], motifAvoidance?: string[]): Record<string, unknown> {
     const worldBible = this.soulText.worldBible;
     const thematic = this.soulText.constitution.universal.thematic_constraints;
     const ctx: Record<string, unknown> = {};
@@ -216,6 +223,9 @@ export class ThemeGeneratorAgent {
         premise: t.premise,
       }));
     }
+
+    // Propagate tone axes to stage 2
+    Object.assign(ctx, toneSelection);
 
     return ctx;
   }

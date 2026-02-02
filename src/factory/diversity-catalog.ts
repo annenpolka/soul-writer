@@ -140,11 +140,87 @@ export const CONCEPT_SEEDS = [
   '洗濯物', '階段',
 ];
 
+import type { ToneAxisKey, ToneAxes } from '../schemas/prompt-config.js';
+
+/**
+ * 5-axis orthogonal tone directive system.
+ * Each axis controls a different dimension of the writing tone.
+ */
+export const TONE_AXES: Record<ToneAxisKey, readonly string[]> = {
+  emotional_distance: [
+    '登場人物の感情に極限まで接近し、読者が内側から体験するように書く',
+    '感情を遠くから観察するように、冷徹で乾いた筆致で描く',
+    '感情を直接書かず、行動や風景の描写だけで滲ませる',
+    '感情の振れ幅を極端に圧縮し、微細な変化だけを扱う',
+    '感情を過剰に増幅し、メロドラマ的な激しさで描く',
+    '感情と思考が矛盾している状態を、矛盾のまま提示する',
+  ],
+  structural_constraint: [
+    '物語を単一の場面・空間に閉じ込め、場所を移動しない',
+    '時間軸を断片化し、非線形に配置する',
+    '反復と変奏：同じ出来事を視点や解釈を変えて繰り返す',
+    '省略と空白を多用し、語られないことで物語を進める',
+    '一つの長い文章（または極端に短い文章の連続）で構成する',
+    '対話だけ、または地の文だけで構成する',
+  ],
+  aesthetic_direction: [
+    '常識的な展開や安全な選択を避け、予想外で挑発的なアイデアを出してください。',
+    '日常の手触り、些細な瞬間、静かな発見を大切にしてください。派手な事件や崩壊ではなく、生活の中に潜む物語を。',
+    'ありふれた風景の中の違和感、普通に見える一日の中の小さな亀裂に注目してください。',
+    '美しさより不穏さを優先し、読者に居心地の悪さを残す',
+    '叙情的で詩的な美しさを追求し、映像的なイメージを重ねる',
+    '醜さや不快さの中にある奇妙な美を見出す',
+  ],
+  tempo_rhythm: [
+    '五感を通じた生活の描写を起点にしてください。温度、匂い、光、音、食感。',
+    '極端にゆっくりとした時間の流れ。一瞬を数ページかけて描く',
+    '急加速と急停止を繰り返す。静寂と激動の交互',
+    '一定のリズムで淡々と進み、最後に一度だけリズムを崩す',
+    '冒頭から結末まで加速し続け、止まらない',
+    '時間感覚が曖昧で、どれだけ経ったかわからない浮遊感',
+  ],
+  perspective_operation: [
+    '視点人物が自分自身を理解していない状態で語らせる',
+    '視点人物が嘘をついている（信頼できない語り手）',
+    '視点人物の知覚がずれている（AR障害、記憶混濁、夢と現実の境界）',
+    '複数の視点を衝突させ、同じ出来事の異なる真実を提示する',
+    '視点人物が観察者に徹し、自分の感情を一切語らない',
+    '視点が途中で別の人物に移る（シームレスに、または唐突に）',
+  ],
+};
+
+export interface ToneAxisSelection {
+  tone_emotional: string;
+  tone_structure: string;
+  tone_aesthetic: string;
+  tone_tempo: string;
+  tone_perspective: string;
+}
+
+/** Pick one directive from each axis, with optional per-axis overrides. */
+export function pickToneAxes(overrides?: ToneAxes): ToneAxisSelection {
+  const axes = {
+    emotional_distance: overrides?.emotional_distance ?? TONE_AXES.emotional_distance,
+    structural_constraint: overrides?.structural_constraint ?? TONE_AXES.structural_constraint,
+    aesthetic_direction: overrides?.aesthetic_direction ?? TONE_AXES.aesthetic_direction,
+    tempo_rhythm: overrides?.tempo_rhythm ?? TONE_AXES.tempo_rhythm,
+    perspective_operation: overrides?.perspective_operation ?? TONE_AXES.perspective_operation,
+  };
+  return {
+    tone_emotional: pickRandom(axes.emotional_distance),
+    tone_structure: pickRandom(axes.structural_constraint),
+    tone_aesthetic: pickRandom(axes.aesthetic_direction),
+    tone_tempo: pickRandom(axes.tempo_rhythm),
+    tone_perspective: pickRandom(axes.perspective_operation),
+  };
+}
+
+/** @deprecated Use TONE_AXES and pickToneAxes instead. */
 export const TONE_DIRECTIVES = [
-  '常識的な展開や安全な選択を避け、予想外で挑発的なアイデアを出してください。',
-  '日常の手触り、些細な瞬間、静かな発見を大切にしてください。派手な事件や崩壊ではなく、生活の中に潜む物語を。',
-  'ありふれた風景の中の違和感、普通に見える一日の中の小さな亀裂に注目してください。',
-  '五感を通じた生活の描写を起点にしてください。温度、匂い、光、音、食感。',
+  TONE_AXES.aesthetic_direction[0],
+  TONE_AXES.aesthetic_direction[1],
+  TONE_AXES.aesthetic_direction[2],
+  TONE_AXES.tempo_rhythm[0],
 ];
 
 /** Pick a random element from an array */
