@@ -149,6 +149,12 @@ export class FullPipeline {
       tokensUsed: plotResult.tokensUsed,
     });
 
+    // Log themeContext for debugging
+    const themeContext = this.resolveThemeContext();
+    if (themeContext) {
+      this.logger?.debug('ThemeContext', themeContext);
+    }
+
     // 3. Save plot checkpoint
     await this.checkpointManager.saveCheckpoint(
       taskId,

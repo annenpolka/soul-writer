@@ -87,6 +87,9 @@ export class SimplePipeline {
     );
 
     this.logger?.section('Tournament Start');
+    if (this.options.themeContext) {
+      this.logger?.debug('ThemeContext', this.options.themeContext);
+    }
     const tournamentResult = await arena.runTournament(prompt);
 
     // Simple mode: return tournament result only
@@ -188,6 +191,9 @@ export class SimplePipeline {
       : undefined;
 
     this.logger?.section('Collaboration Start');
+    if (this.options.themeContext) {
+      this.logger?.debug('ThemeContext', this.options.themeContext);
+    }
     const session = new CollaborationSession(
       this.llmClient,
       soulText,
