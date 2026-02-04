@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ThemeGeneratorAgent } from './theme-generator.js';
+import { ThemeGeneratorAgent, type ThemeResult } from './theme-generator.js';
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import { createMockSoulText } from '../../tests/helpers/mock-soul-text.js';
@@ -386,63 +386,6 @@ describe('ThemeGeneratorAgent', () => {
       const generator = new ThemeGeneratorAgent(mockLLM, mockSoulText);
 
       await expect(generator.generateTheme()).rejects.toThrow();
-    });
-
-    it('should include 5 tone axis labels in stage 1 system prompt', async () => {
-      const mockLLM = createMockLLMClient(validThemeResponse);
-      const generator = new ThemeGeneratorAgent(mockLLM, mockSoulText);
-      await generator.generateTheme();
-
-      const stage1SystemPrompt = (mockLLM.complete as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
-      expect(stage1SystemPrompt).toContain('【感情距離】');
-      expect(stage1SystemPrompt).toContain('【構造制約】');
-      expect(stage1SystemPrompt).toContain('【美学方向】');
-      expect(stage1SystemPrompt).toContain('【テンポ】');
-      expect(stage1SystemPrompt).toContain('【視点操作】');
-    });
-
-    it('should include tone axes in stage 2 system prompt', async () => {
-      const mockLLM = createMockLLMClient(validThemeResponse);
-      const generator = new ThemeGeneratorAgent(mockLLM, mockSoulText);
-      await generator.generateTheme();
-
-      const stage2SystemPrompt = (mockLLM.completeWithTools as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
-      expect(stage2SystemPrompt).toContain('【感情距離】');
-      expect(stage2SystemPrompt).toContain('【視点操作】');
-    });
-
-    it('should use tone_axes override from promptConfig', async () => {
-      const soulTextWithAxes: SoulText = {
-        ...mockSoulText,
-        promptConfig: {
-          defaults: { protagonist_short: '透心', pronoun: 'わたし' },
-          tone_axes: {
-            aesthetic_direction: ['カスタム美学のみ'],
-          },
-        },
-      };
-      const mockLLM = createMockLLMClient(validThemeResponse);
-      const generator = new ThemeGeneratorAgent(mockLLM, soulTextWithAxes);
-      await generator.generateTheme();
-
-      const stage1SystemPrompt = (mockLLM.complete as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
-      expect(stage1SystemPrompt).toContain('カスタム美学のみ');
-    });
-
-    it('should map old tone_directives to aesthetic_direction for backward compat', async () => {
-      const soulTextWithOldFormat: SoulText = {
-        ...mockSoulText,
-        promptConfig: {
-          defaults: { protagonist_short: '透心', pronoun: 'わたし' },
-          tone_directives: ['旧フォーマットのディレクティブ'],
-        },
-      };
-      const mockLLM = createMockLLMClient(validThemeResponse);
-      const generator = new ThemeGeneratorAgent(mockLLM, soulTextWithOldFormat);
-      await generator.generateTheme();
-
-      const stage1SystemPrompt = (mockLLM.complete as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
-      expect(stage1SystemPrompt).toContain('旧フォーマットのディレクティブ');
     });
   });
 });

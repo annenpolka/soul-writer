@@ -38,27 +38,6 @@ export const TournamentConfigSchema = z.object({
   temperature_slots: z.array(TemperatureSlotSchema).optional(),
 });
 
-// Tone axis keys for 5-axis orthogonal tone directive system
-export const TONE_AXIS_KEYS = [
-  'emotional_distance',
-  'structural_constraint',
-  'aesthetic_direction',
-  'tempo_rhythm',
-  'perspective_operation',
-] as const;
-
-export type ToneAxisKey = typeof TONE_AXIS_KEYS[number];
-
-export const ToneAxesSchema = z.object({
-  emotional_distance: z.array(z.string()).optional(),
-  structural_constraint: z.array(z.string()).optional(),
-  aesthetic_direction: z.array(z.string()).optional(),
-  tempo_rhythm: z.array(z.string()).optional(),
-  perspective_operation: z.array(z.string()).optional(),
-});
-
-export type ToneAxes = z.infer<typeof ToneAxesSchema>;
-
 // Full prompt config
 export const PromptConfigSchema = z.object({
   defaults: PromptConfigDefaultsSchema,
@@ -68,7 +47,6 @@ export const PromptConfigSchema = z.object({
   timeline_catalog: z.array(z.string()).optional(),
   ideation_strategies: z.array(z.string()).optional(),
   tone_directives: z.array(z.string()).optional(),
-  tone_axes: ToneAxesSchema.optional(),
   pov_rules: PovRulesSchema.optional(),
   tournament: TournamentConfigSchema.optional(),
   agents: z.record(z.string(), AgentPromptConfigSchema).optional(),

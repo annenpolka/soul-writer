@@ -83,18 +83,6 @@ system:
           template: "- {{ motif }}"
 
     - type: heading
-      heading: トーン指示
-
-    - type: text
-      text: |
-        以下のトーン軸を構造化テーマに反映してください:
-        【感情距離】{{ tone_emotional }}
-        【構造制約】{{ tone_structure }}
-        【美学方向】{{ tone_aesthetic }}
-        【テンポ】{{ tone_tempo }}
-        【視点操作】{{ tone_perspective }}
-
-    - type: heading
       heading: オリジナリティ要求
 
     - type: text
