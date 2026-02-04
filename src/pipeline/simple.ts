@@ -2,7 +2,7 @@ import type { LLMClient } from '../llm/types.js';
 import { type SoulText, SoulTextManager } from '../soul/manager.js';
 import { TournamentArena, type TournamentResult } from '../tournament/arena.js';
 import { selectTournamentWriters, DEFAULT_TEMPERATURE_SLOTS } from '../tournament/persona-pool.js';
-import type { ComplianceResult, ReaderJuryResult, ThemeContext } from '../agents/types.js';
+import type { ComplianceResult, ReaderJuryResult, ThemeContext, MacGuffinContext } from '../agents/types.js';
 import { type NarrativeRules, resolveNarrativeRules } from '../factory/narrative-rules.js';
 import type { DevelopedCharacter } from '../factory/character-developer.js';
 import { ComplianceChecker } from '../compliance/checker.js';
@@ -41,6 +41,7 @@ export interface SimplePipelineOptions {
   narrativeRules?: NarrativeRules;
   developedCharacters?: DevelopedCharacter[];
   themeContext?: ThemeContext;
+  macGuffinContext?: MacGuffinContext;
   verbose?: boolean;
   logger?: Logger;
 }
@@ -83,12 +84,16 @@ export class SimplePipeline {
       this.narrativeRules,
       this.options.developedCharacters,
       this.options.themeContext,
+      this.options.macGuffinContext,
       this.logger,
     );
 
     this.logger?.section('Tournament Start');
     if (this.options.themeContext) {
       this.logger?.debug('ThemeContext', this.options.themeContext);
+    }
+    if (this.options.macGuffinContext) {
+      this.logger?.debug('MacGuffinContext', this.options.macGuffinContext);
     }
     const tournamentResult = await arena.runTournament(prompt);
 
@@ -194,12 +199,16 @@ export class SimplePipeline {
     if (this.options.themeContext) {
       this.logger?.debug('ThemeContext', this.options.themeContext);
     }
+    if (this.options.macGuffinContext) {
+      this.logger?.debug('MacGuffinContext', this.options.macGuffinContext);
+    }
     const session = new CollaborationSession(
       this.llmClient,
       soulText,
       writerConfigs ?? [],
       this.options.collaborationConfig,
       this.options.themeContext,
+      this.options.macGuffinContext,
       this.logger,
     );
 

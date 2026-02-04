@@ -2,7 +2,7 @@ import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import { WriterAgent, DEFAULT_WRITERS, type WriterConfig } from '../agents/writer.js';
 import { JudgeAgent, type JudgeResult } from '../agents/judge.js';
-import type { GenerationResult, ThemeContext } from '../agents/types.js';
+import type { GenerationResult, ThemeContext, MacGuffinContext } from '../agents/types.js';
 import type { NarrativeRules } from '../factory/narrative-rules.js';
 import type { DevelopedCharacter } from '../factory/character-developer.js';
 import type { Logger } from '../logger.js';
@@ -39,6 +39,7 @@ export class TournamentArena {
   private narrativeRules?: NarrativeRules;
   private developedCharacters?: DevelopedCharacter[];
   private themeContext?: ThemeContext;
+  private macGuffinContext?: MacGuffinContext;
   private logger?: Logger;
 
   constructor(
@@ -48,6 +49,7 @@ export class TournamentArena {
     narrativeRules?: NarrativeRules,
     developedCharacters?: DevelopedCharacter[],
     themeContext?: ThemeContext,
+    macGuffinContext?: MacGuffinContext,
     logger?: Logger,
   ) {
     this.llmClient = llmClient;
@@ -56,6 +58,7 @@ export class TournamentArena {
     this.narrativeRules = narrativeRules;
     this.developedCharacters = developedCharacters;
     this.themeContext = themeContext;
+    this.macGuffinContext = macGuffinContext;
     this.logger = logger;
   }
 
@@ -67,7 +70,7 @@ export class TournamentArena {
 
     // Create writers
     const writers = this.writerConfigs.map(
-      (config) => new WriterAgent(this.llmClient, this.soulText, config, this.narrativeRules, this.developedCharacters, this.themeContext)
+      (config) => new WriterAgent(this.llmClient, this.soulText, config, this.narrativeRules, this.developedCharacters, this.themeContext, this.macGuffinContext)
     );
 
     // Generate texts from all writers

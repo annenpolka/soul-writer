@@ -1,6 +1,6 @@
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
-import { DEFAULT_WRITERS, type WriterConfig, type GenerationResult, type ThemeContext } from './types.js';
+import { DEFAULT_WRITERS, type WriterConfig, type GenerationResult, type ThemeContext, type MacGuffinContext } from './types.js';
 import { type NarrativeRules, buildPovRules, resolveNarrativeRules } from '../factory/narrative-rules.js';
 import type { DevelopedCharacter } from '../factory/character-developer.js';
 import { buildPrompt } from '../template/composer.js';
@@ -17,6 +17,7 @@ export class WriterAgent {
   private narrativeRules: NarrativeRules;
   private developedCharacters?: DevelopedCharacter[];
   private themeContext?: ThemeContext;
+  private macGuffinContext?: MacGuffinContext;
 
   constructor(
     llmClient: LLMClient,
@@ -25,6 +26,7 @@ export class WriterAgent {
     narrativeRules?: NarrativeRules,
     developedCharacters?: DevelopedCharacter[],
     themeContext?: ThemeContext,
+    macGuffinContext?: MacGuffinContext,
   ) {
     this.llmClient = llmClient;
     this.soulText = soulText;
@@ -32,6 +34,7 @@ export class WriterAgent {
     this.narrativeRules = narrativeRules ?? resolveNarrativeRules();
     this.developedCharacters = developedCharacters;
     this.themeContext = themeContext;
+    this.macGuffinContext = macGuffinContext;
   }
 
   getId(): string {
@@ -126,6 +129,11 @@ export class WriterAgent {
     // Theme context for consistent tone/emotion
     if (this.themeContext) {
       ctx.themeContext = this.themeContext;
+    }
+
+    // MacGuffin context for character secrets and plot mysteries
+    if (this.macGuffinContext) {
+      ctx.macGuffinContext = this.macGuffinContext;
     }
 
     ctx.prompt = prompt;

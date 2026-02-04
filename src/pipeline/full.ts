@@ -11,6 +11,7 @@ import {
   type ComplianceResult,
   type ReaderJuryResult,
   type ThemeContext,
+  type MacGuffinContext,
   DEFAULT_FULL_PIPELINE_CONFIG,
 } from '../agents/types.js';
 import type { Plot, Chapter } from '../schemas/plot.js';
@@ -98,6 +99,19 @@ export class FullPipeline {
     return undefined;
   }
 
+  /**
+   * Resolve MacGuffin context from config
+   */
+  private resolveMacGuffinContext(): MacGuffinContext | undefined {
+    if (!this.config.characterMacGuffins && !this.config.plotMacGuffins) {
+      return undefined;
+    }
+    return {
+      characterMacGuffins: this.config.characterMacGuffins,
+      plotMacGuffins: this.config.plotMacGuffins,
+    };
+  }
+
   private getTemperatureSlots(): TemperatureSlot[] {
     const config = this.soulManager.getPromptConfig()?.tournament?.temperature_slots;
     if (!config || config.length === 0) return DEFAULT_TEMPERATURE_SLOTS;
@@ -153,6 +167,12 @@ export class FullPipeline {
     const themeContext = this.resolveThemeContext();
     if (themeContext) {
       this.logger?.debug('ThemeContext', themeContext);
+    }
+
+    // Log macGuffinContext for debugging
+    const macGuffinContext = this.resolveMacGuffinContext();
+    if (macGuffinContext) {
+      this.logger?.debug('MacGuffinContext', macGuffinContext);
     }
 
     // 3. Save plot checkpoint
@@ -401,6 +421,7 @@ export class FullPipeline {
         collabConfigs ?? [],
         this.config.collaborationConfig,
         this.resolveThemeContext(),
+        this.resolveMacGuffinContext(),
         this.logger,
       );
       const collabResult = await session.run(chapterPrompt);
@@ -408,7 +429,7 @@ export class FullPipeline {
       finalText = collabResult.finalText;
     } else {
       // Tournament mode (default)
-      const arena = new TournamentArena(this.llmClient, this.soulManager.getSoulText(), writerConfigs, this.narrativeRules, this.config.developedCharacters, this.resolveThemeContext(), this.logger);
+      const arena = new TournamentArena(this.llmClient, this.soulManager.getSoulText(), writerConfigs, this.narrativeRules, this.config.developedCharacters, this.resolveThemeContext(), this.resolveMacGuffinContext(), this.logger);
       tournamentResult = await arena.runTournament(chapterPrompt);
       finalText = tournamentResult.championText;
 

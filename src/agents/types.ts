@@ -224,6 +224,20 @@ export interface ThemeContext {
 }
 
 // =====================
+// MacGuffin Context Types
+// =====================
+
+/**
+ * MacGuffin context for consistent propagation of character secrets and plot mysteries to Writers
+ */
+export interface MacGuffinContext {
+  /** Character MacGuffins - hidden elements attached to characters */
+  characterMacGuffins?: import('../schemas/macguffin.js').CharacterMacGuffin[];
+  /** Plot MacGuffins - mysterious plot elements */
+  plotMacGuffins?: import('../schemas/macguffin.js').PlotMacGuffin[];
+}
+
+// =====================
 // Full Pipeline Types
 // =====================
 

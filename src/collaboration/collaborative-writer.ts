@@ -1,6 +1,6 @@
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
-import type { WriterConfig, ThemeContext } from '../agents/types.js';
+import type { WriterConfig, ThemeContext, MacGuffinContext } from '../agents/types.js';
 import { COLLABORATION_TOOLS, parseToolCallToAction } from './tools.js';
 import type { CollaborationAction, CollaborationState } from './types.js';
 
@@ -9,12 +9,14 @@ export class CollaborativeWriter {
   private soulText: SoulText;
   private config: WriterConfig;
   private themeContext?: ThemeContext;
+  private macGuffinContext?: MacGuffinContext;
 
-  constructor(llmClient: LLMClient, soulText: SoulText, config: WriterConfig, themeContext?: ThemeContext) {
+  constructor(llmClient: LLMClient, soulText: SoulText, config: WriterConfig, themeContext?: ThemeContext, macGuffinContext?: MacGuffinContext) {
     this.llmClient = llmClient;
     this.soulText = soulText;
     this.config = config;
     this.themeContext = themeContext;
+    this.macGuffinContext = macGuffinContext;
   }
 
   get id(): string {
@@ -108,6 +110,20 @@ export class CollaborativeWriter {
       lines.push(`- 前提: ${this.themeContext.premise}`);
       if (this.themeContext.tone) {
         lines.push(`- 創作指針: ${this.themeContext.tone}`);
+      }
+    }
+
+    // MacGuffin context for character secrets and plot mysteries
+    if (this.macGuffinContext?.characterMacGuffins?.length) {
+      lines.push('\n## キャラクターの秘密（表出サインを描写に織り込むこと）');
+      for (const m of this.macGuffinContext.characterMacGuffins) {
+        lines.push(`- ${m.characterName}: ${m.surfaceSigns.join('、')}`);
+      }
+    }
+    if (this.macGuffinContext?.plotMacGuffins?.length) {
+      lines.push('\n## 物語の謎（解決不要、雰囲気として漂わせること）');
+      for (const m of this.macGuffinContext.plotMacGuffins) {
+        lines.push(`- ${m.name}: ${m.tensionQuestions.join('、')}`);
       }
     }
 
