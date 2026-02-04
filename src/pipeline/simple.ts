@@ -108,7 +108,7 @@ export class SimplePipeline {
       this.logger?.section('Synthesis');
       const beforeLength = finalText.length;
       try {
-        const synthesizer = new SynthesisAgent(this.llmClient, soulText, this.narrativeRules);
+        const synthesizer = new SynthesisAgent(this.llmClient, soulText, this.narrativeRules, this.options.themeContext);
         const synthesisResult = await synthesizer.synthesize(
           tournamentResult.championText,
           tournamentResult.champion,
@@ -132,7 +132,7 @@ export class SimplePipeline {
     // 3. Correction loop if needed
     if (!complianceResult.isCompliant) {
       this.logger?.section('Correction Loop');
-      const corrector = new CorrectorAgent(this.llmClient, soulText);
+      const corrector = new CorrectorAgent(this.llmClient, soulText, this.options.themeContext);
       const loop = new CorrectionLoop(corrector, checker, 3);
       const correctionResult = await loop.run(finalText);
 
@@ -149,8 +149,8 @@ export class SimplePipeline {
 
     // 4. Retake loop
     this.logger?.section('Retake Loop');
-    const retakeAgent = new RetakeAgent(this.llmClient, soulText, this.narrativeRules);
-    const judgeAgent = new JudgeAgent(this.llmClient, soulText, this.narrativeRules);
+    const retakeAgent = new RetakeAgent(this.llmClient, soulText, this.narrativeRules, this.options.themeContext);
+    const judgeAgent = new JudgeAgent(this.llmClient, soulText, this.narrativeRules, this.options.themeContext);
     const retakeLoop = new RetakeLoop(retakeAgent, judgeAgent, DEFAULT_RETAKE_CONFIG);
     const retakeResult = await retakeLoop.run(finalText);
     this.logger?.debug('Retake result', { improved: retakeResult.improved, retakeCount: retakeResult.retakeCount });
@@ -219,7 +219,7 @@ export class SimplePipeline {
 
     if (!complianceResult.isCompliant) {
       this.logger?.section('Correction Loop');
-      const corrector = new CorrectorAgent(this.llmClient, soulText);
+      const corrector = new CorrectorAgent(this.llmClient, soulText, this.options.themeContext);
       const loop = new CorrectionLoop(corrector, checker, 3);
       const correctionResult = await loop.run(finalText);
       correctionAttempts = correctionResult.attempts;
@@ -233,8 +233,8 @@ export class SimplePipeline {
     }
 
     this.logger?.section('Retake Loop');
-    const retakeAgent = new RetakeAgent(this.llmClient, soulText, this.narrativeRules);
-    const judgeAgent = new JudgeAgent(this.llmClient, soulText, this.narrativeRules);
+    const retakeAgent = new RetakeAgent(this.llmClient, soulText, this.narrativeRules, this.options.themeContext);
+    const judgeAgent = new JudgeAgent(this.llmClient, soulText, this.narrativeRules, this.options.themeContext);
     const retakeLoop = new RetakeLoop(retakeAgent, judgeAgent, DEFAULT_RETAKE_CONFIG);
     const retakeResult = await retakeLoop.run(finalText);
     if (retakeResult.improved) {
@@ -295,7 +295,7 @@ export class SimplePipeline {
         : `読者陪審員から複数回のフィードバックを受けています。前回の改善点も踏まえて修正してください:\n\n` +
           feedbackHistory.map((fb, idx) => `【第${idx + 1}回レビュー】\n${fb}`).join('\n\n');
 
-      const retakeAgent = new RetakeAgent(this.llmClient, soulText, this.narrativeRules);
+      const retakeAgent = new RetakeAgent(this.llmClient, soulText, this.narrativeRules, this.options.themeContext);
       const retakeResult = await retakeAgent.retake(finalText, feedbackMessage);
       finalText = retakeResult.retakenText;
       complianceResult = checker.check(finalText);
