@@ -79,6 +79,7 @@ export class PlotMacGuffinAgent {
       emotion: theme.emotion,
       timeline: theme.timeline,
       premise: theme.premise,
+      tone: theme.tone,
       scene_types: theme.scene_types,
     };
 

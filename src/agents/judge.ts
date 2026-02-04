@@ -1,7 +1,7 @@
 import type { LLMClient, ToolDefinition, ToolCallResponse } from '../llm/types.js';
 import { assertToolCallingClient, parseToolArguments } from '../llm/tooling.js';
 import type { SoulText } from '../soul/manager.js';
-import type { JudgeResult, ScoreBreakdown } from './types.js';
+import type { JudgeResult, ScoreBreakdown, ThemeContext } from './types.js';
 import { type NarrativeRules, resolveNarrativeRules } from '../factory/narrative-rules.js';
 import { buildPrompt } from '../template/composer.js';
 
@@ -76,11 +76,13 @@ export class JudgeAgent {
   private llmClient: LLMClient;
   private soulText: SoulText;
   private narrativeRules: NarrativeRules;
+  private themeContext?: ThemeContext;
 
-  constructor(llmClient: LLMClient, soulText: SoulText, narrativeRules?: NarrativeRules) {
+  constructor(llmClient: LLMClient, soulText: SoulText, narrativeRules?: NarrativeRules, themeContext?: ThemeContext) {
     this.llmClient = llmClient;
     this.soulText = soulText;
     this.narrativeRules = narrativeRules ?? resolveNarrativeRules();
+    this.themeContext = themeContext;
   }
 
   /**
@@ -184,6 +186,7 @@ export class JudgeAgent {
       voiceEntries,
       antiSoulCompactEntries: antiSoulCompactEntries.length > 0 ? antiSoulCompactEntries : undefined,
       fragmentCompactCategories: fragmentCompactCategories.length > 0 ? fragmentCompactCategories : undefined,
+      themeContext: this.themeContext,
       textA,
       textB,
     };

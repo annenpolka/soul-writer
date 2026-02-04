@@ -135,6 +135,7 @@ export class PlotterAgent {
         emotion: t.emotion,
         timeline: t.timeline,
         premise: t.premise,
+        tone: t.tone,
         characters: t.characters.map(c => ({
           name: c.name,
           tag: c.isNew ? '（新規）' : '',

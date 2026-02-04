@@ -2,7 +2,7 @@ import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import { WriterAgent, DEFAULT_WRITERS, type WriterConfig } from '../agents/writer.js';
 import { JudgeAgent, type JudgeResult } from '../agents/judge.js';
-import type { GenerationResult } from '../agents/types.js';
+import type { GenerationResult, ThemeContext } from '../agents/types.js';
 import type { NarrativeRules } from '../factory/narrative-rules.js';
 import type { DevelopedCharacter } from '../factory/character-developer.js';
 import type { Logger } from '../logger.js';
@@ -38,6 +38,7 @@ export class TournamentArena {
   private writerConfigs: WriterConfig[];
   private narrativeRules?: NarrativeRules;
   private developedCharacters?: DevelopedCharacter[];
+  private themeContext?: ThemeContext;
   private logger?: Logger;
 
   constructor(
@@ -46,6 +47,7 @@ export class TournamentArena {
     writerConfigs: WriterConfig[] = DEFAULT_WRITERS,
     narrativeRules?: NarrativeRules,
     developedCharacters?: DevelopedCharacter[],
+    themeContext?: ThemeContext,
     logger?: Logger,
   ) {
     this.llmClient = llmClient;
@@ -53,6 +55,7 @@ export class TournamentArena {
     this.writerConfigs = writerConfigs;
     this.narrativeRules = narrativeRules;
     this.developedCharacters = developedCharacters;
+    this.themeContext = themeContext;
     this.logger = logger;
   }
 
@@ -64,7 +67,7 @@ export class TournamentArena {
 
     // Create writers
     const writers = this.writerConfigs.map(
-      (config) => new WriterAgent(this.llmClient, this.soulText, config, this.narrativeRules, this.developedCharacters)
+      (config) => new WriterAgent(this.llmClient, this.soulText, config, this.narrativeRules, this.developedCharacters, this.themeContext)
     );
 
     // Generate texts from all writers
@@ -139,7 +142,7 @@ export class TournamentArena {
     generationA: GenerationResult,
     generationB: GenerationResult
   ): Promise<MatchResult> {
-    const judge = new JudgeAgent(this.llmClient, this.soulText, this.narrativeRules);
+    const judge = new JudgeAgent(this.llmClient, this.soulText, this.narrativeRules, this.themeContext);
     const judgeResult = await judge.evaluate(generationA.text, generationB.text);
 
     const winner =

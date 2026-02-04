@@ -202,6 +202,28 @@ export interface ReaderJuryResult {
 }
 
 // =====================
+// Theme Context Types
+// =====================
+
+/**
+ * Theme context for consistent propagation of emotion/tone across agents
+ */
+export interface ThemeContext {
+  /** Emotional theme (e.g., "孤独", "渇望") */
+  emotion: string;
+  /** Timeline position (e.g., "出会い前", "出会い後") */
+  timeline: string;
+  /** Story premise */
+  premise: string;
+  /** Tone directive for writing style */
+  tone?: string;
+  /** Narrative type */
+  narrative_type?: string;
+  /** Scene types */
+  scene_types?: string[];
+}
+
+// =====================
 // Full Pipeline Types
 // =====================
 
@@ -217,6 +239,8 @@ export interface FullPipelineConfig {
   developedCharacters?: import('../factory/character-developer.js').DevelopedCharacter[];
   /** Theme from ThemeGenerator - passed to Plotter for emotion/timeline/scene_types context */
   theme?: import('../schemas/generated-theme.js').GeneratedTheme;
+  /** Theme context for consistent propagation across all agents */
+  themeContext?: ThemeContext;
   /** MacGuffins for mystery injection into writers */
   characterMacGuffins?: import('../schemas/macguffin.js').CharacterMacGuffin[];
   plotMacGuffins?: import('../schemas/macguffin.js').PlotMacGuffin[];

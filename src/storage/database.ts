@@ -47,11 +47,19 @@ export class DatabaseConnection {
         total_tokens INTEGER NOT NULL,
         compliance_score REAL,
         reader_score REAL,
+        tone TEXT,
         status TEXT NOT NULL DEFAULT 'completed',
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       )
     `);
+
+    // Add tone column if not exists (migration for existing databases)
+    try {
+      this.sqlite.exec(`ALTER TABLE works ADD COLUMN tone TEXT`);
+    } catch {
+      // Column already exists, ignore
+    }
 
     // Create chapters table
     this.sqlite.exec(`

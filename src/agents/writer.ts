@@ -1,6 +1,6 @@
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
-import { DEFAULT_WRITERS, type WriterConfig, type GenerationResult } from './types.js';
+import { DEFAULT_WRITERS, type WriterConfig, type GenerationResult, type ThemeContext } from './types.js';
 import { type NarrativeRules, buildPovRules, resolveNarrativeRules } from '../factory/narrative-rules.js';
 import type { DevelopedCharacter } from '../factory/character-developer.js';
 import { buildPrompt } from '../template/composer.js';
@@ -16,6 +16,7 @@ export class WriterAgent {
   private config: WriterConfig;
   private narrativeRules: NarrativeRules;
   private developedCharacters?: DevelopedCharacter[];
+  private themeContext?: ThemeContext;
 
   constructor(
     llmClient: LLMClient,
@@ -23,12 +24,14 @@ export class WriterAgent {
     config: WriterConfig = DEFAULT_WRITERS[0],
     narrativeRules?: NarrativeRules,
     developedCharacters?: DevelopedCharacter[],
+    themeContext?: ThemeContext,
   ) {
     this.llmClient = llmClient;
     this.soulText = soulText;
     this.config = config;
     this.narrativeRules = narrativeRules ?? resolveNarrativeRules();
     this.developedCharacters = developedCharacters;
+    this.themeContext = themeContext;
   }
 
   getId(): string {
@@ -118,6 +121,11 @@ export class WriterAgent {
     // Persona directive (injected when persona pool is used)
     if (this.config.personaDirective) {
       ctx.personaDirective = this.config.personaDirective;
+    }
+
+    // Theme context for consistent tone/emotion
+    if (this.themeContext) {
+      ctx.themeContext = this.themeContext;
     }
 
     ctx.prompt = prompt;

@@ -1,6 +1,6 @@
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
-import type { CorrectionResult, Violation } from './types.js';
+import type { CorrectionResult, Violation, ThemeContext } from './types.js';
 import { buildPrompt } from '../template/composer.js';
 
 /**
@@ -9,10 +9,12 @@ import { buildPrompt } from '../template/composer.js';
 export class CorrectorAgent {
   private llmClient: LLMClient;
   private soulText: SoulText;
+  private themeContext?: ThemeContext;
 
-  constructor(llmClient: LLMClient, soulText: SoulText) {
+  constructor(llmClient: LLMClient, soulText: SoulText, themeContext?: ThemeContext) {
     this.llmClient = llmClient;
     this.soulText = soulText;
+    this.themeContext = themeContext;
   }
 
   /**
@@ -33,6 +35,7 @@ export class CorrectorAgent {
       forbiddenSimiles: u.rhetoric.forbidden_similes,
       specialMark: u.vocabulary.special_marks.mark,
       specialMarkForms: u.vocabulary.special_marks.forms,
+      themeContext: this.themeContext,
       text,
       violationList,
     };

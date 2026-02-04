@@ -125,6 +125,7 @@ export class CharacterDeveloperAgent {
       emotion: theme.emotion,
       timeline: theme.timeline,
       premise: theme.premise,
+      tone: theme.tone,
       narrative_type: theme.narrative_type || '',
     };
 

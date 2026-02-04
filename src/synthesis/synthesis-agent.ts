@@ -1,6 +1,6 @@
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
-import type { GenerationResult } from '../agents/types.js';
+import type { GenerationResult, ThemeContext } from '../agents/types.js';
 import type { MatchResult } from '../tournament/arena.js';
 import { type NarrativeRules, resolveNarrativeRules } from '../factory/narrative-rules.js';
 
@@ -18,11 +18,13 @@ export class SynthesisAgent {
   private llmClient: LLMClient;
   private soulText: SoulText;
   private narrativeRules: NarrativeRules;
+  private themeContext?: ThemeContext;
 
-  constructor(llmClient: LLMClient, soulText: SoulText, narrativeRules?: NarrativeRules) {
+  constructor(llmClient: LLMClient, soulText: SoulText, narrativeRules?: NarrativeRules, themeContext?: ThemeContext) {
     this.llmClient = llmClient;
     this.soulText = soulText;
     this.narrativeRules = narrativeRules ?? resolveNarrativeRules();
+    this.themeContext = themeContext;
   }
 
   async synthesize(
@@ -116,6 +118,18 @@ export class SynthesisAgent {
     parts.push('- 合成の痕跡が見えないよう、自然に織り込むこと');
     parts.push('- 引用された表現をそのまま挿入するのではなく、文脈に溶け込む形で取り入れる');
     parts.push('');
+
+    // Theme context for consistent tone/emotion
+    if (this.themeContext) {
+      parts.push('【テーマ・トーン】');
+      parts.push(`- 感情: ${this.themeContext.emotion}`);
+      parts.push(`- 時間軸: ${this.themeContext.timeline}`);
+      parts.push(`- 前提: ${this.themeContext.premise}`);
+      if (this.themeContext.tone) {
+        parts.push(`- 創作指針: ${this.themeContext.tone}`);
+      }
+      parts.push('');
+    }
 
     const u = constitution.universal;
     const ps = constitution.protagonist_specific;

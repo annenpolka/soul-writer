@@ -1,6 +1,6 @@
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
-import type { WriterConfig } from '../agents/types.js';
+import type { WriterConfig, ThemeContext } from '../agents/types.js';
 import { CollaborativeWriter } from './collaborative-writer.js';
 import { ModeratorAgent } from './moderator.js';
 import type {
@@ -25,11 +25,12 @@ export class CollaborationSession {
     soulText: SoulText,
     writerConfigs: WriterConfig[],
     config?: Partial<CollaborationConfig>,
+    themeContext?: ThemeContext,
     logger?: Logger,
   ) {
     this.llmClient = llmClient;
     this.config = { ...DEFAULT_COLLABORATION_CONFIG, ...config };
-    this.writers = writerConfigs.map((wc) => new CollaborativeWriter(llmClient, soulText, wc));
+    this.writers = writerConfigs.map((wc) => new CollaborativeWriter(llmClient, soulText, wc, themeContext));
     this.moderator = new ModeratorAgent(llmClient, soulText);
     this.logger = logger;
   }

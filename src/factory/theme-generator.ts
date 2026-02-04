@@ -53,6 +53,11 @@ export interface ThemeResult {
   tokensUsed: number;
 }
 
+interface WildIdeaResult {
+  idea: string;
+  tone: string;
+}
+
 /**
  * Agent that generates random themes for story generation
  * Uses world-bible to ensure themes fit within the established world
@@ -75,10 +80,10 @@ export class ThemeGeneratorAgent {
     const tokensBefore = this.llmClient.getTotalTokens();
 
     // Stage 1: Wild idea generation (minimal world context, high creativity)
-    const wildIdea = await this.generateWildIdea();
+    const wildIdeaResult = await this.generateWildIdea();
 
     // Stage 2: Refine into structured theme (full world context)
-    const stage2Context = this.buildStage2Context(wildIdea, recentThemes, motifAvoidance);
+    const stage2Context = this.buildStage2Context(wildIdeaResult.idea, recentThemes, motifAvoidance);
     const { system: systemPrompt, user: userPrompt } = buildPrompt('theme-generator-stage2', stage2Context);
 
     assertToolCallingClient(this.llmClient);
@@ -93,6 +98,8 @@ export class ThemeGeneratorAgent {
     );
 
     const theme = this.parseToolResponse(response);
+    // Inject tone from Stage 1 into the generated theme
+    theme.tone = wildIdeaResult.tone;
     const tokensAfter = this.llmClient.getTotalTokens();
 
     return {
@@ -103,8 +110,9 @@ export class ThemeGeneratorAgent {
 
   /**
    * Stage 1: Generate an unconstrained creative idea
+   * Returns both the idea and the tone directive used
    */
-  private async generateWildIdea(): Promise<string> {
+  private async generateWildIdea(): Promise<WildIdeaResult> {
     const ideationStrategies = this.soulText.promptConfig?.ideation_strategies ?? IDEATION_STRATEGIES;
     const timelineCatalog = this.soulText.promptConfig?.timeline_catalog ?? TIMELINE_CATALOG;
     const strategy = pickRandom(ideationStrategies);
@@ -129,9 +137,11 @@ export class ThemeGeneratorAgent {
 
     const { system: systemPrompt, user: userPrompt } = buildPrompt('theme-generator-stage1', stage1Context);
 
-    return await this.llmClient.complete(systemPrompt, userPrompt, {
+    const idea = await this.llmClient.complete(systemPrompt, userPrompt, {
       temperature: 1.0,
     });
+
+    return { idea, tone };
   }
 
   private buildStage2Context(wildIdea: string, recentThemes?: GeneratedTheme[], motifAvoidance?: string[]): Record<string, unknown> {

@@ -2,7 +2,7 @@ import type { LLMClient } from '../llm/types.js';
 import { type SoulText, SoulTextManager } from '../soul/manager.js';
 import { TournamentArena, type TournamentResult } from '../tournament/arena.js';
 import { selectTournamentWriters, DEFAULT_TEMPERATURE_SLOTS } from '../tournament/persona-pool.js';
-import type { ComplianceResult, ReaderJuryResult } from '../agents/types.js';
+import type { ComplianceResult, ReaderJuryResult, ThemeContext } from '../agents/types.js';
 import { type NarrativeRules, resolveNarrativeRules } from '../factory/narrative-rules.js';
 import type { DevelopedCharacter } from '../factory/character-developer.js';
 import { ComplianceChecker } from '../compliance/checker.js';
@@ -40,6 +40,7 @@ export interface SimplePipelineOptions {
   collaborationConfig?: Partial<CollaborationConfig>;
   narrativeRules?: NarrativeRules;
   developedCharacters?: DevelopedCharacter[];
+  themeContext?: ThemeContext;
   verbose?: boolean;
   logger?: Logger;
 }
@@ -81,6 +82,7 @@ export class SimplePipeline {
       writerConfigs,
       this.narrativeRules,
       this.options.developedCharacters,
+      this.options.themeContext,
       this.logger,
     );
 
@@ -191,6 +193,7 @@ export class SimplePipeline {
       soulText,
       writerConfigs ?? [],
       this.options.collaborationConfig,
+      this.options.themeContext,
       this.logger,
     );
 

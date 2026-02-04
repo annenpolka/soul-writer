@@ -7,6 +7,8 @@
     "doc": "docs"
   },
   "scripts": {
+    "build": "tsc",
+    "build:prompts": "mkdir -p dist && cp -r src/prompts dist/",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "oxlint",

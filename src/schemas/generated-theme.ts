@@ -28,6 +28,8 @@ export const GeneratedThemeSchema = z.object({
   scene_types: z.array(z.string().min(1)).min(1),
   /** Narrative type (e.g., "一人称内面独白", "時系列逆転") */
   narrative_type: z.string().min(1).optional(),
+  /** Tone directive for consistent writing style (e.g., "常識的な展開を避け、挑発的なアイデアを") */
+  tone: z.string().optional(),
 });
 
 export type Character = z.infer<typeof CharacterSchema>;

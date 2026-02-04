@@ -1,6 +1,6 @@
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
-import type { WriterConfig } from '../agents/types.js';
+import type { WriterConfig, ThemeContext } from '../agents/types.js';
 import { COLLABORATION_TOOLS, parseToolCallToAction } from './tools.js';
 import type { CollaborationAction, CollaborationState } from './types.js';
 
@@ -8,11 +8,13 @@ export class CollaborativeWriter {
   private llmClient: LLMClient;
   private soulText: SoulText;
   private config: WriterConfig;
+  private themeContext?: ThemeContext;
 
-  constructor(llmClient: LLMClient, soulText: SoulText, config: WriterConfig) {
+  constructor(llmClient: LLMClient, soulText: SoulText, config: WriterConfig, themeContext?: ThemeContext) {
     this.llmClient = llmClient;
     this.soulText = soulText;
     this.config = config;
+    this.themeContext = themeContext;
   }
 
   get id(): string {
@@ -96,6 +98,17 @@ export class CollaborativeWriter {
 
     if (this.config.focusCategories?.length) {
       lines.push(`\n## 得意カテゴリ\n${this.config.focusCategories.join(', ')}`);
+    }
+
+    // Theme context for consistent tone/emotion
+    if (this.themeContext) {
+      lines.push('\n## テーマ・トーン');
+      lines.push(`- 感情: ${this.themeContext.emotion}`);
+      lines.push(`- 時間軸: ${this.themeContext.timeline}`);
+      lines.push(`- 前提: ${this.themeContext.premise}`);
+      if (this.themeContext.tone) {
+        lines.push(`- 創作指針: ${this.themeContext.tone}`);
+      }
     }
 
     lines.push(`\n## 現在のフェーズ: ${state.currentPhase}`);

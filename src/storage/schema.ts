@@ -14,6 +14,8 @@ export const works = sqliteTable(
     totalTokens: integer('total_tokens').notNull(),
     complianceScore: real('compliance_score'),
     readerScore: real('reader_score'),
+    /** Tone directive used for generation */
+    tone: text('tone'),
     status: text('status').notNull().default('completed'),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),

@@ -1,5 +1,6 @@
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
+import type { ThemeContext } from '../agents/types.js';
 import { type NarrativeRules, buildPovRules, resolveNarrativeRules } from '../factory/narrative-rules.js';
 
 export interface RetakeResult {
@@ -17,11 +18,13 @@ export class RetakeAgent {
   private llmClient: LLMClient;
   private soulText: SoulText;
   private narrativeRules: NarrativeRules;
+  private themeContext?: ThemeContext;
 
-  constructor(llmClient: LLMClient, soulText: SoulText, narrativeRules?: NarrativeRules) {
+  constructor(llmClient: LLMClient, soulText: SoulText, narrativeRules?: NarrativeRules, themeContext?: ThemeContext) {
     this.llmClient = llmClient;
     this.soulText = soulText;
     this.narrativeRules = narrativeRules ?? resolveNarrativeRules();
+    this.themeContext = themeContext;
   }
 
   async retake(originalText: string, feedback: string): Promise<RetakeResult> {
@@ -64,6 +67,18 @@ export class RetakeAgent {
     parts.push(`- 禁止語彙: ${u.vocabulary.forbidden_words.join(', ')}`);
     parts.push(`- 禁止比喩: ${u.rhetoric.forbidden_similes.join(', ')}`);
     parts.push('');
+
+    // Theme context for consistent tone/emotion
+    if (this.themeContext) {
+      parts.push('## テーマ・トーン');
+      parts.push(`- 感情: ${this.themeContext.emotion}`);
+      parts.push(`- 時間軸: ${this.themeContext.timeline}`);
+      parts.push(`- 前提: ${this.themeContext.premise}`);
+      if (this.themeContext.tone) {
+        parts.push(`- 創作指針: ${this.themeContext.tone}`);
+      }
+      parts.push('');
+    }
 
     // Character voice reference
     parts.push('## キャラクター対話スタイル');
