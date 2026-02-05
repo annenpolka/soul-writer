@@ -42,6 +42,9 @@ export class FileWriter {
     lines.push(`task_id: "${result.taskId}"`);
     lines.push(`emotion: "${theme.emotion}"`);
     lines.push(`timeline: "${theme.timeline}"`);
+    if (theme.tone) {
+      lines.push(`tone: "${theme.tone}"`);
+    }
     if (theme.narrative_type) {
       lines.push(`narrative_type: "${theme.narrative_type}"`);
     }

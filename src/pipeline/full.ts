@@ -10,6 +10,8 @@ import {
   type ChapterPipelineResult,
   type ComplianceResult,
   type ReaderJuryResult,
+  type ThemeContext,
+  type MacGuffinContext,
   DEFAULT_FULL_PIPELINE_CONFIG,
 } from '../agents/types.js';
 import type { Plot, Chapter } from '../schemas/plot.js';
@@ -75,6 +77,41 @@ export class FullPipeline {
 
   private narrativeRules: NarrativeRules;
 
+  /**
+   * Resolve theme context from config.themeContext or config.theme
+   */
+  private resolveThemeContext(): ThemeContext | undefined {
+    // Prefer explicit themeContext if provided
+    if (this.config.themeContext) {
+      return this.config.themeContext;
+    }
+    // Build from theme if available
+    if (this.config.theme) {
+      return {
+        emotion: this.config.theme.emotion,
+        timeline: this.config.theme.timeline,
+        premise: this.config.theme.premise,
+        tone: this.config.theme.tone,
+        narrative_type: this.config.theme.narrative_type,
+        scene_types: this.config.theme.scene_types,
+      };
+    }
+    return undefined;
+  }
+
+  /**
+   * Resolve MacGuffin context from config
+   */
+  private resolveMacGuffinContext(): MacGuffinContext | undefined {
+    if (!this.config.characterMacGuffins && !this.config.plotMacGuffins) {
+      return undefined;
+    }
+    return {
+      characterMacGuffins: this.config.characterMacGuffins,
+      plotMacGuffins: this.config.plotMacGuffins,
+    };
+  }
+
   private getTemperatureSlots(): TemperatureSlot[] {
     const config = this.soulManager.getPromptConfig()?.tournament?.temperature_slots;
     if (!config || config.length === 0) return DEFAULT_TEMPERATURE_SLOTS;
@@ -125,6 +162,18 @@ export class FullPipeline {
       chapters: plotResult.plot.chapters.map(c => ({ index: c.index, title: c.title, summary: c.summary })),
       tokensUsed: plotResult.tokensUsed,
     });
+
+    // Log themeContext for debugging
+    const themeContext = this.resolveThemeContext();
+    if (themeContext) {
+      this.logger?.debug('ThemeContext', themeContext);
+    }
+
+    // Log macGuffinContext for debugging
+    const macGuffinContext = this.resolveMacGuffinContext();
+    if (macGuffinContext) {
+      this.logger?.debug('MacGuffinContext', macGuffinContext);
+    }
 
     // 3. Save plot checkpoint
     await this.checkpointManager.saveCheckpoint(
@@ -371,6 +420,8 @@ export class FullPipeline {
         this.soulManager.getSoulText(),
         collabConfigs ?? [],
         this.config.collaborationConfig,
+        this.resolveThemeContext(),
+        this.resolveMacGuffinContext(),
         this.logger,
       );
       const collabResult = await session.run(chapterPrompt);
@@ -378,7 +429,7 @@ export class FullPipeline {
       finalText = collabResult.finalText;
     } else {
       // Tournament mode (default)
-      const arena = new TournamentArena(this.llmClient, this.soulManager.getSoulText(), writerConfigs, this.narrativeRules, this.config.developedCharacters, this.logger);
+      const arena = new TournamentArena(this.llmClient, this.soulManager.getSoulText(), writerConfigs, this.narrativeRules, this.config.developedCharacters, this.resolveThemeContext(), this.resolveMacGuffinContext(), this.logger);
       tournamentResult = await arena.runTournament(chapterPrompt);
       finalText = tournamentResult.championText;
 
@@ -387,7 +438,7 @@ export class FullPipeline {
         this.logger?.section('Synthesis');
         const beforeLength = finalText.length;
         try {
-          const synthesizer = new SynthesisAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules);
+          const synthesizer = new SynthesisAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules, this.resolveThemeContext());
           const synthesisResult = await synthesizer.synthesize(
             tournamentResult.championText,
             tournamentResult.champion,
@@ -413,7 +464,7 @@ export class FullPipeline {
     // 3. Correction loop if needed
     if (!complianceResult.isCompliant) {
       this.logger?.section('Correction Loop');
-      const corrector = new CorrectorAgent(this.llmClient, this.soulManager.getSoulText());
+      const corrector = new CorrectorAgent(this.llmClient, this.soulManager.getSoulText(), this.resolveThemeContext());
       const loop = new CorrectionLoop(corrector, checker, this.config.maxCorrectionAttempts);
       const correctionResult = await loop.run(finalText);
 
@@ -434,8 +485,8 @@ export class FullPipeline {
 
     // 5. Retake loop (post-tournament, pre-reader-jury)
     this.logger?.section('Retake Loop');
-    const retakeAgent = new RetakeAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules);
-    const judgeAgent = new JudgeAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules);
+    const retakeAgent = new RetakeAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules, this.resolveThemeContext());
+    const judgeAgent = new JudgeAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules, this.resolveThemeContext());
     const retakeLoop = new RetakeLoop(retakeAgent, judgeAgent, DEFAULT_RETAKE_CONFIG);
     const retakeResult = await retakeLoop.run(finalText);
     this.logger?.debug('Retake result', { improved: retakeResult.improved, retakeCount: retakeResult.retakeCount });
@@ -471,7 +522,7 @@ export class FullPipeline {
           feedbackHistory.map((fb, idx) => `【第${idx + 1}回レビュー】\n${fb}`).join('\n\n');
 
       // Retake using accumulated reader feedback
-      const readerRetakeAgent = new RetakeAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules);
+      const readerRetakeAgent = new RetakeAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules, this.resolveThemeContext());
       const retakeResult2 = await readerRetakeAgent.retake(finalText, feedbackMessage);
       finalText = retakeResult2.retakenText;
 

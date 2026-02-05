@@ -37,6 +37,7 @@ export interface TaskResult {
   readerScore?: number;
   emotion?: string;
   timeline?: string;
+  tone?: string;
 }
 
 export interface ProgressInfo {
@@ -215,6 +216,7 @@ export class BatchRunner {
           readerScore: storyResult.avgReaderScore,
           emotion: themeResult.theme.emotion,
           timeline: themeResult.theme.timeline,
+          tone: themeResult.theme.tone,
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);

@@ -96,6 +96,7 @@ export class CharacterMacGuffinAgent {
       emotion: theme.emotion,
       timeline: theme.timeline,
       premise: theme.premise,
+      tone: theme.tone,
     };
 
     // Technology context for world-grounded secrets

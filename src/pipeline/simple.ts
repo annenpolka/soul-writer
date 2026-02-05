@@ -2,7 +2,7 @@ import type { LLMClient } from '../llm/types.js';
 import { type SoulText, SoulTextManager } from '../soul/manager.js';
 import { TournamentArena, type TournamentResult } from '../tournament/arena.js';
 import { selectTournamentWriters, DEFAULT_TEMPERATURE_SLOTS } from '../tournament/persona-pool.js';
-import type { ComplianceResult, ReaderJuryResult } from '../agents/types.js';
+import type { ComplianceResult, ReaderJuryResult, ThemeContext, MacGuffinContext } from '../agents/types.js';
 import { type NarrativeRules, resolveNarrativeRules } from '../factory/narrative-rules.js';
 import type { DevelopedCharacter } from '../factory/character-developer.js';
 import { ComplianceChecker } from '../compliance/checker.js';
@@ -40,6 +40,8 @@ export interface SimplePipelineOptions {
   collaborationConfig?: Partial<CollaborationConfig>;
   narrativeRules?: NarrativeRules;
   developedCharacters?: DevelopedCharacter[];
+  themeContext?: ThemeContext;
+  macGuffinContext?: MacGuffinContext;
   verbose?: boolean;
   logger?: Logger;
 }
@@ -81,10 +83,18 @@ export class SimplePipeline {
       writerConfigs,
       this.narrativeRules,
       this.options.developedCharacters,
+      this.options.themeContext,
+      this.options.macGuffinContext,
       this.logger,
     );
 
     this.logger?.section('Tournament Start');
+    if (this.options.themeContext) {
+      this.logger?.debug('ThemeContext', this.options.themeContext);
+    }
+    if (this.options.macGuffinContext) {
+      this.logger?.debug('MacGuffinContext', this.options.macGuffinContext);
+    }
     const tournamentResult = await arena.runTournament(prompt);
 
     // Simple mode: return tournament result only
@@ -106,7 +116,7 @@ export class SimplePipeline {
       this.logger?.section('Synthesis');
       const beforeLength = finalText.length;
       try {
-        const synthesizer = new SynthesisAgent(this.llmClient, soulText, this.narrativeRules);
+        const synthesizer = new SynthesisAgent(this.llmClient, soulText, this.narrativeRules, this.options.themeContext);
         const synthesisResult = await synthesizer.synthesize(
           tournamentResult.championText,
           tournamentResult.champion,
@@ -130,7 +140,7 @@ export class SimplePipeline {
     // 3. Correction loop if needed
     if (!complianceResult.isCompliant) {
       this.logger?.section('Correction Loop');
-      const corrector = new CorrectorAgent(this.llmClient, soulText);
+      const corrector = new CorrectorAgent(this.llmClient, soulText, this.options.themeContext);
       const loop = new CorrectionLoop(corrector, checker, 3);
       const correctionResult = await loop.run(finalText);
 
@@ -147,8 +157,8 @@ export class SimplePipeline {
 
     // 4. Retake loop
     this.logger?.section('Retake Loop');
-    const retakeAgent = new RetakeAgent(this.llmClient, soulText, this.narrativeRules);
-    const judgeAgent = new JudgeAgent(this.llmClient, soulText, this.narrativeRules);
+    const retakeAgent = new RetakeAgent(this.llmClient, soulText, this.narrativeRules, this.options.themeContext);
+    const judgeAgent = new JudgeAgent(this.llmClient, soulText, this.narrativeRules, this.options.themeContext);
     const retakeLoop = new RetakeLoop(retakeAgent, judgeAgent, DEFAULT_RETAKE_CONFIG);
     const retakeResult = await retakeLoop.run(finalText);
     this.logger?.debug('Retake result', { improved: retakeResult.improved, retakeCount: retakeResult.retakeCount });
@@ -186,11 +196,19 @@ export class SimplePipeline {
       : undefined;
 
     this.logger?.section('Collaboration Start');
+    if (this.options.themeContext) {
+      this.logger?.debug('ThemeContext', this.options.themeContext);
+    }
+    if (this.options.macGuffinContext) {
+      this.logger?.debug('MacGuffinContext', this.options.macGuffinContext);
+    }
     const session = new CollaborationSession(
       this.llmClient,
       soulText,
       writerConfigs ?? [],
       this.options.collaborationConfig,
+      this.options.themeContext,
+      this.options.macGuffinContext,
       this.logger,
     );
 
@@ -216,7 +234,7 @@ export class SimplePipeline {
 
     if (!complianceResult.isCompliant) {
       this.logger?.section('Correction Loop');
-      const corrector = new CorrectorAgent(this.llmClient, soulText);
+      const corrector = new CorrectorAgent(this.llmClient, soulText, this.options.themeContext);
       const loop = new CorrectionLoop(corrector, checker, 3);
       const correctionResult = await loop.run(finalText);
       correctionAttempts = correctionResult.attempts;
@@ -230,8 +248,8 @@ export class SimplePipeline {
     }
 
     this.logger?.section('Retake Loop');
-    const retakeAgent = new RetakeAgent(this.llmClient, soulText, this.narrativeRules);
-    const judgeAgent = new JudgeAgent(this.llmClient, soulText, this.narrativeRules);
+    const retakeAgent = new RetakeAgent(this.llmClient, soulText, this.narrativeRules, this.options.themeContext);
+    const judgeAgent = new JudgeAgent(this.llmClient, soulText, this.narrativeRules, this.options.themeContext);
     const retakeLoop = new RetakeLoop(retakeAgent, judgeAgent, DEFAULT_RETAKE_CONFIG);
     const retakeResult = await retakeLoop.run(finalText);
     if (retakeResult.improved) {
@@ -292,7 +310,7 @@ export class SimplePipeline {
         : `読者陪審員から複数回のフィードバックを受けています。前回の改善点も踏まえて修正してください:\n\n` +
           feedbackHistory.map((fb, idx) => `【第${idx + 1}回レビュー】\n${fb}`).join('\n\n');
 
-      const retakeAgent = new RetakeAgent(this.llmClient, soulText, this.narrativeRules);
+      const retakeAgent = new RetakeAgent(this.llmClient, soulText, this.narrativeRules, this.options.themeContext);
       const retakeResult = await retakeAgent.retake(finalText, feedbackMessage);
       finalText = retakeResult.retakenText;
       complianceResult = checker.check(finalText);

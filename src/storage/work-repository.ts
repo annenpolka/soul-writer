@@ -9,6 +9,7 @@ export interface Work {
   totalTokens: number;
   complianceScore: number | null;
   readerScore: number | null;
+  tone: string | null;
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -22,6 +23,7 @@ export interface CreateWorkInput {
   totalTokens: number;
   complianceScore?: number;
   readerScore?: number;
+  tone?: string;
   status?: string;
 }
 
@@ -48,8 +50,8 @@ export class WorkRepository {
     const now = new Date().toISOString();
 
     this.db.getSqlite().prepare(`
-      INSERT INTO works (id, soul_id, title, content, total_chapters, total_tokens, compliance_score, reader_score, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO works (id, soul_id, title, content, total_chapters, total_tokens, compliance_score, reader_score, tone, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
       input.soulId,
@@ -59,6 +61,7 @@ export class WorkRepository {
       input.totalTokens,
       input.complianceScore ?? null,
       input.readerScore ?? null,
+      input.tone ?? null,
       input.status ?? 'completed',
       now,
       now
@@ -73,6 +76,7 @@ export class WorkRepository {
       totalTokens: input.totalTokens,
       complianceScore: input.complianceScore ?? null,
       readerScore: input.readerScore ?? null,
+      tone: input.tone ?? null,
       status: input.status ?? 'completed',
       createdAt: now,
       updatedAt: now,
@@ -81,7 +85,7 @@ export class WorkRepository {
 
   async findById(id: string): Promise<Work | undefined> {
     const result = this.db.getSqlite().prepare(`
-      SELECT id, soul_id, title, content, total_chapters, total_tokens, compliance_score, reader_score, status, created_at, updated_at
+      SELECT id, soul_id, title, content, total_chapters, total_tokens, compliance_score, reader_score, tone, status, created_at, updated_at
       FROM works WHERE id = ?
     `).get(id) as {
       id: string;
@@ -92,6 +96,7 @@ export class WorkRepository {
       total_tokens: number;
       compliance_score: number | null;
       reader_score: number | null;
+      tone: string | null;
       status: string;
       created_at: string;
       updated_at: string;
@@ -108,6 +113,7 @@ export class WorkRepository {
       totalTokens: result.total_tokens,
       complianceScore: result.compliance_score,
       readerScore: result.reader_score,
+      tone: result.tone,
       status: result.status,
       createdAt: result.created_at,
       updatedAt: result.updated_at,
@@ -116,7 +122,7 @@ export class WorkRepository {
 
   async findBySoulId(soulId: string): Promise<Work[]> {
     const results = this.db.getSqlite().prepare(`
-      SELECT id, soul_id, title, content, total_chapters, total_tokens, compliance_score, reader_score, status, created_at, updated_at
+      SELECT id, soul_id, title, content, total_chapters, total_tokens, compliance_score, reader_score, tone, status, created_at, updated_at
       FROM works WHERE soul_id = ?
     `).all(soulId) as Array<{
       id: string;
@@ -127,6 +133,7 @@ export class WorkRepository {
       total_tokens: number;
       compliance_score: number | null;
       reader_score: number | null;
+      tone: string | null;
       status: string;
       created_at: string;
       updated_at: string;
@@ -141,6 +148,7 @@ export class WorkRepository {
       totalTokens: r.total_tokens,
       complianceScore: r.compliance_score,
       readerScore: r.reader_score,
+      tone: r.tone,
       status: r.status,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
@@ -149,7 +157,7 @@ export class WorkRepository {
 
   async findRecentBySoulId(soulId: string, limit: number): Promise<Work[]> {
     const results = this.db.getSqlite().prepare(`
-      SELECT id, soul_id, title, content, total_chapters, total_tokens, compliance_score, reader_score, status, created_at, updated_at
+      SELECT id, soul_id, title, content, total_chapters, total_tokens, compliance_score, reader_score, tone, status, created_at, updated_at
       FROM works WHERE soul_id = ? AND status = 'completed'
       ORDER BY created_at DESC LIMIT ?
     `).all(soulId, limit) as Array<{
@@ -161,6 +169,7 @@ export class WorkRepository {
       total_tokens: number;
       compliance_score: number | null;
       reader_score: number | null;
+      tone: string | null;
       status: string;
       created_at: string;
       updated_at: string;
@@ -175,6 +184,7 @@ export class WorkRepository {
       totalTokens: r.total_tokens,
       complianceScore: r.compliance_score,
       readerScore: r.reader_score,
+      tone: r.tone,
       status: r.status,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
