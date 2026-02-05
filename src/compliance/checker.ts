@@ -1,5 +1,6 @@
-import type { ComplianceResult, Violation } from '../agents/types.js';
+import type { ComplianceResult, Violation, ChapterContext } from '../agents/types.js';
 import type { ComplianceRule } from './rules/forbidden-words.js';
+import type { AsyncComplianceRule } from './rules/async-rule.js';
 import { ForbiddenWordsRule } from './rules/forbidden-words.js';
 import { ForbiddenSimilesRule } from './rules/forbidden-similes.js';
 import { SpecialMarksRule } from './rules/special-marks.js';
@@ -7,8 +8,10 @@ import { PovConsistencyRule } from './rules/pov-consistency.js';
 import { RhythmCheckRule } from './rules/rhythm-check.js';
 import { MarkdownContaminationRule } from './rules/markdown-contamination.js';
 import { QuoteOriginalityRule } from './rules/quote-originality.js';
+import { SelfRepetitionRule } from './rules/self-repetition.js';
 import type { SoulText } from '../soul/manager.js';
 import type { NarrativeRules } from '../factory/narrative-rules.js';
+import type { LLMClient } from '../llm/types.js';
 
 const COMPLIANCE_THRESHOLD = 0.75;
 
@@ -17,15 +20,17 @@ const COMPLIANCE_THRESHOLD = 0.75;
  */
 export class ComplianceChecker {
   private rules: ComplianceRule[];
+  private asyncRules: AsyncComplianceRule[];
 
-  constructor(rules: ComplianceRule[]) {
+  constructor(rules: ComplianceRule[], asyncRules: AsyncComplianceRule[] = []) {
     this.rules = rules;
+    this.asyncRules = asyncRules;
   }
 
   /**
    * Create a ComplianceChecker from SoulText configuration
    */
-  static fromSoulText(soulText: SoulText, narrativeRules?: NarrativeRules): ComplianceChecker {
+  static fromSoulText(soulText: SoulText, narrativeRules?: NarrativeRules, llmClient?: LLMClient): ComplianceChecker {
     const rules: ComplianceRule[] = [];
 
     const { constitution } = soulText;
@@ -68,7 +73,13 @@ export class ComplianceChecker {
     // Add quote originality rule (extracts quotes from fragments)
     rules.push(new QuoteOriginalityRule(soulText.fragments));
 
-    return new ComplianceChecker(rules);
+    // Add async rules (LLM-based)
+    const asyncRules: AsyncComplianceRule[] = [];
+    if (llmClient) {
+      asyncRules.push(new SelfRepetitionRule(llmClient));
+    }
+
+    return new ComplianceChecker(rules, asyncRules);
   }
 
   /**
@@ -115,9 +126,40 @@ export class ComplianceChecker {
   }
 
   /**
+   * Check text with both sync and async rules (including cross-chapter context)
+   * Used for initial compliance check per chapter; correction loop uses sync check() only
+   */
+  async checkWithContext(text: string, chapterContext?: ChapterContext): Promise<ComplianceResult> {
+    // Run sync rules
+    const syncViolations: Violation[] = [];
+    for (const rule of this.rules) {
+      syncViolations.push(...rule.check(text));
+    }
+
+    // Run async rules in parallel
+    const asyncResults = await Promise.all(
+      this.asyncRules.map((rule) => rule.check(text, chapterContext)),
+    );
+    const asyncViolations = asyncResults.flat();
+
+    const violations = [...syncViolations, ...asyncViolations];
+    const score = this.calculateScore(text, violations);
+    const isCompliant = score >= COMPLIANCE_THRESHOLD;
+
+    return { isCompliant, score, violations };
+  }
+
+  /**
    * Get all registered rules
    */
   getRules(): ComplianceRule[] {
     return [...this.rules];
+  }
+
+  /**
+   * Get all registered async rules
+   */
+  getAsyncRules(): AsyncComplianceRule[] {
+    return [...this.asyncRules];
   }
 }

@@ -67,6 +67,15 @@ exports[`Prompt Snapshots > corrector > should match snapshot 1`] = `
 ### 特殊記号の使用法
 記号「×」は以下の形式でのみ使用可能：
 ×。, ×、
+### 引き算ルール（説明過剰の修正）
+以下のパターンも違反として修正してください：
+- 感情の名指し（「悲しかった」「嬉しかった」等）→ 身体反応・行動・風景に書き換える
+- 心情の二重記述（行動で示した後に地の文で同じ感情を説明）→ 説明部分を削除
+- 「つまり」「要するに」等の読者への解説 → 削除
+- 比喩の後の「〜ということだ」等の解釈強制 → 削除
+- 登場直後のキャラクター紹介文（設定集的説明）→ 行動・対話で間接的に示す
+- 行為やイメージの直後に、その行為の象徴的意味を解説する文（「〜のメタファーであり」「〜の象徴だ」「〜を意味している」）→ 解説文を削除し、イメージのみを残す
+
 ## 指示
 1. 上記の違反をすべて修正してください
 2. 文章の意味と流れを維持してください
@@ -212,6 +221,25 @@ exports[`Prompt Snapshots > plotter > should match snapshot 1`] = `
 - 原作の既知シーンをなぞらない。同じ世界観の中で、まだ語られていない物語を設計すること
 - 各章に最低1つ、原作に存在しないオリジナルの出来事・場所・小道具を含めること
 
+## 変奏設計（章間の構造的多様性）
+各章にvariation_constraintsを設定し、構造的な単調さを防いでください:
+- 隣接する2章が同じstructure_typeを持ってはならない（例: 単一シーン→並列モンタージュ→回想交差）
+- 隣接する2章が同じemotional_arcを持ってはならない（例: 上昇→下降→振動）
+- 第2章以降はdeviation_from_previousを必ず指定し、前章との差分を明記すること
+- motif_budgetで重要なモチーフの使用上限を設定し、リフレインの磨耗を防ぐこと
+
+structure_typeの例: single_scene, parallel_montage, flashback_interleave, epistolary, stream_of_consciousness, dialogue_driven
+emotional_arcの例: ascending, descending, oscillating, flat_tension, cathartic_release, slow_build
+pacingの例: slow_burn, rapid_cuts, deceleration, acceleration, staccato, largo
+
+## 認識制約設計（Epistemic Constraints）
+各章で主要な視点キャラクターごとに、その視点が「知らないこと」「見ないもの」を設計してください:
+- 各視点キャラごとにepistemic_constraintsを設定する
+- 情報の非対称性がサスペンスや伏線の源泉となる
+- 例: 透心は自分が監視されていることを知らない → 読者とオペレーターだけが知る緊張
+- 前章で伏せた情報を後の章で別視点から明かすなど、章間での情報開示を設計する
+- 制約は具体的に書く（「知らない」だけでなく「何を知らないか」を明示）
+
 ## 出力形式
 以下のJSON形式で章構成を出力してください:
 \`\`\`json
@@ -224,7 +252,18 @@ exports[`Prompt Snapshots > plotter > should match snapshot 1`] = `
       "title": "章タイトル",
       "summary": "章の要約",
       "key_events": ["イベント1", "イベント2"],
-      "target_length": 4000
+      "target_length": 4000,
+      "variation_constraints": {
+        "structure_type": "single_scene",
+        "emotional_arc": "ascending",
+        "pacing": "slow_burn",
+        "deviation_from_previous": null,
+        "motif_budget": [{"motif": "×マーク", "max_uses": 2}]
+      },
+      "epistemic_constraints": [
+        {"perspective": "透心", "constraints": ["オペレーターが監視していることを知らない", "ARの裏側の構造を直接見ない"]},
+        {"perspective": "オペレーター", "constraints": ["透心の内面を直接知覚しない（データ波形でしか推測できない）"]}
+      ]
     }
   ]
 }
@@ -394,6 +433,15 @@ exports[`Prompt Snapshots > writer > should match snapshot 1`] = `
 あなたは以下の世界観に棲む作家です。原作の文体を「型」として身体に染み込ませた上で、自分の言葉で新しいシーンを書いてください。
 - 一人称「わたし」のみ使用
 - 「私」は禁止
+## 引き算の美学（Subtraction Rules）
+- 感情を名指ししない → 身体反応・行動・風景で示す
+- 「〜と思った」「〜と感じた」を最小限に
+- 心情の二重記述（行動で示した後に地の文で同じ感情を説明）を禁止
+- 「つまり」「要するに」等の読者への解説を禁止
+- 比喩の後の「〜ということだ」等の解釈強制を禁止
+- 登場直後のキャラクター紹介文（設定集的説明）を禁止
+- 行為やイメージの直後にその象徴的意味を地の文で解説しない（「〜のメタファーであり」「〜の象徴だ」「〜を意味している」は禁止）
+
 ## 憲法（文体ルール）
 ### 語彙
 - 禁止語彙: 絆, 希望の光

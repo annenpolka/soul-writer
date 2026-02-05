@@ -115,7 +115,8 @@ export type ViolationType =
   | 'theme_violation'
   | 'pov_violation'
   | 'markdown_contamination'
-  | 'quote_direct_copy';
+  | 'quote_direct_copy'
+  | 'self_repetition';
 
 /**
  * A single violation found in text
@@ -235,6 +236,18 @@ export interface MacGuffinContext {
   characterMacGuffins?: import('../schemas/macguffin.js').CharacterMacGuffin[];
   /** Plot MacGuffins - mysterious plot elements */
   plotMacGuffins?: import('../schemas/macguffin.js').PlotMacGuffin[];
+}
+
+// =====================
+// Chapter Context Types
+// =====================
+
+/**
+ * Context from previously generated chapters, used for cross-chapter awareness
+ */
+export interface ChapterContext {
+  /** Completed chapter texts in generation order */
+  previousChapterTexts: string[];
 }
 
 // =====================

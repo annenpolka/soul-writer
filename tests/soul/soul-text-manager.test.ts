@@ -46,7 +46,7 @@ describe('SoulTextManager', () => {
     it('should return reader personas', () => {
       const personas = manager.getReaderPersonas();
       expect(personas).toBeDefined();
-      expect(personas.personas).toHaveLength(4);
+      expect(personas.personas).toHaveLength(5);
     });
   });
 

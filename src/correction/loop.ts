@@ -1,6 +1,6 @@
 import type { CorrectorAgent } from '../agents/corrector.js';
 import type { ComplianceChecker } from '../compliance/checker.js';
-import type { CorrectionLoopResult } from '../agents/types.js';
+import type { CorrectionLoopResult, Violation, ChapterContext } from '../agents/types.js';
 
 const DEFAULT_MAX_ATTEMPTS = 3;
 
@@ -22,14 +22,26 @@ export class CorrectionLoop {
     this.maxAttempts = maxAttempts;
   }
 
+  private async checkText(text: string, chapterContext?: ChapterContext) {
+    if (chapterContext) {
+      return this.checker.checkWithContext(text, chapterContext);
+    }
+    return this.checker.check(text);
+  }
+
   /**
    * Run the correction loop until text is compliant or max attempts reached
    */
-  async run(text: string): Promise<CorrectionLoopResult> {
-    // Initial compliance check
-    const initialResult = this.checker.check(text);
+  async run(text: string, initialViolations?: Violation[], chapterContext?: ChapterContext): Promise<CorrectionLoopResult> {
+    // Initial compliance check (async if chapterContext provided)
+    const initialResult = await this.checkText(text, chapterContext);
 
-    if (initialResult.isCompliant) {
+    // Merge initial violations (e.g. from caller's prior async check) with check result
+    const mergedViolations = initialViolations
+      ? [...initialResult.violations, ...initialViolations.filter(v => !initialResult.violations.some(sv => sv.type === v.type && sv.context === v.context))]
+      : initialResult.violations;
+
+    if (initialResult.isCompliant && mergedViolations.length === 0) {
       return {
         success: true,
         finalText: text,
@@ -39,8 +51,8 @@ export class CorrectionLoop {
     }
 
     let currentText = text;
-    let currentViolations = initialResult.violations;
-    const originalViolations = [...initialResult.violations];
+    let currentViolations = mergedViolations;
+    const originalViolations = [...mergedViolations];
     let attempts = 0;
     let totalTokensUsed = 0;
 
@@ -52,8 +64,8 @@ export class CorrectionLoop {
       totalTokensUsed += correctionResult.tokensUsed;
       currentText = correctionResult.correctedText;
 
-      // Check compliance of corrected text
-      const checkResult = this.checker.check(currentText);
+      // Check compliance of corrected text (async if chapterContext provided)
+      const checkResult = await this.checkText(currentText, chapterContext);
 
       if (checkResult.isCompliant) {
         return {

@@ -12,6 +12,7 @@ import {
   type ReaderJuryResult,
   type ThemeContext,
   type MacGuffinContext,
+  type ChapterContext,
   DEFAULT_FULL_PIPELINE_CONFIG,
 } from '../agents/types.js';
 import type { Plot, Chapter } from '../schemas/plot.js';
@@ -187,11 +188,13 @@ export class FullPipeline {
     const chapterResults: ChapterPipelineResult[] = [];
     let learningCandidates = 0;
     let antiPatternsCollected = 0;
+    const chapterContext: ChapterContext = { previousChapterTexts: [] };
 
     for (const chapter of plotResult.plot.chapters) {
       this.logger?.section(`Chapter ${chapter.index}: ${chapter.title}`);
-      const chapterResult = await this.generateChapter(chapter, plotResult.plot);
+      const chapterResult = await this.generateChapter(chapter, plotResult.plot, chapterContext);
       chapterResults.push(chapterResult);
+      chapterContext.previousChapterTexts.push(chapterResult.text);
       totalTokensUsed += chapterResult.tokensUsed;
 
       // Track learning candidates
@@ -314,10 +317,15 @@ export class FullPipeline {
       0
     );
     const antiPatternsCollected = 0;
+    // Reconstruct chapter context from completed chapters
+    const chapterContext: ChapterContext = {
+      previousChapterTexts: completedChapters.map(c => c.text),
+    };
 
     for (const chapter of remainingChapters) {
-      const chapterResult = await this.generateChapter(chapter, plot);
+      const chapterResult = await this.generateChapter(chapter, plot, chapterContext);
       chapterResults.push(chapterResult);
+      chapterContext.previousChapterTexts.push(chapterResult.text);
       totalTokensUsed += chapterResult.tokensUsed;
 
       if (chapterResult.learningResult && !chapterResult.learningResult.skipped) {
@@ -393,7 +401,8 @@ export class FullPipeline {
    */
   protected async generateChapter(
     chapter: Chapter,
-    plot: Plot
+    plot: Plot,
+    chapterContext?: ChapterContext,
   ): Promise<ChapterPipelineResult> {
     const tokensStart = this.llmClient.getTotalTokens();
 
@@ -455,10 +464,12 @@ export class FullPipeline {
       }
     }
 
-    // 2. Compliance check
+    // 2. Compliance check (with async rules and chapter context)
     this.logger?.section('Compliance Check');
-    const checker = ComplianceChecker.fromSoulText(this.soulManager.getSoulText(), this.narrativeRules);
-    let complianceResult: ComplianceResult = checker.check(finalText);
+    const checker = ComplianceChecker.fromSoulText(this.soulManager.getSoulText(), this.narrativeRules, this.llmClient);
+    let complianceResult: ComplianceResult = chapterContext
+      ? await checker.checkWithContext(finalText, chapterContext)
+      : checker.check(finalText);
     this.logger?.debug('Compliance result', complianceResult);
 
     // 3. Correction loop if needed
@@ -466,7 +477,7 @@ export class FullPipeline {
       this.logger?.section('Correction Loop');
       const corrector = new CorrectorAgent(this.llmClient, this.soulManager.getSoulText(), this.resolveThemeContext());
       const loop = new CorrectionLoop(corrector, checker, this.config.maxCorrectionAttempts);
-      const correctionResult = await loop.run(finalText);
+      const correctionResult = await loop.run(finalText, complianceResult.violations, chapterContext);
 
       correctionAttempts = correctionResult.attempts;
       finalText = correctionResult.finalText;
@@ -614,6 +625,35 @@ export class FullPipeline {
       parts.push('## 物語の謎（解決不要、雰囲気として漂わせること）');
       for (const m of this.config.plotMacGuffins) {
         parts.push(`- ${m.name}: ${m.tensionQuestions.join('、')}（${m.presenceHint}）`);
+      }
+      parts.push('');
+    }
+
+    // Variation constraints
+    if (chapter.variation_constraints) {
+      const vc = chapter.variation_constraints;
+      parts.push('### バリエーション制約');
+      parts.push(`- 構造型: ${vc.structure_type}`);
+      parts.push(`- 感情曲線: ${vc.emotional_arc}`);
+      parts.push(`- テンポ: ${vc.pacing}`);
+      if (vc.deviation_from_previous) {
+        parts.push(`- 前章との差分: ${vc.deviation_from_previous}`);
+      }
+      if (vc.motif_budget && vc.motif_budget.length > 0) {
+        parts.push('- モチーフ使用上限:');
+        for (const mb of vc.motif_budget) {
+          parts.push(`  - 「${mb.motif}」: 最大${mb.max_uses}回`);
+        }
+      }
+      parts.push('');
+    }
+
+    // Epistemic constraints
+    if (chapter.epistemic_constraints && chapter.epistemic_constraints.length > 0) {
+      parts.push('### 認識制約（epistemic constraints）');
+      parts.push('この章の各視点キャラクターは以下を知らない/見ない。厳守すること:');
+      for (const ec of chapter.epistemic_constraints) {
+        parts.push(`- ${ec.perspective}: ${ec.constraints.join(' / ')}`);
       }
       parts.push('');
     }

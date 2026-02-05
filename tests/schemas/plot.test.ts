@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ChapterSchema, PlotSchema } from '../../src/schemas/plot.js';
+import { ChapterSchema, PlotSchema, VariationConstraintsSchema, EpistemicConstraintSchema } from '../../src/schemas/plot.js';
 
 describe('ChapterSchema', () => {
   describe('valid data', () => {
@@ -108,6 +108,175 @@ describe('ChapterSchema', () => {
       const result = ChapterSchema.safeParse(chapter);
       expect(result.success).toBe(false);
     });
+  });
+});
+
+describe('VariationConstraintsSchema', () => {
+  it('should accept valid full constraints', () => {
+    const constraints = {
+      structure_type: 'parallel_montage',
+      emotional_arc: 'ascending',
+      pacing: 'slow_burn',
+      deviation_from_previous: '前章の単一シーンから並列モンタージュへ転換',
+      motif_budget: [
+        { motif: '×マーク', max_uses: 2 },
+        { motif: 'ARタグ', max_uses: 3 },
+      ],
+    };
+
+    const result = VariationConstraintsSchema.safeParse(constraints);
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept minimal constraints (required fields only)', () => {
+    const constraints = {
+      structure_type: 'single_scene',
+      emotional_arc: 'descending',
+      pacing: 'rapid_cuts',
+    };
+
+    const result = VariationConstraintsSchema.safeParse(constraints);
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject empty structure_type', () => {
+    const constraints = {
+      structure_type: '',
+      emotional_arc: 'ascending',
+      pacing: 'slow_burn',
+    };
+
+    const result = VariationConstraintsSchema.safeParse(constraints);
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject non-positive max_uses in motif_budget', () => {
+    const constraints = {
+      structure_type: 'single_scene',
+      emotional_arc: 'ascending',
+      pacing: 'slow_burn',
+      motif_budget: [{ motif: '×マーク', max_uses: 0 }],
+    };
+
+    const result = VariationConstraintsSchema.safeParse(constraints);
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('EpistemicConstraintSchema', () => {
+  it('should accept valid constraint with perspective and constraints', () => {
+    const constraint = {
+      perspective: '透心',
+      constraints: ['オペレーターが監視していることを知らない', 'ARの裏側の構造を直接見ない'],
+    };
+
+    const result = EpistemicConstraintSchema.safeParse(constraint);
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept single constraint', () => {
+    const constraint = {
+      perspective: 'オペレーター',
+      constraints: ['透心の内面を直接知覚しない'],
+    };
+
+    const result = EpistemicConstraintSchema.safeParse(constraint);
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject empty perspective', () => {
+    const constraint = {
+      perspective: '',
+      constraints: ['何かを知らない'],
+    };
+
+    const result = EpistemicConstraintSchema.safeParse(constraint);
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject empty constraints array', () => {
+    const constraint = {
+      perspective: '透心',
+      constraints: [],
+    };
+
+    const result = EpistemicConstraintSchema.safeParse(constraint);
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('ChapterSchema with epistemic_constraints', () => {
+  it('should accept chapter with epistemic_constraints', () => {
+    const chapter = {
+      index: 1,
+      title: '第一章',
+      summary: '物語の始まり',
+      key_events: ['イベント1'],
+      epistemic_constraints: [
+        { perspective: '透心', constraints: ['オペレーターの存在を知らない'] },
+        { perspective: 'オペレーター', constraints: ['透心の内面を直接知覚しない'] },
+      ],
+    };
+
+    const result = ChapterSchema.safeParse(chapter);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.epistemic_constraints).toHaveLength(2);
+      expect(result.data.epistemic_constraints![0].perspective).toBe('透心');
+    }
+  });
+
+  it('should accept chapter without epistemic_constraints', () => {
+    const chapter = {
+      index: 1,
+      title: '第一章',
+      summary: '物語の始まり',
+      key_events: ['イベント1'],
+    };
+
+    const result = ChapterSchema.safeParse(chapter);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.epistemic_constraints).toBeUndefined();
+    }
+  });
+});
+
+describe('ChapterSchema with variation_constraints', () => {
+  it('should accept chapter with variation_constraints', () => {
+    const chapter = {
+      index: 1,
+      title: '第一章',
+      summary: '物語の始まり',
+      key_events: ['イベント1'],
+      variation_constraints: {
+        structure_type: 'single_scene',
+        emotional_arc: 'ascending',
+        pacing: 'slow_burn',
+      },
+    };
+
+    const result = ChapterSchema.safeParse(chapter);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.variation_constraints).toBeDefined();
+      expect(result.data.variation_constraints?.structure_type).toBe('single_scene');
+    }
+  });
+
+  it('should accept chapter without variation_constraints', () => {
+    const chapter = {
+      index: 1,
+      title: '第一章',
+      summary: '物語の始まり',
+      key_events: ['イベント1'],
+    };
+
+    const result = ChapterSchema.safeParse(chapter);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.variation_constraints).toBeUndefined();
+    }
   });
 });
 
