@@ -68,6 +68,25 @@
         "worldbuilding": 0.25,
         "readability": 0.1
       }
+    },
+    {
+      "id": "structure-critic",
+      "name": "構造批評家",
+      "description": "物語の構造的多様性を評価する批評家。章の構造・テンポ・感情曲線の単調さ、モチーフの過剰使用、同じ展開パターンの繰り返しに厳しく低評価を付ける。",
+      "preferences": [
+        "章の構造的多様性（opening手法、展開パターン、ending手法の変化）",
+        "感情曲線の変化と予測不可能性",
+        "モチーフ・リフレインの適切な使用頻度（磨耗していないか）",
+        "テンポの変化（全章が同じペースでないか）",
+        "過剰な説明や心情の直接描写がないか"
+      ],
+      "evaluation_weights": {
+        "style": 0.1,
+        "plot": 0.35,
+        "character": 0.1,
+        "worldbuilding": 0.1,
+        "readability": 0.35
+      }
     }
   ]
 }

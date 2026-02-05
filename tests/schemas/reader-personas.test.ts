@@ -9,7 +9,7 @@ describe('ReaderPersonasSchema', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.personas).toHaveLength(4);
+      expect(result.data.personas).toHaveLength(5);
     }
   });
 
@@ -41,6 +41,7 @@ describe('ReaderPersonasSchema', () => {
       expect(ids).toContain('literary-reader');
       expect(ids).toContain('editor');
       expect(ids).toContain('bradbury-enthusiast');
+      expect(ids).toContain('structure-critic');
     }
   });
 });

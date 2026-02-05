@@ -31,16 +31,45 @@ const SUBMIT_PLOT_TOOL: ToolDefinition = {
               summary: { type: 'string' },
               key_events: { type: 'array', items: { type: 'string' } },
               target_length: { type: 'number' },
+              variation_constraints: {
+                type: 'object',
+                properties: {
+                  structure_type: { type: 'string' },
+                  emotional_arc: { type: 'string' },
+                  pacing: { type: 'string' },
+                  deviation_from_previous: { type: 'string' },
+                  motif_budget: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        motif: { type: 'string' },
+                        max_uses: { type: 'number' },
+                      },
+                      required: ['motif', 'max_uses'],
+                    },
+                  },
+                },
+                required: ['structure_type', 'emotional_arc', 'pacing'],
+              },
+              epistemic_constraints: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    perspective: { type: 'string' },
+                    constraints: { type: 'array', items: { type: 'string' } },
+                  },
+                  required: ['perspective', 'constraints'],
+                },
+              },
             },
             required: ['index', 'title', 'summary', 'key_events', 'target_length'],
-            additionalProperties: false,
           },
         },
       },
       required: ['title', 'theme', 'chapters'],
-      additionalProperties: false,
     },
-    strict: true,
   },
 };
 

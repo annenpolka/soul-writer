@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { ComplianceChecker } from '../../src/compliance/checker.js';
 import { ForbiddenWordsRule } from '../../src/compliance/rules/forbidden-words.js';
+import type { AsyncComplianceRule } from '../../src/compliance/rules/async-rule.js';
 import { createMockSoulText } from '../helpers/mock-soul-text.js';
 
 const mockSoulText = createMockSoulText({
@@ -118,6 +119,96 @@ describe('ComplianceChecker', () => {
       expect(rules.length).toBeGreaterThanOrEqual(2);
       expect(rules.some((r) => r.name === 'forbidden_words')).toBe(true);
       expect(rules.some((r) => r.name === 'forbidden_similes')).toBe(true);
+    });
+  });
+
+  describe('checkWithContext', () => {
+    it('should run both sync and async rules', async () => {
+      const mockAsyncRule: AsyncComplianceRule = {
+        name: 'test_async',
+        check: vi.fn().mockResolvedValue([
+          {
+            type: 'self_repetition',
+            position: { start: 0, end: 5 },
+            context: 'test context',
+            rule: 'test rule',
+            severity: 'warning',
+          },
+        ]),
+      };
+
+      const syncRules = [new ForbiddenWordsRule(['とても'])];
+      const checker = new ComplianceChecker(syncRules, [mockAsyncRule]);
+
+      const result = await checker.checkWithContext('とても美しかった。');
+
+      // Should have both sync (forbidden_word) and async (self_repetition) violations
+      expect(result.violations.some(v => v.type === 'forbidden_word')).toBe(true);
+      expect(result.violations.some(v => v.type === 'self_repetition')).toBe(true);
+      expect(result.violations.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should pass chapter context to async rules', async () => {
+      const mockAsyncRule: AsyncComplianceRule = {
+        name: 'test_async',
+        check: vi.fn().mockResolvedValue([]),
+      };
+
+      const checker = new ComplianceChecker([], [mockAsyncRule]);
+      const chapterContext = { previousChapterTexts: ['前章のテキスト。'] };
+
+      await checker.checkWithContext('現在のテキスト。', chapterContext);
+
+      expect(mockAsyncRule.check).toHaveBeenCalledWith('現在のテキスト。', chapterContext);
+    });
+
+    it('should return compliant when no violations from either sync or async', async () => {
+      const mockAsyncRule: AsyncComplianceRule = {
+        name: 'test_async',
+        check: vi.fn().mockResolvedValue([]),
+      };
+
+      const checker = new ComplianceChecker([], [mockAsyncRule]);
+      const result = await checker.checkWithContext('問題のないテキスト。');
+
+      expect(result.isCompliant).toBe(true);
+      expect(result.score).toBe(1);
+      expect(result.violations).toHaveLength(0);
+    });
+  });
+
+  describe('getAsyncRules', () => {
+    it('should return async rules when provided', () => {
+      const mockAsyncRule: AsyncComplianceRule = {
+        name: 'test_async',
+        check: vi.fn(),
+      };
+      const checker = new ComplianceChecker([], [mockAsyncRule]);
+      expect(checker.getAsyncRules()).toHaveLength(1);
+      expect(checker.getAsyncRules()[0].name).toBe('test_async');
+    });
+
+    it('should return empty array when no async rules', () => {
+      const checker = new ComplianceChecker([]);
+      expect(checker.getAsyncRules()).toHaveLength(0);
+    });
+  });
+
+  describe('fromSoulText with llmClient', () => {
+    it('should register SelfRepetitionRule when llmClient is provided', () => {
+      const mockLLMClient = {
+        complete: vi.fn(),
+        completeWithTools: vi.fn(),
+        getTotalTokens: vi.fn().mockReturnValue(0),
+      };
+      const checker = ComplianceChecker.fromSoulText(mockSoulText, undefined, mockLLMClient);
+      expect(checker.getAsyncRules()).toHaveLength(1);
+      expect(checker.getAsyncRules()[0].name).toBe('self_repetition');
+    });
+
+    it('should not register async rules when llmClient is not provided', () => {
+      const checker = ComplianceChecker.fromSoulText(mockSoulText);
+      expect(checker.getAsyncRules()).toHaveLength(0);
     });
   });
 });

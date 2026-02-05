@@ -141,9 +141,40 @@
         "source": "pattern_analysis",
         "added_at": "2025-02-01T00:00:00Z"
       }
+    ],
+    "symbolic_explanation": [
+      {
+        "id": "anti-symbolic-001",
+        "text": "心の中で、ライオンが咆哮する。それは破壊衝動のメタファーであり、この偽りの天蓋を引き裂きたいという願望の象徴だ。",
+        "reason": "ライオンの咆哮というイメージが十分に強いのに、直後に「メタファーであり」「象徴だ」と解説している。読者が感じ取るべき意味を地の文が奪っている。",
+        "source": "pattern_analysis",
+        "added_at": "2026-02-05T00:00:00Z"
+      },
+      {
+        "id": "anti-symbolic-002",
+        "text": "だが、ライオンは静かだ。それは私が、自分の道を歩いていることを意味している。",
+        "reason": "ライオンの沈黙という暗示的なイメージの直後に、「〜を意味している」と解釈を強制。沈黙が持つ余韻を殺している。",
+        "source": "pattern_analysis",
+        "added_at": "2026-02-05T00:00:00Z"
+      },
+      {
+        "id": "anti-symbolic-003",
+        "text": "覚えていないこと自体が、記憶の何を意味しているのか。この味は、私が選んで忘れた記憶の残響なのかもしれない。",
+        "reason": "味覚の描写で十分に不穏さが伝わるのに、直後に「記憶の残響なのかもしれない」と解説。曖昧さを保つべき場面で解釈を押しつけている。",
+        "source": "pattern_analysis",
+        "added_at": "2026-02-05T00:00:00Z"
+      },
+      {
+        "id": "anti-symbolic-004",
+        "text": "「でも、システムは『正常』として処理する。アルゴリズムは、あの膨れ上がった腹を『豊穣の象徴』と解釈して、さらに輝くエフェクトを重ねるんだ」",
+        "reason": "膨れ上がった腹のグロテスクなイメージが、キャラクターの台詞で「豊穣の象徴」と名指しされることで視覚的恐怖が削がれる。",
+        "source": "pattern_analysis",
+        "added_at": "2026-02-05T00:00:00Z"
+      }
     ]
   },
   "violation_mapping": {
+    "symbolic_explanation": "symbolic_explanation",
     "theme_violation": "theme_violation",
     "forbidden_word": "cliche_simile",
     "forbidden_simile": "cliche_simile",
