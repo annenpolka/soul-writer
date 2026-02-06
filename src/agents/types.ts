@@ -116,7 +116,8 @@ export type ViolationType =
   | 'pov_violation'
   | 'markdown_contamination'
   | 'quote_direct_copy'
-  | 'self_repetition';
+  | 'self_repetition'
+  | 'chapter_variation';
 
 /**
  * A single violation found in text

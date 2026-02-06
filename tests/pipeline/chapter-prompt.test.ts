@@ -229,4 +229,99 @@ describe('buildChapterPrompt', () => {
     expect(result).not.toContain('## キャラクターの秘密');
     expect(result).not.toContain('## 物語の謎');
   });
+
+  it('dramaturgy 注入時のプロンプト', () => {
+    const chapterWithDramaturgy: Chapter = {
+      ...mockChapter,
+      dramaturgy: '透心の内なる殺意が初めて外界に漏れ出す瞬間',
+    };
+    const input: ChapterPromptInput = { chapter: chapterWithDramaturgy, plot: mockPlot };
+    const result = buildChapterPrompt(input);
+
+    expect(result).toContain('### ドラマトゥルギー（起動装置）');
+    expect(result).toContain('透心の内なる殺意が初めて外界に漏れ出す瞬間');
+  });
+
+  it('arc_role 注入時のプロンプト', () => {
+    const chapterWithArcRole: Chapter = {
+      ...mockChapter,
+      arc_role: '序破急の「序」— 日常の提示と違和感の種蒔き',
+    };
+    const input: ChapterPromptInput = { chapter: chapterWithArcRole, plot: mockPlot };
+    const result = buildChapterPrompt(input);
+
+    expect(result).toContain('### 物語的機能');
+    expect(result).toContain('序破急の「序」— 日常の提示と違和感の種蒔き');
+  });
+
+  it('emotional_beats 注入時のプロンプト', () => {
+    const chapterWithEmotionalBeats: Chapter = {
+      ...mockChapter,
+      variation_constraints: {
+        structure_type: 'single_scene',
+        emotional_arc: 'ascending',
+        pacing: 'slow_burn',
+        emotional_beats: ['疎外', '怒り', '麻痺', '微かな希望'],
+      },
+    };
+    const input: ChapterPromptInput = { chapter: chapterWithEmotionalBeats, plot: mockPlot };
+    const result = buildChapterPrompt(input);
+
+    expect(result).toContain('- 感情ビート（この順序で遷移させること）: 疎外 → 怒り → 麻痺 → 微かな希望');
+  });
+
+  it('forbidden_patterns 注入時のプロンプト', () => {
+    const chapterWithForbidden: Chapter = {
+      ...mockChapter,
+      variation_constraints: {
+        structure_type: 'parallel_montage',
+        emotional_arc: 'descending',
+        pacing: 'rapid_cuts',
+        forbidden_patterns: ['冒頭の独白', '夢オチ', '説明的な回想'],
+      },
+    };
+    const input: ChapterPromptInput = { chapter: chapterWithForbidden, plot: mockPlot };
+    const result = buildChapterPrompt(input);
+
+    expect(result).toContain('- 禁止パターン（以下は使用禁止）:');
+    expect(result).toContain('  - 冒頭の独白');
+    expect(result).toContain('  - 夢オチ');
+    expect(result).toContain('  - 説明的な回想');
+  });
+
+  it('previousChapterAnalysis 注入時のプロンプト', () => {
+    const input: ChapterPromptInput = {
+      chapter: mockChapter,
+      plot: mockPlot,
+      previousChapterAnalysis: {
+        storySummary: '透心が教室で静かに怒りを溜め込む場面',
+        avoidanceDirective: {
+          emotionalBeats: ['孤独', '怒り', '麻痺'],
+          dominantImagery: ['灰色', '金属', '冷たさ'],
+          rhythmProfile: '短文連打のスタッカート',
+          structuralPattern: '観察→異常発見→内省→未解決',
+        },
+      },
+    };
+    const result = buildChapterPrompt(input);
+
+    expect(result).toContain('## 前章からの接続と変奏');
+    expect(result).toContain('### 前章の概要');
+    expect(result).toContain('透心が教室で静かに怒りを溜め込む場面');
+    expect(result).toContain('### この章で避けるべきパターン（前章で使用済み）');
+    expect(result).toContain('- 感情遷移: 孤独 → 怒り → 麻痺');
+    expect(result).toContain('- 支配的イメージ: 灰色、金属、冷たさ');
+    expect(result).toContain('- リズム: 短文連打のスタッカート');
+    expect(result).toContain('- 構造: 観察→異常発見→内省→未解決');
+    expect(result).toContain('上記と異なるアプローチで執筆すること。');
+  });
+
+  it('previousChapterAnalysis なしの場合は前章セクションを出力しない', () => {
+    const input: ChapterPromptInput = { chapter: mockChapter, plot: mockPlot };
+    const result = buildChapterPrompt(input);
+
+    expect(result).not.toContain('## 前章からの接続と変奏');
+    expect(result).not.toContain('### 前章の概要');
+    expect(result).not.toContain('この章で避けるべきパターン');
+  });
 });

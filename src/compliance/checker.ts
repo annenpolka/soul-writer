@@ -9,6 +9,7 @@ import { createRhythmCheckRule } from './rules/rhythm-check.js';
 import { createMarkdownContaminationRule } from './rules/markdown-contamination.js';
 import { createQuoteOriginalityRule } from './rules/quote-originality.js';
 import { createSelfRepetitionRule } from './rules/self-repetition.js';
+import { createChapterVariationRule } from './rules/chapter-variation.js';
 import type { SoulText } from '../soul/manager.js';
 import type { NarrativeRules } from '../factory/narrative-rules.js';
 import type { LLMClient } from '../llm/types.js';
@@ -69,6 +70,7 @@ function buildRulesFromSoulText(
   const asyncRules: AsyncComplianceRule[] = [];
   if (llmClient) {
     asyncRules.push(createSelfRepetitionRule(llmClient));
+    asyncRules.push(createChapterVariationRule(llmClient));
   }
 
   return { rules, asyncRules };

@@ -15,7 +15,6 @@ import { createMockSoulText } from '../helpers/mock-soul-text.js';
 import {
   createFullPipeline,
   type FullPipelineDeps,
-  type FullPipelineRunner,
 } from '../../src/pipeline/full.js';
 
 // Mock LLM client
@@ -139,6 +138,48 @@ const createMockLLMClient = (): LLMClient => {
                 scores: { A: { style: 0.9, compliance: 0.85, overall: 0.87 }, B: { style: 0.8, compliance: 0.82, overall: 0.81 } },
                 praised_excerpts: { A: [], B: [] },
               }),
+            },
+          }],
+          content: null, tokensUsed: 50,
+        });
+      }
+      if (toolName === 'report_chapter_analysis') {
+        return Promise.resolve({
+          toolCalls: [{
+            id: 'tc-1', type: 'function',
+            function: {
+              name: 'report_chapter_analysis',
+              arguments: JSON.stringify({
+                storySummary: '前章の要約',
+                emotionalBeats: ['疎外', '怒り'],
+                dominantImagery: ['金属', '冷たさ'],
+                rhythmProfile: '短文連打',
+                structuralPattern: '観察→内省',
+              }),
+            },
+          }],
+          content: null, tokensUsed: 50,
+        });
+      }
+      if (toolName === 'report_chapter_variation') {
+        return Promise.resolve({
+          toolCalls: [{
+            id: 'tc-1', type: 'function',
+            function: {
+              name: 'report_chapter_variation',
+              arguments: JSON.stringify({ issues: [] }),
+            },
+          }],
+          content: null, tokensUsed: 50,
+        });
+      }
+      if (toolName === 'report_repetitions') {
+        return Promise.resolve({
+          toolCalls: [{
+            id: 'tc-1', type: 'function',
+            function: {
+              name: 'report_repetitions',
+              arguments: JSON.stringify({ repetitions: [] }),
             },
           }],
           content: null, tokensUsed: 50,
