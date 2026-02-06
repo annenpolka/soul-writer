@@ -3,6 +3,7 @@ import type { SoulText } from '../soul/manager.js';
 import type { NarrativeRules } from '../factory/narrative-rules.js';
 import type { TournamentResult } from '../tournament/arena.js';
 import type { ComplianceResult, ReaderJuryResult, ThemeContext, MacGuffinContext, ChapterContext } from '../agents/types.js';
+import type { AntiPattern } from '../learning/anti-soul-collector.js';
 import type { DevelopedCharacter } from '../factory/character-developer.js';
 import type { LoggerFn } from '../logger.js';
 
@@ -18,6 +19,7 @@ export interface PipelineContext {
   synthesized: boolean;
   readerRetakeCount: number;
   chapterContext?: ChapterContext;
+  collectedAntiPatterns?: AntiPattern[];
   deps: PipelineDeps;
 }
 

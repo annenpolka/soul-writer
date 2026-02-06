@@ -5,7 +5,6 @@ import { parseToolArguments } from '../../llm/tooling.js';
 
 /**
  * Parse a tool-call response into a Plot (pure function).
- * Equivalent to PlotterAgent.parseToolResponse().
  * Throws on parse failure or schema validation failure.
  */
 export function parsePlotResponse(response: ToolCallResponse): Plot {

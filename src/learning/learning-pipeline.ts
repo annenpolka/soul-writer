@@ -1,5 +1,5 @@
-import type { FragmentExtractor, FragmentExtractorFn } from './fragment-extractor.js';
-import type { SoulExpander, SoulExpanderFn } from './soul-expander.js';
+import type { FragmentExtractorFn } from './fragment-extractor.js';
+import type { SoulExpanderFn } from './soul-expander.js';
 
 export interface LearningThresholds {
   minComplianceScore: number;
@@ -36,8 +36,8 @@ export interface LearningRunner {
 }
 
 export function createLearningPipeline(
-  extractor: FragmentExtractorFn | FragmentExtractor,
-  expander: SoulExpanderFn | SoulExpander,
+  extractor: FragmentExtractorFn,
+  expander: SoulExpanderFn,
   thresholdsOverride: Partial<LearningThresholds> = {}
 ): LearningRunner {
   const thresholds = { ...DEFAULT_THRESHOLDS, ...thresholdsOverride };

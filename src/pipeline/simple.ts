@@ -95,7 +95,6 @@ export function createSimplePipeline(config: SimplePipelineConfig = {}): Pipelin
 
 /**
  * Generate text using tournament competition with optional post-processing.
- * Standalone FP function that replaces the SimplePipeline adapter class.
  */
 export async function generateSimple(
   llmClient: LLMClient,

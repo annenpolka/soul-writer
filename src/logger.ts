@@ -12,6 +12,7 @@ export interface LoggerOptions {
 
 export interface LoggerFn {
   info: (message: string) => void;
+  warn: (message: string, data?: unknown) => void;
   debug: (message: string, data?: unknown) => void;
   section: (title: string) => void;
   close: () => void;
@@ -37,6 +38,14 @@ export function createLogger(options: LoggerOptions): LoggerFn {
       writeToFile(message);
     },
 
+    warn: (message, data?) => {
+      const line = data !== undefined
+        ? `${message}\n${data instanceof Error ? data.message : typeof data === 'string' ? data : JSON.stringify(data, null, 2)}`
+        : message;
+      console.warn(`[WARN] ${line}`);
+      writeToFile(`[WARN] ${line}`);
+    },
+
     debug: (message, data?) => {
       if (!verbose) return;
       const line = data !== undefined
@@ -58,8 +67,3 @@ export function createLogger(options: LoggerOptions): LoggerFn {
     },
   };
 }
-
-// =====================
-// Adapter (backwards-compatible)
-// =====================
-

@@ -12,7 +12,6 @@ export interface ReaderEvalContextInput {
 
 /**
  * Build the template context for a reader evaluator prompt (pure function).
- * Equivalent to the context-building portion of ReaderEvaluator.evaluate().
  */
 export function buildReaderEvalContext(input: ReaderEvalContextInput): Record<string, string> {
   const { persona, text, previousEvaluation } = input;

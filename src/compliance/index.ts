@@ -1,7 +1,4 @@
-export { ComplianceChecker } from './checker.js';
+export { createComplianceChecker, createCheckerFromSoulText, type ComplianceCheckerFn } from './checker.js';
 export {
-  ForbiddenWordsRule,
-  ForbiddenSimilesRule,
-  SpecialMarksRule,
   type ComplianceRule,
 } from './rules/index.js';

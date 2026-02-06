@@ -25,8 +25,8 @@ export function createAntiSoulCollectionStage(): PipelineStage {
       originalViolations: ctx.complianceResult.violations,
     };
 
-    collector.collectFromFailedCorrection(correctionResult);
+    const antiPatterns = collector.collectFromFailedCorrection(correctionResult);
 
-    return ctx;
+    return { ...ctx, collectedAntiPatterns: antiPatterns };
   };
 }

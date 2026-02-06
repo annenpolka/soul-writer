@@ -4,13 +4,13 @@ import { parseToolArguments } from '../../llm/tooling.js';
 
 /**
  * Parse a tool-call response into a JudgeResult (pure function).
- * Equivalent to JudgeAgent.parseToolResponse().
  */
 export function parseJudgeResponse(response: ToolCallResponse): JudgeResult {
   let parsed: unknown;
   try {
     parsed = parseToolArguments<unknown>(response, 'submit_judgement');
-  } catch {
+  } catch (e) {
+    console.warn('[judge-parser] Tool call parsing failed, using fallback result:', e instanceof Error ? e.message : e);
     return createFallbackResult();
   }
 
@@ -33,14 +33,14 @@ export function parseJudgeResponse(response: ToolCallResponse): JudgeResult {
         B: Array.isArray(candidate.praised_excerpts?.B) ? candidate.praised_excerpts?.B as string[] : [],
       },
     };
-  } catch {
+  } catch (e) {
+    console.warn('[judge-parser] Response structure parsing failed, using fallback result:', e instanceof Error ? e.message : e);
     return createFallbackResult();
   }
 }
 
 /**
  * Normalize a score breakdown by clamping all values to [0.05, 0.95] (pure function).
- * Equivalent to JudgeAgent.normalizeScore().
  */
 export function normalizeScore(score: Partial<ScoreBreakdown> | undefined): ScoreBreakdown {
   const clamp = (v: number | undefined) => {
@@ -60,7 +60,6 @@ export function normalizeScore(score: Partial<ScoreBreakdown> | undefined): Scor
 
 /**
  * Create a fallback JudgeResult when parsing fails (pure function).
- * Equivalent to JudgeAgent.createFallbackResult().
  */
 export function createFallbackResult(): JudgeResult {
   return {

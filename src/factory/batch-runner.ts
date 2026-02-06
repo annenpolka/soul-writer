@@ -62,7 +62,7 @@ export interface ThemeGenerator {
 }
 
 export interface CharacterDeveloper {
-  develop(theme: GeneratedTheme): Promise<CharacterDevelopResult>;
+  develop(theme: GeneratedTheme, charMacGuffins?: CharacterMacGuffin[]): Promise<CharacterDevelopResult>;
 }
 
 export interface PipelineInstance {
@@ -115,8 +115,17 @@ export function createBatchRunner(
       const mockSoulManager = {
         getSoulText: () => deps.soulText,
         getConstitution: () => deps.soulText.constitution,
-        getWriterPersonas: () => deps.soulText.writerPersonas ?? [],
+        getWorldBible: () => deps.soulText.worldBible,
+        getAntiSoul: () => deps.soulText.antiSoul,
+        getReaderPersonas: () => deps.soulText.readerPersonas,
+        getFragmentsForCategory: (category: string) => deps.soulText.fragments.get(category) ?? [],
+        getAllFragments: () => deps.soulText.fragments,
         getPromptConfig: () => deps.soulText.promptConfig,
+        getWriterPersonas: () => deps.soulText.writerPersonas ?? [],
+        getCollabPersonas: () => deps.soulText.writerPersonas?.slice(0, 3) ?? [],
+        getRawSoultext: () => deps.soulText.rawSoultext,
+        clearRawSoultext: () => {},
+        buildSystemPrompt: () => '',
       } as SoulTextManagerFn;
 
       return createFullPipeline({

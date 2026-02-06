@@ -1,5 +1,4 @@
 import type {
-  SoulCandidateRepository,
   SoulCandidateRepo,
   SoulCandidate,
 } from '../storage/soul-candidate-repository.js';
@@ -19,7 +18,7 @@ export interface SoulExpanderFn {
   getCountsByStatus(soulId: string): Promise<{ pending: number; approved: number; rejected: number }>;
 }
 
-export function createSoulExpander(candidateRepo: SoulCandidateRepo | SoulCandidateRepository): SoulExpanderFn {
+export function createSoulExpander(candidateRepo: SoulCandidateRepo): SoulExpanderFn {
   return {
     async addCandidates(
       soulId: string,

@@ -5,7 +5,6 @@ import { parseToolArguments } from '../../llm/tooling.js';
 
 /**
  * Clamp a score to [0, 1], defaulting undefined/NaN to 0.5 (pure function).
- * Equivalent to ReaderEvaluator.clampScore().
  */
 export function clampScore(score: number | undefined): number {
   if (score === undefined || isNaN(score)) return 0.5;
@@ -14,7 +13,6 @@ export function clampScore(score: number | undefined): number {
 
 /**
  * Return default category scores (all 0.5) (pure function).
- * Equivalent to ReaderEvaluator.getDefaultScores().
  */
 export function getDefaultScores(): CategoryScores {
   return {
@@ -28,7 +26,6 @@ export function getDefaultScores(): CategoryScores {
 
 /**
  * Normalize partial scores into a complete CategoryScores (pure function).
- * Equivalent to ReaderEvaluator.normalizeScores().
  */
 export function normalizeScores(
   scores: Partial<CategoryScores> | undefined,
@@ -44,7 +41,6 @@ export function normalizeScores(
 
 /**
  * Calculate weighted score from category scores and persona weights (pure function).
- * Equivalent to ReaderEvaluator.calculateWeightedScore().
  */
 export function calculateWeightedScore(
   scores: CategoryScores,
@@ -61,7 +57,6 @@ export function calculateWeightedScore(
 
 /**
  * Parse a tool-call response into a PersonaEvaluation (pure function).
- * Equivalent to ReaderEvaluator.parseToolResponse().
  */
 export function parseEvalToolResponse(
   response: ToolCallResponse,
@@ -79,7 +74,8 @@ export function parseEvalToolResponse(
   let parsed: unknown;
   try {
     parsed = parseToolArguments<unknown>(response, 'submit_reader_evaluation');
-  } catch {
+  } catch (e) {
+    console.warn('[reader-eval-parser] Tool call parsing failed, using default scores:', e instanceof Error ? e.message : e);
     parsed = null;
   }
 

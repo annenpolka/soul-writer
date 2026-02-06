@@ -11,7 +11,6 @@ export interface PlotterContextInput {
 
 /**
  * Build the full template context for a plotter prompt (pure function).
- * Equivalent to PlotterAgent.buildContext().
  */
 export function buildPlotterContext(input: PlotterContextInput): Record<string, unknown> {
   const { soulText, config } = input;

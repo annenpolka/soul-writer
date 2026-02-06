@@ -133,7 +133,8 @@ function parseCharDevToolResponse(response: ToolCallResponse, theme: GeneratedTh
   let raw: unknown;
   try {
     raw = parseToolArguments<unknown>(response, 'submit_characters');
-  } catch {
+  } catch (e) {
+    console.warn('[character-developer] Tool call parsing failed, using fallback:', e instanceof Error ? e.message : e);
     return charDevFallback(theme);
   }
 

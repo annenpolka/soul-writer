@@ -42,7 +42,8 @@ export function createFragmentExtractor(llmClient: LLMClient): FragmentExtractor
           fragments: parsed.fragments || [],
           tokensUsed,
         };
-      } catch {
+      } catch (e) {
+        console.warn('[fragment-extractor] JSON parse failed, returning empty fragments:', e instanceof Error ? e.message : e);
         return {
           fragments: [],
           tokensUsed,

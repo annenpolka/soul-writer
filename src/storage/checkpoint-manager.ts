@@ -1,5 +1,4 @@
 import type {
-  CheckpointRepository,
   CheckpointRepo,
   Checkpoint,
   CheckpointPhase,
@@ -22,7 +21,7 @@ export interface CheckpointManagerFn {
   clearCheckpoints: (taskId: string) => Promise<void>;
 }
 
-export function createCheckpointManager(repo: CheckpointRepo | CheckpointRepository): CheckpointManagerFn {
+export function createCheckpointManager(repo: CheckpointRepo): CheckpointManagerFn {
   return {
     saveCheckpoint: async (taskId, phase, state, progress = {}) => {
       return repo.create({ taskId, phase, progress, state });

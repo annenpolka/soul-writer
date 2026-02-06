@@ -15,7 +15,6 @@ export interface JudgeContextInput {
 
 /**
  * Build the full template context for a judge prompt (pure function).
- * Equivalent to JudgeAgent.buildContext().
  */
 export function buildJudgeContext(input: JudgeContextInput): Record<string, unknown> {
   const { soulText, narrativeRules, textA, textB, themeContext } = input;

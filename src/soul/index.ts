@@ -1,1 +1,1 @@
-export { SoulTextManager, type SoulText } from './manager.js';
+export { loadSoulText, type SoulTextManagerFn, type SoulText } from './manager.js';

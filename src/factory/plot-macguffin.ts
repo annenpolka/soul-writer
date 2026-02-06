@@ -98,7 +98,8 @@ function parsePlotMacGuffinToolResponse(response: ToolCallResponse): PlotMacGuff
   let raw: unknown;
   try {
     raw = parseToolArguments<unknown>(response, 'submit_plot_macguffins');
-  } catch {
+  } catch (e) {
+    console.warn('[plot-macguffin] Tool call parsing failed, using fallback:', e instanceof Error ? e.message : e);
     return plotMacGuffinFallback();
   }
 
@@ -108,8 +109,8 @@ function parsePlotMacGuffinToolResponse(response: ToolCallResponse): PlotMacGuff
   }
 
   const validated = items.map((item: unknown) => PlotMacGuffinSchema.safeParse(item))
-    .filter((r: { success: boolean }) => r.success)
-    .map((r: { success: true; data: PlotMacGuffin }) => r.data);
+    .filter((r): r is { success: true; data: PlotMacGuffin } => r.success)
+    .map((r) => r.data);
   return validated.length > 0 ? validated : plotMacGuffinFallback();
 }
 

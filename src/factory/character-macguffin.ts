@@ -97,7 +97,8 @@ function parseCharMacGuffinToolResponse(response: ToolCallResponse, theme: Gener
   let raw: unknown;
   try {
     raw = parseToolArguments<unknown>(response, 'submit_character_macguffins');
-  } catch {
+  } catch (e) {
+    console.warn('[character-macguffin] Tool call parsing failed, using fallback:', e instanceof Error ? e.message : e);
     return charMacGuffinFallback(theme);
   }
 
@@ -107,8 +108,8 @@ function parseCharMacGuffinToolResponse(response: ToolCallResponse, theme: Gener
   }
 
   const validated = items.map((item: unknown) => CharacterMacGuffinSchema.safeParse(item))
-    .filter((r: { success: boolean }) => r.success)
-    .map((r: { success: true; data: CharacterMacGuffin }) => r.data);
+    .filter((r): r is { success: true; data: CharacterMacGuffin } => r.success)
+    .map((r) => r.data);
   return validated.length > 0 ? validated : charMacGuffinFallback(theme);
 }
 

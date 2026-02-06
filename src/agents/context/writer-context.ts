@@ -19,7 +19,6 @@ export interface WriterContextInput {
 
 /**
  * Build the full template context for a writer prompt (pure function).
- * Equivalent to WriterAgent.buildContext().
  */
 export function buildWriterContext(input: WriterContextInput): Record<string, unknown> {
   const { prompt, soulText, config, narrativeRules, developedCharacters, themeContext, macGuffinContext } = input;
@@ -92,7 +91,6 @@ export function buildWriterContext(input: WriterContextInput): Record<string, un
 
 /**
  * Build the critical rules string (pure function).
- * Equivalent to WriterAgent.buildCriticalRules().
  */
 export function buildCriticalRules(soulText: SoulText, narrativeRules: NarrativeRules): string {
   const parts: string[] = [];
@@ -123,7 +121,6 @@ export function buildCriticalRules(soulText: SoulText, narrativeRules: Narrative
 
 /**
  * Build constitution data for the template (pure function).
- * Equivalent to WriterAgent.buildConstitutionData().
  */
 export function buildConstitutionData(soulText: SoulText, isDefaultProtagonist: boolean): Record<string, unknown> {
   const c = soulText.constitution;
@@ -163,7 +160,6 @@ export function buildConstitutionData(soulText: SoulText, isDefaultProtagonist: 
 
 /**
  * Build character constraint entries (pure function).
- * Equivalent to WriterAgent.buildCharacterConstraintEntries().
  */
 export function buildCharacterConstraintEntries(
   soulText: SoulText,
@@ -183,7 +179,6 @@ export function buildCharacterConstraintEntries(
 
 /**
  * Build anti-soul entries (pure function).
- * Equivalent to WriterAgent.buildAntiSoulEntries().
  */
 export function buildAntiSoulEntries(soulText: SoulText): Array<{ category: string; examples: Array<{ text: string; reason: string }> }> {
   const result: Array<{ category: string; examples: Array<{ text: string; reason: string }> }> = [];
@@ -203,7 +198,6 @@ export function buildAntiSoulEntries(soulText: SoulText): Array<{ category: stri
 
 /**
  * Build fragment categories (pure function).
- * Equivalent to WriterAgent.buildFragmentCategories().
  */
 export function buildFragmentCategories(
   soulText: SoulText,

@@ -2,7 +2,6 @@ import type { PersonaEvaluation } from '../types.js';
 
 /**
  * Calculate the aggregated score as the mean of all weighted scores (pure function).
- * Equivalent to ReaderJuryAgent.calculateAggregatedScore().
  */
 export function calculateAggregatedScore(evaluations: PersonaEvaluation[]): number {
   if (evaluations.length === 0) return 0;
@@ -12,7 +11,6 @@ export function calculateAggregatedScore(evaluations: PersonaEvaluation[]): numb
 
 /**
  * Generate a human-readable summary of evaluations (pure function).
- * Equivalent to ReaderJuryAgent.generateSummary().
  */
 export function generateSummary(
   evaluations: PersonaEvaluation[],

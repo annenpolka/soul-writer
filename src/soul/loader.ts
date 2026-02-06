@@ -22,7 +22,6 @@ export interface SoulTextLoadResult extends SoulText {
 
 /**
  * Load soul text from a directory (pure I/O function).
- * Extracts the load logic from SoulTextManager.load().
  */
 export async function loadSoulText(soulDir: string): Promise<SoulTextLoadResult> {
   if (!existsSync(soulDir)) {

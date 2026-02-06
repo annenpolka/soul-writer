@@ -40,7 +40,8 @@ function parseMotifToolResponse(response: ToolCallResponse): string[] {
   let parsed: unknown;
   try {
     parsed = parseToolArguments<unknown>(response, 'submit_motif_analysis');
-  } catch {
+  } catch (e) {
+    console.warn('[motif-analyzer] Tool call parsing failed, returning empty motifs:', e instanceof Error ? e.message : e);
     return [];
   }
 

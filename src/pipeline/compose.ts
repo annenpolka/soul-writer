@@ -41,7 +41,8 @@ export function tryStage(
   return async (ctx: PipelineContext): Promise<PipelineContext> => {
     try {
       return await stage(ctx);
-    } catch {
+    } catch (e) {
+      ctx.deps.logger?.warn('Pipeline stage failed, using fallback', e);
       if (fallback) {
         return fallback(ctx);
       }

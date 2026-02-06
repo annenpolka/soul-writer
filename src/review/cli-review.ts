@@ -1,4 +1,4 @@
-import type { SoulExpander, SoulExpanderFn } from '../learning/soul-expander.js';
+import type { SoulExpanderFn } from '../learning/soul-expander.js';
 import type { SoulCandidate } from '../storage/soul-candidate-repository.js';
 
 export interface ReviewStats {
@@ -19,7 +19,7 @@ export interface CLIReviewFn {
   getReviewStats: (soulId: string) => Promise<ReviewStats>;
 }
 
-export function createCLIReview(expander: SoulExpanderFn | SoulExpander): CLIReviewFn {
+export function createCLIReview(expander: SoulExpanderFn): CLIReviewFn {
   return {
     getPendingCandidates: async (soulId) => {
       return expander.getPendingCandidates(soulId);

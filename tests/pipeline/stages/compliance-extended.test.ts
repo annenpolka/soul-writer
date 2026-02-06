@@ -68,14 +68,9 @@ describe('createComplianceStage with chapterContext', () => {
     const checkWithContextMock = vi.fn().mockResolvedValue(mockResult);
 
     vi.doMock('../../../src/compliance/checker.js', () => ({
-      ComplianceChecker: {
-        fromSoulText: () => ({
-          checkWithContext: checkWithContextMock,
-        }),
-      },
-      createCheckerFromSoulText: () => {
-        throw new Error('should not be called when chapterContext is present');
-      },
+      createCheckerFromSoulText: () => ({
+        checkWithContext: checkWithContextMock,
+      }),
     }));
 
     const { createComplianceStage } = await import(
@@ -97,7 +92,7 @@ describe('createComplianceStage with chapterContext', () => {
     expect(checkWithContextMock).toHaveBeenCalledWith('chapter 2 text', chapterContext);
   });
 
-  it('should pass llmClient to ComplianceChecker.fromSoulText when chapterContext is present', async () => {
+  it('should pass llmClient to createCheckerFromSoulText when chapterContext is present', async () => {
     const capturedArgs: unknown[] = [];
     const mockResult: ComplianceResult = {
       isCompliant: true,
@@ -106,13 +101,11 @@ describe('createComplianceStage with chapterContext', () => {
     };
 
     vi.doMock('../../../src/compliance/checker.js', () => ({
-      ComplianceChecker: {
-        fromSoulText: (...args: unknown[]) => {
-          capturedArgs.push(...args);
-          return {
-            checkWithContext: vi.fn().mockResolvedValue(mockResult),
-          };
-        },
+      createCheckerFromSoulText: (...args: unknown[]) => {
+        capturedArgs.push(...args);
+        return {
+          checkWithContext: vi.fn().mockResolvedValue(mockResult),
+        };
       },
     }));
 
@@ -135,15 +128,13 @@ describe('createComplianceStage with chapterContext', () => {
 
   it('should preserve chapterContext in output context', async () => {
     vi.doMock('../../../src/compliance/checker.js', () => ({
-      ComplianceChecker: {
-        fromSoulText: () => ({
-          checkWithContext: vi.fn().mockResolvedValue({
-            isCompliant: true,
-            score: 1.0,
-            violations: [],
-          }),
+      createCheckerFromSoulText: () => ({
+        checkWithContext: vi.fn().mockResolvedValue({
+          isCompliant: true,
+          score: 1.0,
+          violations: [],
         }),
-      },
+      }),
     }));
 
     const { createComplianceStage } = await import(
