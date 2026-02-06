@@ -1,8 +1,7 @@
-import type { LLMClient } from '../llm/types.js';
-import type { SoulText } from '../soul/manager.js';
-import type { GenerationResult, ThemeContext } from '../agents/types.js';
+import type { GenerationResult, SynthesisDeps, Synthesizer } from '../agents/types.js';
 import type { MatchResult } from '../tournament/arena.js';
-import { type NarrativeRules, resolveNarrativeRules } from '../factory/narrative-rules.js';
+import { resolveNarrativeRules } from '../factory/narrative-rules.js';
+import { collectLoserExcerpts, buildSynthesisSystemPrompt, buildSynthesisUserPrompt } from '../agents/context/synthesis-context.js';
 
 export interface SynthesisResult {
   synthesizedText: string;
@@ -10,168 +9,38 @@ export interface SynthesisResult {
 }
 
 /**
- * Synthesizes the best elements from all tournament entries
- * into the champion text as a base.
- * Uses only praised_excerpts from Judge (not full loser texts) to stay within token limits.
+ * Create a functional SynthesisAgent from dependencies
  */
-export class SynthesisAgent {
-  private llmClient: LLMClient;
-  private soulText: SoulText;
-  private narrativeRules: NarrativeRules;
-  private themeContext?: ThemeContext;
+export function createSynthesisAgent(deps: SynthesisDeps): Synthesizer {
+  const { llmClient, soulText, themeContext } = deps;
+  const narrativeRules = deps.narrativeRules ?? resolveNarrativeRules();
 
-  constructor(llmClient: LLMClient, soulText: SoulText, narrativeRules?: NarrativeRules, themeContext?: ThemeContext) {
-    this.llmClient = llmClient;
-    this.soulText = soulText;
-    this.narrativeRules = narrativeRules ?? resolveNarrativeRules();
-    this.themeContext = themeContext;
-  }
+  return {
+    synthesize: async (
+      championText: string,
+      championId: string,
+      allGenerations: GenerationResult[],
+      rounds: MatchResult[],
+    ): Promise<SynthesisResult> => {
+      const loserExcerpts = collectLoserExcerpts(championId, allGenerations, rounds);
 
-  async synthesize(
-    championText: string,
-    championId: string,
-    allGenerations: GenerationResult[],
-    rounds: MatchResult[],
-  ): Promise<SynthesisResult> {
-    // Collect praised excerpts from losers across all rounds
-    const loserExcerpts = this.collectLoserExcerpts(championId, allGenerations, rounds);
-
-    // Skip synthesis if no excerpts found
-    if (loserExcerpts.length === 0) {
-      return { synthesizedText: championText, tokensUsed: 0 };
-    }
-
-    const tokensBefore = this.llmClient.getTotalTokens();
-    const systemPrompt = this.buildSystemPrompt();
-    const userPrompt = this.buildUserPrompt(championText, loserExcerpts);
-
-    const result = await this.llmClient.complete(systemPrompt, userPrompt, {
-      temperature: 0.6,
-    });
-
-    return {
-      synthesizedText: result,
-      tokensUsed: this.llmClient.getTotalTokens() - tokensBefore,
-    };
-  }
-
-  private collectLoserExcerpts(
-    championId: string,
-    allGenerations: GenerationResult[],
-    rounds: MatchResult[],
-  ): { writerId: string; excerpts: string[]; reasoning: string }[] {
-    const loserIds = allGenerations
-      .filter(g => g.writerId !== championId)
-      .map(g => g.writerId);
-
-    const results: { writerId: string; excerpts: string[]; reasoning: string }[] = [];
-
-    for (const loserId of loserIds) {
-      const excerpts: string[] = [];
-      const reasonings: string[] = [];
-
-      for (const match of rounds) {
-        const isA = match.contestantA === loserId;
-        const isB = match.contestantB === loserId;
-        if (!isA && !isB) continue;
-
-        // Get praised excerpts for this loser's side
-        const side = isA ? 'A' : 'B';
-        const praised = match.judgeResult.praised_excerpts?.[side];
-        if (praised && praised.length > 0) {
-          excerpts.push(...praised);
-        }
-
-        if (match.judgeResult.reasoning) {
-          reasonings.push(match.judgeResult.reasoning);
-        }
+      if (loserExcerpts.length === 0) {
+        return { synthesizedText: championText, tokensUsed: 0 };
       }
 
-      if (excerpts.length > 0 || reasonings.length > 0) {
-        results.push({
-          writerId: loserId,
-          excerpts,
-          reasoning: reasonings.join(' / '),
-        });
-      }
-    }
+      const tokensBefore = llmClient.getTotalTokens();
+      const systemPrompt = buildSynthesisSystemPrompt({ soulText, narrativeRules, themeContext });
+      const userPrompt = buildSynthesisUserPrompt(championText, loserExcerpts);
 
-    return results;
-  }
+      const result = await llmClient.complete(systemPrompt, userPrompt, {
+        temperature: 0.6,
+      });
 
-  private buildSystemPrompt(): string {
-    const constitution = this.soulText.constitution;
-    const parts: string[] = [];
-
-    parts.push('あなたは合成編集者です。');
-    parts.push('トーナメントの審査員が各テキストから抽出した「優れた表現」を、勝者テキストに自然に織り込みます。');
-    parts.push('');
-    parts.push('【合成ルール】');
-    parts.push('- ベーステキスト（勝者作品）の構造・プロット・声を維持すること');
-    parts.push('- 取り込むのは「表現の質感」「イメージの鮮度」「感情の動きの精度」のみ');
-    parts.push('- プロットや設定を変更しない');
-    parts.push('- ベーステキストの文字数を大幅に変えない（±10%以内）');
-    parts.push(`- 視点: ${this.narrativeRules.povDescription}`);
-    if (this.narrativeRules.pronoun) {
-      parts.push(`- 人称代名詞: 「${this.narrativeRules.pronoun}」を使用`);
-    }
-    parts.push('- 合成の痕跡が見えないよう、自然に織り込むこと');
-    parts.push('- 引用された表現をそのまま挿入するのではなく、文脈に溶け込む形で取り入れる');
-    parts.push('');
-
-    // Theme context for consistent tone/emotion
-    if (this.themeContext) {
-      parts.push('【テーマ・トーン】');
-      parts.push(`- 感情: ${this.themeContext.emotion}`);
-      parts.push(`- 時間軸: ${this.themeContext.timeline}`);
-      parts.push(`- 前提: ${this.themeContext.premise}`);
-      if (this.themeContext.tone) {
-        parts.push(`- 創作指針: ${this.themeContext.tone}`);
-      }
-      parts.push('');
-    }
-
-    const u = constitution.universal;
-    const ps = constitution.protagonist_specific;
-    parts.push('【文体基準】');
-    parts.push(`- リズム: ${ps.sentence_structure.rhythm_pattern}`);
-    parts.push(`- 禁止語彙: ${u.vocabulary.forbidden_words.join(', ')}`);
-    parts.push(`- 比喩基盤: ${u.rhetoric.simile_base}`);
-    parts.push(`- 禁止比喩: ${u.rhetoric.forbidden_similes.join(', ')}`);
-    parts.push('');
-    parts.push('出力はテキスト本文のみ。メタ情報や説明は含めないこと。');
-
-    return parts.join('\n');
-  }
-
-  private buildUserPrompt(
-    championText: string,
-    loserExcerpts: { writerId: string; excerpts: string[]; reasoning: string }[],
-  ): string {
-    const parts: string[] = [];
-
-    parts.push('## ベーステキスト（勝者作品）');
-    parts.push(championText);
-    parts.push('');
-
-    parts.push('## 落選テキストから抽出された優良表現');
-    for (const loser of loserExcerpts) {
-      parts.push(`### ${loser.writerId}`);
-      if (loser.reasoning) {
-        parts.push(`審査員コメント: ${loser.reasoning}`);
-      }
-      if (loser.excerpts.length > 0) {
-        parts.push('優れた表現:');
-        for (const excerpt of loser.excerpts) {
-          parts.push(`- 「${excerpt}」`);
-        }
-      }
-      parts.push('');
-    }
-
-    parts.push('上記の優良表現のエッセンスをベーステキストに自然に織り込んでください。');
-    parts.push('構造やプロットは変えず、表現の質を高めることが目的です。');
-
-    return parts.join('\n');
-  }
+      return {
+        synthesizedText: result,
+        tokensUsed: llmClient.getTotalTokens() - tokensBefore,
+      };
+    },
+  };
 }
+

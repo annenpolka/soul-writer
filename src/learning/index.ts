@@ -1,16 +1,19 @@
 export {
-  FragmentExtractor,
+  createFragmentExtractor,
+  type FragmentExtractorFn,
   type ExtractedFragment,
   type ExtractionContext,
   type ExtractionResult,
 } from './fragment-extractor.js';
-export { SoulExpander, type AddCandidatesResult } from './soul-expander.js';
+export { createSoulExpander, type SoulExpanderFn, type AddCandidatesResult } from './soul-expander.js';
 export {
-  AntiSoulCollector,
+  createAntiSoulCollector,
+  type AntiSoulCollectorFn,
   type AntiPattern,
 } from './anti-soul-collector.js';
 export {
-  LearningPipeline,
+  createLearningPipeline,
+  type LearningRunner,
   type LearningThresholds,
   type ProcessInput,
   type ProcessResult,

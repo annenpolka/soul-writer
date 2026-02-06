@@ -1,15 +1,15 @@
 import * as fs from 'node:fs';
 import dotenv from 'dotenv';
 import { CerebrasClient } from '../llm/cerebras.js';
-import { SoulTextManager } from '../soul/manager.js';
+import { loadSoulTextManager } from '../soul/manager.js';
 import { DatabaseConnection } from '../storage/database.js';
-import { TaskRepository } from '../storage/task-repository.js';
-import { WorkRepository } from '../storage/work-repository.js';
-import { CheckpointRepository } from '../storage/checkpoint-repository.js';
-import { CheckpointManager } from '../storage/checkpoint-manager.js';
-import { SoulCandidateRepository } from '../storage/soul-candidate-repository.js';
+import { createTaskRepo } from '../storage/task-repository.js';
+import { createWorkRepo } from '../storage/work-repository.js';
+import { createCheckpointRepo } from '../storage/checkpoint-repository.js';
+import { createCheckpointManager } from '../storage/checkpoint-manager.js';
+import { createSoulCandidateRepo } from '../storage/soul-candidate-repository.js';
 import { FactoryConfigSchema } from '../schemas/factory-config.js';
-import { BatchRunner, type ProgressInfo, calculateAnalytics, ReportGenerator } from '../factory/index.js';
+import { createBatchRunner, type ProgressInfo, calculateAnalytics, generateCliReport, generateJsonReport } from '../factory/index.js';
 
 dotenv.config();
 
@@ -88,7 +88,7 @@ export async function factory(options: FactoryOptions): Promise<void> {
 
   // 3. Load soul text
   console.log(`Loading soul text from "${config.soulPath}"...`);
-  const soulManager = await SoulTextManager.load(config.soulPath);
+  const soulManager = await loadSoulTextManager(config.soulPath);
   if (!options.includeRawSoultext) {
     soulManager.clearRawSoultext();
   }
@@ -101,17 +101,18 @@ export async function factory(options: FactoryOptions): Promise<void> {
   console.log(`✓ Database ready\n`);
 
   // 5. Create repositories
-  const taskRepo = new TaskRepository(db);
-  const workRepo = new WorkRepository(db);
-  const checkpointRepo = new CheckpointRepository(db);
-  const checkpointManager = new CheckpointManager(checkpointRepo);
-  const candidateRepo = new SoulCandidateRepository(db);
+  const sqlite = db.getSqlite();
+  const taskRepo = createTaskRepo(sqlite);
+  const workRepo = createWorkRepo(sqlite);
+  const checkpointRepo = createCheckpointRepo(sqlite);
+  const checkpointManager = createCheckpointManager(checkpointRepo);
+  const candidateRepo = createSoulCandidateRepo(sqlite);
 
   // 6. Create LLM client
   const llmClient = new CerebrasClient({ apiKey, model });
 
   // 7. Create and run batch runner
-  const runner = new BatchRunner(config, {
+  const runner = createBatchRunner(config, {
     soulText: soulManager.getSoulText(),
     llmClient,
     taskRepo,
@@ -135,8 +136,6 @@ export async function factory(options: FactoryOptions): Promise<void> {
 
     // Calculate analytics
     const analytics = calculateAnalytics(result);
-    const reporter = new ReportGenerator();
-
     // Final output
     console.log(`\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     console.log(`✓ Batch completed!`);
@@ -155,10 +154,10 @@ export async function factory(options: FactoryOptions): Promise<void> {
     }
 
     // Detailed report
-    console.log(reporter.generateCliReport(analytics));
+    console.log(generateCliReport(analytics));
 
     // Save JSON report
-    const jsonReport = reporter.generateJsonReport(result, analytics);
+    const jsonReport = generateJsonReport(result, analytics);
     const reportPath = `${config.outputDir}/report.json`;
     fs.writeFileSync(reportPath, JSON.stringify(jsonReport, null, 2));
     console.log(`\n📄 Report saved: ${reportPath}\n`);

@@ -1,8 +1,8 @@
 import dotenv from 'dotenv';
-import { SoulTextManager } from '../soul/manager.js';
+import { loadSoulTextManager } from '../soul/manager.js';
 import { DatabaseConnection } from '../storage/database.js';
-import { SoulCandidateRepository } from '../storage/soul-candidate-repository.js';
-import { SoulExpander } from '../learning/soul-expander.js';
+import { createSoulCandidateRepo } from '../storage/soul-candidate-repository.js';
+import { createSoulExpander } from '../learning/soul-expander.js';
 import * as readline from 'readline';
 
 dotenv.config();
@@ -38,7 +38,7 @@ export async function review(options: ReviewOptions): Promise<void> {
 
   // Load soul text
   console.log(`Loading soul text from "${soul}"...`);
-  const soulManager = await SoulTextManager.load(soul);
+  const soulManager = await loadSoulTextManager(soul);
   const soulId = soulManager.getConstitution().meta.soul_id;
   console.log(`✓ Loaded: ${soulManager.getConstitution().meta.soul_name}\n`);
 
@@ -49,8 +49,8 @@ export async function review(options: ReviewOptions): Promise<void> {
   console.log(`✓ Database ready\n`);
 
   // Create repository and expander
-  const candidateRepo = new SoulCandidateRepository(db);
-  const expander = new SoulExpander(candidateRepo);
+  const candidateRepo = createSoulCandidateRepo(db.getSqlite());
+  const expander = createSoulExpander(candidateRepo);
 
   // Get counts
   const counts = await expander.getCountsByStatus(soulId);

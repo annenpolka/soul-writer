@@ -46,6 +46,14 @@ const REPORT_REPETITIONS_TOOL: ToolDefinition = {
  * LLM-based self-repetition detection rule
  * Detects excessive repetition within a chapter and across chapters
  */
+export function createSelfRepetitionRule(llmClient: LLMClient): AsyncComplianceRule {
+  const rule = new SelfRepetitionRule(llmClient);
+  return {
+    name: rule.name,
+    check: (text: string, chapterContext?: ChapterContext) => rule.check(text, chapterContext),
+  };
+}
+
 export class SelfRepetitionRule implements AsyncComplianceRule {
   readonly name = 'self_repetition';
   private llmClient: LLMClient;

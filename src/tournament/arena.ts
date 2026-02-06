@@ -1,11 +1,6 @@
-import type { LLMClient } from '../llm/types.js';
-import type { SoulText } from '../soul/manager.js';
-import { WriterAgent, DEFAULT_WRITERS, type WriterConfig } from '../agents/writer.js';
-import { JudgeAgent, type JudgeResult } from '../agents/judge.js';
-import type { GenerationResult, ThemeContext, MacGuffinContext } from '../agents/types.js';
-import type { NarrativeRules } from '../factory/narrative-rules.js';
-import type { DevelopedCharacter } from '../factory/character-developer.js';
-import type { Logger } from '../logger.js';
+import type { JudgeResult } from '../agents/judge.js';
+import type { GenerationResult, Writer, Judge } from '../agents/types.js';
+import type { LoggerFn } from '../logger.js';
 
 /**
  * Result of a single match in the tournament
@@ -29,123 +24,50 @@ export interface TournamentResult {
   totalTokensUsed: number;
 }
 
+// =====================
+// FP API
+// =====================
+
 /**
- * Tournament arena for running writer competitions
+ * Dependencies for functional TournamentArena
  */
-export class TournamentArena {
-  private llmClient: LLMClient;
-  private soulText: SoulText;
-  private writerConfigs: WriterConfig[];
-  private narrativeRules?: NarrativeRules;
-  private developedCharacters?: DevelopedCharacter[];
-  private themeContext?: ThemeContext;
-  private macGuffinContext?: MacGuffinContext;
-  private logger?: Logger;
+export interface TournamentArenaDeps {
+  writers: Writer[];
+  createJudge: () => Judge;
+  tokenTracker?: { getTokens: () => number };
+  logger?: LoggerFn;
+}
 
-  constructor(
-    llmClient: LLMClient,
-    soulText: SoulText,
-    writerConfigs: WriterConfig[] = DEFAULT_WRITERS,
-    narrativeRules?: NarrativeRules,
-    developedCharacters?: DevelopedCharacter[],
-    themeContext?: ThemeContext,
-    macGuffinContext?: MacGuffinContext,
-    logger?: Logger,
-  ) {
-    this.llmClient = llmClient;
-    this.soulText = soulText;
-    this.writerConfigs = writerConfigs;
-    this.narrativeRules = narrativeRules;
-    this.developedCharacters = developedCharacters;
-    this.themeContext = themeContext;
-    this.macGuffinContext = macGuffinContext;
-    this.logger = logger;
+/**
+ * FP TournamentArena interface
+ */
+export interface Tournament {
+  runTournament: (prompt: string) => Promise<TournamentResult>;
+}
+
+function getGenerationByWriterId(
+  generations: GenerationResult[],
+  writerId: string,
+): GenerationResult {
+  const generation = generations.find((g) => g.writerId === writerId);
+  if (!generation) {
+    throw new Error(`Generation not found for writer: ${writerId}`);
   }
+  return generation;
+}
 
-  /**
-   * Run a full tournament with 4 writers
-   */
-  async runTournament(prompt: string): Promise<TournamentResult> {
-    const tokensStart = this.llmClient.getTotalTokens();
+/**
+ * Create a functional TournamentArena from dependencies
+ */
+export function createTournamentArena(deps: TournamentArenaDeps): Tournament {
+  const { writers, createJudge: createJudgeFn, tokenTracker, logger } = deps;
 
-    // Create writers
-    const writers = this.writerConfigs.map(
-      (config) => new WriterAgent(this.llmClient, this.soulText, config, this.narrativeRules, this.developedCharacters, this.themeContext, this.macGuffinContext)
-    );
-
-    // Generate texts from all writers
-    const generations = await this.generateAllTexts(writers, prompt);
-
-    // Verbose: log all writer generations
-    if (this.logger) {
-      this.logger.section('Tournament: Writer Generations');
-      for (const gen of generations) {
-        this.logger.debug(`${gen.writerId} (${gen.text.length}文字, ${gen.tokensUsed} tokens)`, gen.text);
-      }
-    }
-
-    // Run tournament bracket
-    const rounds: MatchResult[] = [];
-
-    // Semifinal 1: Writer 1 vs Writer 2
-    const semi1 = await this.runMatch(
-      'semifinal_1',
-      generations[0],
-      generations[1]
-    );
-    rounds.push(semi1);
-    this.logMatchResult(semi1);
-
-    // Semifinal 2: Writer 3 vs Writer 4
-    const semi2 = await this.runMatch(
-      'semifinal_2',
-      generations[2],
-      generations[3]
-    );
-    rounds.push(semi2);
-    this.logMatchResult(semi2);
-
-    // Final: Winner of Semi1 vs Winner of Semi2
-    const finalist1 = this.getGenerationByWriterId(generations, semi1.winner);
-    const finalist2 = this.getGenerationByWriterId(generations, semi2.winner);
-    const final = await this.runMatch('final', finalist1, finalist2);
-    rounds.push(final);
-    this.logMatchResult(final);
-
-    // Get champion's text
-    const championGeneration = this.getGenerationByWriterId(
-      generations,
-      final.winner
-    );
-
-    this.logger?.section(`Tournament Champion: ${final.winner}`);
-
-    return {
-      champion: final.winner,
-      championText: championGeneration.text,
-      rounds,
-      allGenerations: generations,
-      totalTokensUsed: this.llmClient.getTotalTokens() - tokensStart,
-    };
-  }
-
-  private async generateAllTexts(
-    writers: WriterAgent[],
-    prompt: string
-  ): Promise<GenerationResult[]> {
-    // Generate in parallel
-    const results = await Promise.all(
-      writers.map((writer) => writer.generateWithMetadata(prompt))
-    );
-    return results;
-  }
-
-  private async runMatch(
+  async function runMatch(
     matchName: string,
     generationA: GenerationResult,
-    generationB: GenerationResult
+    generationB: GenerationResult,
   ): Promise<MatchResult> {
-    const judge = new JudgeAgent(this.llmClient, this.soulText, this.narrativeRules, this.themeContext);
+    const judge = createJudgeFn();
     const judgeResult = await judge.evaluate(generationA.text, generationB.text);
 
     const winner =
@@ -153,31 +75,64 @@ export class TournamentArena {
         ? generationA.writerId
         : generationB.writerId;
 
-    return {
-      matchName,
-      contestantA: generationA.writerId,
-      contestantB: generationB.writerId,
-      winner,
-      judgeResult,
-    };
+    return { matchName, contestantA: generationA.writerId, contestantB: generationB.writerId, winner, judgeResult };
   }
 
-  private logMatchResult(match: MatchResult): void {
-    if (!this.logger) return;
-    this.logger.debug(`Match ${match.matchName}: ${match.winner} wins (${match.contestantA} vs ${match.contestantB})`, {
+  function logMatchResult(match: MatchResult): void {
+    if (!logger) return;
+    logger.debug(`Match ${match.matchName}: ${match.winner} wins (${match.contestantA} vs ${match.contestantB})`, {
       scores: match.judgeResult.scores,
       reasoning: match.judgeResult.reasoning,
     });
   }
 
-  private getGenerationByWriterId(
-    generations: GenerationResult[],
-    writerId: string
-  ): GenerationResult {
-    const generation = generations.find((g) => g.writerId === writerId);
-    if (!generation) {
-      throw new Error(`Generation not found for writer: ${writerId}`);
-    }
-    return generation;
-  }
+  return {
+    runTournament: async (prompt: string): Promise<TournamentResult> => {
+      const tokensStart = tokenTracker?.getTokens() ?? 0;
+
+      // Generate texts from all writers
+      const generations = await Promise.all(
+        writers.map((w) => w.generateWithMetadata(prompt)),
+      );
+
+      // Verbose: log all writer generations
+      if (logger) {
+        logger.section('Tournament: Writer Generations');
+        for (const gen of generations) {
+          logger.debug(`${gen.writerId} (${gen.text.length} chars, ${gen.tokensUsed} tokens)`, gen.text);
+        }
+      }
+
+      const rounds: MatchResult[] = [];
+
+      // Semifinal 1: Writer 1 vs Writer 2
+      const semi1 = await runMatch('semifinal_1', generations[0], generations[1]);
+      rounds.push(semi1);
+      logMatchResult(semi1);
+
+      // Semifinal 2: Writer 3 vs Writer 4
+      const semi2 = await runMatch('semifinal_2', generations[2], generations[3]);
+      rounds.push(semi2);
+      logMatchResult(semi2);
+
+      // Final: Winner of Semi1 vs Winner of Semi2
+      const finalist1 = getGenerationByWriterId(generations, semi1.winner);
+      const finalist2 = getGenerationByWriterId(generations, semi2.winner);
+      const final = await runMatch('final', finalist1, finalist2);
+      rounds.push(final);
+      logMatchResult(final);
+
+      const championGeneration = getGenerationByWriterId(generations, final.winner);
+
+      logger?.section(`Tournament Champion: ${final.winner}`);
+
+      return {
+        champion: final.winner,
+        championText: championGeneration.text,
+        rounds,
+        allGenerations: generations,
+        totalTokensUsed: (tokenTracker?.getTokens() ?? 0) - tokensStart,
+      };
+    },
+  };
 }

@@ -1,4 +1,4 @@
-import type { SoulExpander } from '../learning/soul-expander.js';
+import type { SoulExpanderFn } from '../learning/soul-expander.js';
 import type { SoulCandidate } from '../storage/soul-candidate-repository.js';
 
 export interface ReviewStats {
@@ -8,66 +8,53 @@ export interface ReviewStats {
   total: number;
 }
 
-/**
- * CLI interface for reviewing soul candidates
- */
-export class CLIReview {
-  private expander: SoulExpander;
+// =====================
+// FP API
+// =====================
 
-  constructor(expander: SoulExpander) {
-    this.expander = expander;
-  }
-
-  /**
-   * Get pending candidates for a soul
-   */
-  async getPendingCandidates(soulId: string): Promise<SoulCandidate[]> {
-    return this.expander.getPendingCandidates(soulId);
-  }
-
-  /**
-   * Review a candidate (approve or reject)
-   */
-  async reviewCandidate(
-    candidateId: string,
-    decision: 'approve' | 'reject',
-    notes?: string
-  ): Promise<SoulCandidate | undefined> {
-    if (decision === 'approve') {
-      return this.expander.approveCandidate(candidateId, notes);
-    } else {
-      return this.expander.rejectCandidate(candidateId, notes);
-    }
-  }
-
-  /**
-   * Format a candidate for CLI display
-   */
-  formatCandidateForDisplay(candidate: SoulCandidate): string {
-    const lines = [
-      `ID: ${candidate.id}`,
-      `Category: ${candidate.suggestedCategory}`,
-      `Score: ${candidate.autoScore}`,
-      ``,
-      `--- Fragment ---`,
-      candidate.fragmentText,
-      `----------------`,
-    ];
-
-    return lines.join('\n');
-  }
-
-  /**
-   * Get review statistics for a soul
-   */
-  async getReviewStats(soulId: string): Promise<ReviewStats> {
-    const counts = await this.expander.getCountsByStatus(soulId);
-
-    return {
-      pending: counts.pending,
-      approved: counts.approved,
-      rejected: counts.rejected,
-      total: counts.pending + counts.approved + counts.rejected,
-    };
-  }
+export interface CLIReviewFn {
+  getPendingCandidates: (soulId: string) => Promise<SoulCandidate[]>;
+  reviewCandidate: (candidateId: string, decision: 'approve' | 'reject', notes?: string) => Promise<SoulCandidate | undefined>;
+  formatCandidateForDisplay: (candidate: SoulCandidate) => string;
+  getReviewStats: (soulId: string) => Promise<ReviewStats>;
 }
+
+export function createCLIReview(expander: SoulExpanderFn): CLIReviewFn {
+  return {
+    getPendingCandidates: async (soulId) => {
+      return expander.getPendingCandidates(soulId);
+    },
+
+    reviewCandidate: async (candidateId, decision, notes?) => {
+      if (decision === 'approve') {
+        return expander.approveCandidate(candidateId, notes);
+      } else {
+        return expander.rejectCandidate(candidateId, notes);
+      }
+    },
+
+    formatCandidateForDisplay: (candidate) => {
+      const lines = [
+        `ID: ${candidate.id}`,
+        `Category: ${candidate.suggestedCategory}`,
+        `Score: ${candidate.autoScore}`,
+        ``,
+        `--- Fragment ---`,
+        candidate.fragmentText,
+        `----------------`,
+      ];
+      return lines.join('\n');
+    },
+
+    getReviewStats: async (soulId) => {
+      const counts = await expander.getCountsByStatus(soulId);
+      return {
+        pending: counts.pending,
+        approved: counts.approved,
+        rejected: counts.rejected,
+        total: counts.pending + counts.approved + counts.rejected,
+      };
+    },
+  };
+}
+

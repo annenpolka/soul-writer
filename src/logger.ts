@@ -6,49 +6,64 @@ export interface LoggerOptions {
   logFile?: string;
 }
 
-export class Logger {
-  private verbose: boolean;
-  private logStream: fs.WriteStream | null = null;
+// =====================
+// FP API
+// =====================
 
-  constructor(options: LoggerOptions) {
-    this.verbose = options.verbose;
-    if (options.logFile) {
-      const dir = path.dirname(options.logFile);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      this.logStream = fs.createWriteStream(options.logFile, { flags: 'a' });
-    }
+export interface LoggerFn {
+  info: (message: string) => void;
+  warn: (message: string, data?: unknown) => void;
+  debug: (message: string, data?: unknown) => void;
+  section: (title: string) => void;
+  close: () => void;
+}
+
+export function createLogger(options: LoggerOptions): LoggerFn {
+  const verbose = options.verbose;
+  let logStream: fs.WriteStream | null = null;
+
+  if (options.logFile) {
+    const dir = path.dirname(options.logFile);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    logStream = fs.createWriteStream(options.logFile, { flags: 'a' });
   }
 
-  info(message: string): void {
-    console.log(message);
-    this.writeToFile(message);
-  }
+  const writeToFile = (line: string): void => {
+    logStream?.write(line + '\n');
+  };
 
-  debug(message: string, data?: unknown): void {
-    if (!this.verbose) return;
-    const line = data !== undefined
-      ? `${message}\n${typeof data === 'string' ? data : JSON.stringify(data, null, 2)}`
-      : message;
-    console.log(`[VERBOSE] ${line}`);
-    this.writeToFile(`[VERBOSE] ${line}`);
-  }
+  return {
+    info: (message) => {
+      console.log(message);
+      writeToFile(message);
+    },
 
-  section(title: string): void {
-    if (!this.verbose) return;
-    const line = `\n${'='.repeat(60)}\n${title}\n${'='.repeat(60)}`;
-    console.log(line);
-    this.writeToFile(line);
-  }
+    warn: (message, data?) => {
+      const line = data !== undefined
+        ? `${message}\n${data instanceof Error ? data.message : typeof data === 'string' ? data : JSON.stringify(data, null, 2)}`
+        : message;
+      console.warn(`[WARN] ${line}`);
+      writeToFile(`[WARN] ${line}`);
+    },
 
-  private writeToFile(line: string): void {
-    this.logStream?.write(line + '\n');
-  }
+    debug: (message, data?) => {
+      if (!verbose) return;
+      const line = data !== undefined
+        ? `${message}\n${typeof data === 'string' ? data : JSON.stringify(data, null, 2)}`
+        : message;
+      console.log(`[VERBOSE] ${line}`);
+      writeToFile(`[VERBOSE] ${line}`);
+    },
 
-  close(): void {
-    this.logStream?.end();
-  }
+    section: (title) => {
+      if (!verbose) return;
+      const line = `\n${'='.repeat(60)}\n${title}\n${'='.repeat(60)}`;
+      console.log(line);
+      writeToFile(line);
+    },
 
-  static noop(): Logger {
-    return new Logger({ verbose: false });
-  }
+    close: () => {
+      logStream?.end();
+    },
+  };
 }

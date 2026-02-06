@@ -1,22 +1,22 @@
 import type { LLMClient } from '../llm/types.js';
-import type { SoulText } from '../soul/manager.js';
-import type { SoulTextManager } from '../soul/manager.js';
-import type { TaskRepository } from '../storage/task-repository.js';
-import type { WorkRepository } from '../storage/work-repository.js';
-import type { CheckpointManager } from '../storage/checkpoint-manager.js';
-import type { SoulCandidateRepository } from '../storage/soul-candidate-repository.js';
+import type { SoulText, SoulTextManagerFn } from '../soul/manager.js';
+import type { TaskRepo } from '../storage/task-repository.js';
+import type { WorkRepo } from '../storage/work-repository.js';
+import type { CheckpointManagerFn } from '../storage/checkpoint-manager.js';
+import type { SoulCandidateRepo } from '../storage/soul-candidate-repository.js';
 import type { FactoryConfig } from '../schemas/factory-config.js';
 import type { GeneratedTheme } from '../schemas/generated-theme.js';
 import type { FullPipelineResult } from '../agents/types.js';
-import { ThemeGeneratorAgent, type ThemeResult } from './theme-generator.js';
-import { CharacterDeveloperAgent, type CharacterDevelopResult, type DevelopedCharacters } from './character-developer.js';
-import { CharacterMacGuffinAgent } from './character-macguffin.js';
-import { PlotMacGuffinAgent } from './plot-macguffin.js';
+import { createThemeGenerator, type ThemeResult } from './theme-generator.js';
+import { createCharacterDeveloper, type CharacterDevelopResult, type DevelopedCharacters } from './character-developer.js';
+import { createCharacterMacGuffinAgent } from './character-macguffin.js';
+import { createPlotMacGuffinAgent } from './plot-macguffin.js';
 import type { CharacterMacGuffin, PlotMacGuffin } from '../schemas/macguffin.js';
-import { FullPipeline } from '../pipeline/full.js';
-import { MotifAnalyzerAgent } from './motif-analyzer.js';
-import { FileWriter } from './file-writer.js';
-import { Logger } from '../logger.js';
+import { createFullPipeline } from '../pipeline/full.js';
+import { createMotifAnalyzer } from './motif-analyzer.js';
+import { createFileWriter } from './file-writer.js';
+import { createLogger } from '../logger.js';
+import type { LoggerFn } from '../logger.js';
 
 export interface BatchResult {
   totalTasks: number;
@@ -50,10 +50,10 @@ export interface ProgressInfo {
 export interface BatchDependencies {
   soulText: SoulText;
   llmClient: LLMClient;
-  taskRepo: TaskRepository;
-  workRepo: WorkRepository;
-  checkpointManager: CheckpointManager;
-  candidateRepo: SoulCandidateRepository;
+  taskRepo: TaskRepo;
+  workRepo: WorkRepo;
+  checkpointManager: CheckpointManagerFn;
+  candidateRepo: SoulCandidateRepo;
 }
 
 // Interfaces for dependency injection (testing)
@@ -62,7 +62,7 @@ export interface ThemeGenerator {
 }
 
 export interface CharacterDeveloper {
-  develop(theme: GeneratedTheme): Promise<CharacterDevelopResult>;
+  develop(theme: GeneratedTheme, charMacGuffins?: CharacterMacGuffin[]): Promise<CharacterDevelopResult>;
 }
 
 export interface PipelineInstance {
@@ -76,75 +76,80 @@ export interface StoryFileWriter {
 export interface BatchRunnerOptions {
   themeGenerator?: ThemeGenerator;
   characterDeveloper?: CharacterDeveloper;
-  pipelineFactory?: (theme: GeneratedTheme, developed?: DevelopedCharacters, logger?: Logger, charMacGuffins?: CharacterMacGuffin[], plotMacGuffins?: PlotMacGuffin[]) => PipelineInstance;
+  pipelineFactory?: (theme: GeneratedTheme, developed?: DevelopedCharacters, logger?: LoggerFn, charMacGuffins?: CharacterMacGuffin[], plotMacGuffins?: PlotMacGuffin[]) => PipelineInstance;
   fileWriter?: StoryFileWriter;
   verbose?: boolean;
 }
 
-/**
- * Runs batch generation of stories with random themes
- */
-export class BatchRunner {
-  private config: FactoryConfig;
-  private deps: BatchDependencies;
-  private options: BatchRunnerOptions;
+// --- FP interface ---
 
-  constructor(config: FactoryConfig, deps: BatchDependencies, options: BatchRunnerOptions = {}) {
-    this.config = config;
-    this.deps = deps;
-    this.options = options;
-  }
+export interface BatchRunnerFn {
+  run: (onProgress?: (info: ProgressInfo) => void) => Promise<BatchResult>;
+}
 
-  /**
-   * Run batch generation with parallel execution
-   * @param onProgress Optional callback for progress updates
-   */
-  async run(onProgress?: (info: ProgressInfo) => void): Promise<BatchResult> {
-    const results: TaskResult[] = new Array(this.config.count);
+// --- Factory function ---
+
+export function createBatchRunner(
+  config: FactoryConfig,
+  deps: BatchDependencies,
+  options: BatchRunnerOptions = {},
+): BatchRunnerFn {
+
+  const run = async (onProgress?: (info: ProgressInfo) => void): Promise<BatchResult> => {
+    const results: TaskResult[] = new Array(config.count);
     let totalTokensUsed = 0;
     let completed = 0;
     let failed = 0;
 
     // Use injected dependencies or create defaults
-    const themeGenerator = this.options.themeGenerator ??
-      new ThemeGeneratorAgent(this.deps.llmClient, this.deps.soulText);
+    const themeGenerator = options.themeGenerator ??
+      createThemeGenerator(deps.llmClient, deps.soulText);
 
-    const characterDeveloper = this.options.characterDeveloper ??
-      new CharacterDeveloperAgent(this.deps.llmClient, this.deps.soulText);
+    const characterDeveloper = options.characterDeveloper ??
+      createCharacterDeveloper(deps.llmClient, deps.soulText);
 
-    const fileWriter = this.options.fileWriter ??
-      new FileWriter(this.config.outputDir);
+    const fileWriter = options.fileWriter ??
+      createFileWriter(config.outputDir);
 
-    const createPipeline = this.options.pipelineFactory ?? ((theme: GeneratedTheme, developed?: DevelopedCharacters, logger?: Logger, charMG?: CharacterMacGuffin[], plotMG?: PlotMacGuffin[]) => {
+    const createPipeline = options.pipelineFactory ?? ((theme: GeneratedTheme, developed?: DevelopedCharacters, logger?: LoggerFn, charMG?: CharacterMacGuffin[], plotMG?: PlotMacGuffin[]) => {
       const mockSoulManager = {
-        getSoulText: () => this.deps.soulText,
-        getConstitution: () => this.deps.soulText.constitution,
-        getWriterPersonas: () => this.deps.soulText.writerPersonas ?? [],
-        getPromptConfig: () => this.deps.soulText.promptConfig,
-      } as SoulTextManager;
+        getSoulText: () => deps.soulText,
+        getConstitution: () => deps.soulText.constitution,
+        getWorldBible: () => deps.soulText.worldBible,
+        getAntiSoul: () => deps.soulText.antiSoul,
+        getReaderPersonas: () => deps.soulText.readerPersonas,
+        getFragmentsForCategory: (category: string) => deps.soulText.fragments.get(category) ?? [],
+        getAllFragments: () => deps.soulText.fragments,
+        getPromptConfig: () => deps.soulText.promptConfig,
+        getWriterPersonas: () => deps.soulText.writerPersonas ?? [],
+        getCollabPersonas: () => deps.soulText.writerPersonas?.slice(0, 3) ?? [],
+        getRawSoultext: () => deps.soulText.rawSoultext,
+        clearRawSoultext: () => {},
+        buildSystemPrompt: () => '',
+      } as SoulTextManagerFn;
 
-      return new FullPipeline(
-        this.deps.llmClient,
-        mockSoulManager,
-        this.deps.checkpointManager,
-        this.deps.taskRepo,
-        this.deps.workRepo,
-        this.deps.candidateRepo,
-        {
-          chapterCount: this.config.chaptersPerStory,
+      return createFullPipeline({
+        llmClient: deps.llmClient,
+        soulManager: mockSoulManager,
+        checkpointManager: deps.checkpointManager,
+        taskRepo: deps.taskRepo,
+        workRepo: deps.workRepo,
+        candidateRepo: deps.candidateRepo,
+        config: {
+          chapterCount: config.chaptersPerStory,
           narrativeType: theme.narrative_type,
           developedCharacters: developed?.characters,
           theme,
           characterMacGuffins: charMG,
           plotMacGuffins: plotMG,
-          mode: this.config.mode === 'collaboration' ? 'collaboration' : undefined,
+          mode: config.mode === 'collaboration' ? 'collaboration' : undefined,
         },
         logger,
-      );
+      });
     });
 
     // Shared queue for worker pool pattern
-    const queue: number[] = Array.from({ length: this.config.count }, (_, i) => i);
+    const queue: number[] = Array.from({ length: config.count }, (_, i) => i);
     let progressCount = 0;
 
     // History-based avoidance: track recent themes across all workers
@@ -153,11 +158,11 @@ export class BatchRunner {
 
     // DB-based motif avoidance (0 = disabled)
     let dbMotifAvoidance: string[] = [];
-    if (this.config.motifAnalysisCount > 0) {
-      const soulId = this.deps.soulText.constitution.meta.soul_id;
-      const recentWorks = await this.deps.workRepo.findRecentBySoulId(soulId, this.config.motifAnalysisCount);
+    if (config.motifAnalysisCount > 0) {
+      const soulId = deps.soulText.constitution.meta.soul_id;
+      const recentWorks = await deps.workRepo.findRecentBySoulId(soulId, config.motifAnalysisCount);
       if (recentWorks.length > 0) {
-        const analyzer = new MotifAnalyzerAgent(this.deps.llmClient);
+        const analyzer = createMotifAnalyzer(deps.llmClient);
         const analysis = await analyzer.analyze(recentWorks);
         dbMotifAvoidance = analysis.frequentMotifs;
         totalTokensUsed += analysis.tokensUsed;
@@ -165,12 +170,12 @@ export class BatchRunner {
     }
 
     // Execute a single task
-    const verbose = this.options.verbose ?? false;
+    const verbose = options.verbose ?? false;
 
     const executeTask = async (taskIndex: number): Promise<TaskResult> => {
       const themeId = `theme_${Date.now()}_${taskIndex}`;
       const logger = verbose
-        ? new Logger({ verbose: true, logFile: `${this.config.outputDir}/logs/story-${taskIndex}.log` })
+        ? createLogger({ verbose: true, logFile: `${config.outputDir}/logs/story-${taskIndex}.log` })
         : undefined;
 
       try {
@@ -179,7 +184,7 @@ export class BatchRunner {
         logger?.debug('Theme generated', themeResult.theme);
 
         // Generate character MacGuffins
-        const charMacGuffinAgent = new CharacterMacGuffinAgent(this.deps.llmClient, this.deps.soulText);
+        const charMacGuffinAgent = createCharacterMacGuffinAgent(deps.llmClient, deps.soulText);
         const charMacGuffinResult = await charMacGuffinAgent.generate(themeResult.theme);
         const charMacGuffins: CharacterMacGuffin[] = charMacGuffinResult.macguffins;
         logger?.debug('Character MacGuffins generated', charMacGuffins);
@@ -189,7 +194,7 @@ export class BatchRunner {
         logger?.debug('Characters developed', charResult.developed);
 
         // Generate plot MacGuffins
-        const plotMacGuffinAgent = new PlotMacGuffinAgent(this.deps.llmClient, this.deps.soulText);
+        const plotMacGuffinAgent = createPlotMacGuffinAgent(deps.llmClient, deps.soulText);
         const plotMacGuffinResult = await plotMacGuffinAgent.generate(themeResult.theme, charMacGuffins);
         const plotMacGuffins: PlotMacGuffin[] = plotMacGuffinResult.macguffins;
         logger?.debug('Plot MacGuffins generated', plotMacGuffins);
@@ -242,8 +247,8 @@ export class BatchRunner {
         if (taskIndex === undefined) break;
 
         // Throttle between tasks (skip delay for first task in slot)
-        if (!isFirst && this.config.taskDelayMs > 0) {
-          await delay(this.config.taskDelayMs);
+        if (!isFirst && config.taskDelayMs > 0) {
+          await delay(config.taskDelayMs);
         }
         isFirst = false;
 
@@ -261,7 +266,7 @@ export class BatchRunner {
         progressCount++;
         onProgress?.({
           current: progressCount,
-          total: this.config.count,
+          total: config.count,
           status: result.status === 'completed' ? 'completed' : 'failed',
           themeId: result.themeId,
         });
@@ -269,16 +274,19 @@ export class BatchRunner {
     };
 
     // Run N slots in parallel
-    const slotCount = Math.min(this.config.parallel, this.config.count);
+    const slotCount = Math.min(config.parallel, config.count);
     await Promise.all(Array.from({ length: slotCount }, () => runSlot()));
 
     return {
-      totalTasks: this.config.count,
+      totalTasks: config.count,
       completed,
       failed,
       skipped: 0,
       totalTokensUsed,
       results: results.filter(Boolean),
     };
-  }
+  };
+
+  return { run };
 }
+

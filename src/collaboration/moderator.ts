@@ -32,35 +32,171 @@ const SUBMIT_FACILITATION_TOOL: ToolDefinition = {
   },
 };
 
-interface WriterInfo {
+// --- FP interface ---
+
+export interface WriterInfo {
   id: string;
   name: string;
   focusCategories?: string[];
 }
 
-export class ModeratorAgent {
-  private llmClient: LLMClient;
-  private soulText: SoulText;
+export interface ModeratorFn {
+  facilitateRound: (state: CollaborationState, actions: CollaborationAction[], writers: WriterInfo[]) => Promise<FacilitationResult>;
+  composeFinal: (drafts: Record<string, string>, feedback: FeedbackAction[]) => Promise<{ text: string; tokensUsed: number }>;
+}
 
-  constructor(llmClient: LLMClient, soulText: SoulText) {
-    this.llmClient = llmClient;
-    this.soulText = soulText;
+export interface ModeratorDeps {
+  llmClient: LLMClient;
+  soulText: SoulText;
+}
+
+// --- Internal helpers ---
+
+const FACILITATE_MAX_RETRIES = 2;
+
+function summarizeAction(action: CollaborationAction): string {
+  switch (action.type) {
+    case 'proposal':
+      return action.content;
+    case 'feedback':
+      return `→${action.targetWriterId}: ${action.feedback}`;
+    case 'draft':
+      return `[${action.section}] ${action.text}`;
+    case 'volunteer':
+      return `${action.section}に立候補: ${action.reason}`;
+  }
+}
+
+function buildFacilitationContext(
+  soulText: SoulText,
+  state: CollaborationState,
+  actions: CollaborationAction[],
+  writers: WriterInfo[],
+): Record<string, unknown> {
+  const soulName = soulText.constitution?.meta?.soul_name ?? 'ソウルテキスト';
+
+  const writerEntries = writers.map((w) => ({
+    id: w.id,
+    name: w.name,
+    focusCategories: (w.focusCategories ?? []).join(', '),
+  }));
+
+  const actionEntries = actions.map((a) => ({
+    type: a.type,
+    writerId: a.writerId,
+    summary: summarizeAction(a),
+  }));
+
+  const sectionAssignmentEntries = Object.entries(state.sectionAssignments).map(
+    ([section, writerId]) => ({ section, writerId }),
+  );
+
+  const currentDraftEntries = Object.entries(state.currentDrafts).map(
+    ([section, text]) => ({ section, text }),
+  );
+
+  // Constitution summary
+  const constitution = soulText.constitution;
+  const forbiddenWords = constitution?.universal?.vocabulary?.forbidden_words ?? [];
+  const constitutionSummaryText = forbiddenWords.length > 0
+    ? `禁止語彙: ${forbiddenWords.slice(0, 5).join(', ')}...`
+    : '';
+
+  // Voice entries from world bible characters (Record<string, Character>)
+  const characters = soulText.worldBible?.characters ?? {};
+  const voiceEntries = Object.entries(characters).map(([name, c]) => ({
+    name,
+    style: c.speech_pattern ?? (c.traits as string[] | undefined)?.join(', ') ?? '',
+  }));
+
+  // Anti-soul compact
+  const antiSoul = soulText.antiSoul;
+  const allAntiExamples = Object.values(antiSoul?.categories ?? {}).flat();
+  const antiSoulCompactEntries = allAntiExamples.slice(0, 3).map((e) => ({
+    text: typeof e === 'string' ? e : (e as any).text ?? '',
+  }));
+
+  return {
+    soulName,
+    writerEntries,
+    roundNumber: state.rounds.length + 1,
+    currentPhase: state.currentPhase,
+    actionEntries,
+    sectionAssignmentEntries: sectionAssignmentEntries.length > 0 ? sectionAssignmentEntries : undefined,
+    currentDraftEntries: currentDraftEntries.length > 0 ? currentDraftEntries : undefined,
+    constitutionSummaryText,
+    voiceEntries: voiceEntries.length > 0 ? voiceEntries : undefined,
+    antiSoulCompactEntries: antiSoulCompactEntries?.length ? antiSoulCompactEntries : undefined,
+  };
+}
+
+function extractSoultextExcerpt(soulText: SoulText): string | undefined {
+  const raw = soulText.rawSoultext;
+  if (!raw) return undefined;
+
+  // Extract representative fragments: look for dialogue and introspection sections
+  const lines = raw.split('\n');
+  const excerpts: string[] = [];
+  let currentChunk: string[] = [];
+  let collecting = false;
+
+  for (const line of lines) {
+    // Look for lines with dialogue markers or narrative content
+    if (line.includes('「') || line.includes('」') || (line.length > 20 && !line.startsWith('#'))) {
+      collecting = true;
+      currentChunk.push(line);
+      if (currentChunk.join('\n').length > 600) {
+        excerpts.push(currentChunk.join('\n'));
+        currentChunk = [];
+        collecting = false;
+        if (excerpts.join('\n').length > 1800) break;
+      }
+    } else if (collecting && line.trim() === '') {
+      if (currentChunk.length > 3) {
+        excerpts.push(currentChunk.join('\n'));
+        currentChunk = [];
+        collecting = false;
+        if (excerpts.join('\n').length > 1800) break;
+      }
+    } else {
+      if (currentChunk.length > 0 && currentChunk.join('\n').length > 100) {
+        excerpts.push(currentChunk.join('\n'));
+      }
+      currentChunk = [];
+      collecting = false;
+    }
   }
 
-  private static readonly FACILITATE_MAX_RETRIES = 2;
+  if (currentChunk.length > 0 && currentChunk.join('\n').length > 100) {
+    excerpts.push(currentChunk.join('\n'));
+  }
 
-  async facilitateRound(
+  const result = excerpts.slice(0, 3).join('\n\n---\n\n');
+  return result.length > 0 ? result.slice(0, 2000) : undefined;
+}
+
+function parseToolResponse(response: ToolCallResponse): FacilitationResult {
+  const parsed = parseToolArguments<unknown>(response, 'submit_facilitation');
+  return FacilitationResultSchema.parse(parsed);
+}
+
+// --- Factory function ---
+
+export function createModerator(deps: ModeratorDeps): ModeratorFn {
+  const { llmClient, soulText } = deps;
+
+  const facilitateRound = async (
     state: CollaborationState,
     actions: CollaborationAction[],
     writers: WriterInfo[],
-  ): Promise<FacilitationResult> {
-    const context = this.buildFacilitationContext(state, actions, writers);
+  ): Promise<FacilitationResult> => {
+    const context = buildFacilitationContext(soulText, state, actions, writers);
     const { system, user } = buildPrompt('moderator', context);
-    assertToolCallingClient(this.llmClient);
+    assertToolCallingClient(llmClient);
 
-    for (let attempt = 0; attempt <= ModeratorAgent.FACILITATE_MAX_RETRIES; attempt++) {
+    for (let attempt = 0; attempt <= FACILITATE_MAX_RETRIES; attempt++) {
       try {
-        const response = await this.llmClient.completeWithTools(
+        const response = await llmClient.completeWithTools(
           system,
           user,
           [SUBMIT_FACILITATION_TOOL],
@@ -70,9 +206,9 @@ export class ModeratorAgent {
           },
         );
 
-        return this.parseToolResponse(response);
+        return parseToolResponse(response);
       } catch {
-        if (attempt === ModeratorAgent.FACILITATE_MAX_RETRIES) {
+        if (attempt === FACILITATE_MAX_RETRIES) {
           // フォールバック: 安全なデフォルト結果で続行
           return {
             nextPhase: state.currentPhase,
@@ -88,13 +224,13 @@ export class ModeratorAgent {
 
     // TypeScript requires this (unreachable)
     throw new Error('Unreachable');
-  }
+  };
 
-  async composeFinal(
+  const composeFinal = async (
     drafts: Record<string, string>,
     feedback: FeedbackAction[],
-  ): Promise<{ text: string; tokensUsed: number }> {
-    const tokensBefore = this.llmClient.getTotalTokens();
+  ): Promise<{ text: string; tokensUsed: number }> => {
+    const tokensBefore = llmClient.getTotalTokens();
 
     const draftEntries = Object.entries(drafts)
       .map(([section, text]) => `## ${section}\n${text}`)
@@ -105,7 +241,7 @@ export class ModeratorAgent {
       .join('\n');
 
     // Extract soultext excerpt as style reference (~2000 chars)
-    const soultextExcerpt = this.extractSoultextExcerpt();
+    const soultextExcerpt = extractSoultextExcerpt(soulText);
 
     const systemPrompt = [
       'あなたは小説の編集者です。複数のWriterが執筆したセクション草稿を、フィードバックを踏まえて一貫性のある作品に統合してください。',
@@ -135,137 +271,15 @@ export class ModeratorAgent {
       '上記を統合した最終テキストを出力してください。',
     ].join('\n');
 
-    const text = await this.llmClient.complete(systemPrompt, userPrompt, {
+    const text = await llmClient.complete(systemPrompt, userPrompt, {
       temperature: 0.4,
     });
 
-    const tokensUsed = this.llmClient.getTotalTokens() - tokensBefore;
+    const tokensUsed = llmClient.getTotalTokens() - tokensBefore;
 
     return { text, tokensUsed };
-  }
+  };
 
-  private buildFacilitationContext(
-    state: CollaborationState,
-    actions: CollaborationAction[],
-    writers: WriterInfo[],
-  ): Record<string, unknown> {
-    const soulName = this.soulText.constitution?.meta?.soul_name ?? 'ソウルテキスト';
-
-    const writerEntries = writers.map((w) => ({
-      id: w.id,
-      name: w.name,
-      focusCategories: (w.focusCategories ?? []).join(', '),
-    }));
-
-    const actionEntries = actions.map((a) => ({
-      type: a.type,
-      writerId: a.writerId,
-      summary: this.summarizeAction(a),
-    }));
-
-    const sectionAssignmentEntries = Object.entries(state.sectionAssignments).map(
-      ([section, writerId]) => ({ section, writerId }),
-    );
-
-    const currentDraftEntries = Object.entries(state.currentDrafts).map(
-      ([section, text]) => ({ section, text }),
-    );
-
-    // Constitution summary
-    const constitution = this.soulText.constitution;
-    const forbiddenWords = constitution?.universal?.vocabulary?.forbidden_words ?? [];
-    const constitutionSummaryText = forbiddenWords.length > 0
-      ? `禁止語彙: ${forbiddenWords.slice(0, 5).join(', ')}...`
-      : '';
-
-    // Voice entries from world bible characters (Record<string, Character>)
-    const characters = this.soulText.worldBible?.characters ?? {};
-    const voiceEntries = Object.entries(characters).map(([name, c]) => ({
-      name,
-      style: c.speech_pattern ?? (c.traits as string[] | undefined)?.join(', ') ?? '',
-    }));
-
-    // Anti-soul compact
-    const antiSoul = this.soulText.antiSoul;
-    const allAntiExamples = Object.values(antiSoul?.categories ?? {}).flat();
-    const antiSoulCompactEntries = allAntiExamples.slice(0, 3).map((e) => ({
-      text: typeof e === 'string' ? e : (e as any).text ?? '',
-    }));
-
-    return {
-      soulName,
-      writerEntries,
-      roundNumber: state.rounds.length + 1,
-      currentPhase: state.currentPhase,
-      actionEntries,
-      sectionAssignmentEntries: sectionAssignmentEntries.length > 0 ? sectionAssignmentEntries : undefined,
-      currentDraftEntries: currentDraftEntries.length > 0 ? currentDraftEntries : undefined,
-      constitutionSummaryText,
-      voiceEntries: voiceEntries.length > 0 ? voiceEntries : undefined,
-      antiSoulCompactEntries: antiSoulCompactEntries?.length ? antiSoulCompactEntries : undefined,
-    };
-  }
-
-  private extractSoultextExcerpt(): string | undefined {
-    const raw = this.soulText.rawSoultext;
-    if (!raw) return undefined;
-
-    // Extract representative fragments: look for dialogue and introspection sections
-    const lines = raw.split('\n');
-    const excerpts: string[] = [];
-    let currentChunk: string[] = [];
-    let collecting = false;
-
-    for (const line of lines) {
-      // Look for lines with dialogue markers or narrative content
-      if (line.includes('「') || line.includes('」') || (line.length > 20 && !line.startsWith('#'))) {
-        collecting = true;
-        currentChunk.push(line);
-        if (currentChunk.join('\n').length > 600) {
-          excerpts.push(currentChunk.join('\n'));
-          currentChunk = [];
-          collecting = false;
-          if (excerpts.join('\n').length > 1800) break;
-        }
-      } else if (collecting && line.trim() === '') {
-        if (currentChunk.length > 3) {
-          excerpts.push(currentChunk.join('\n'));
-          currentChunk = [];
-          collecting = false;
-          if (excerpts.join('\n').length > 1800) break;
-        }
-      } else {
-        if (currentChunk.length > 0 && currentChunk.join('\n').length > 100) {
-          excerpts.push(currentChunk.join('\n'));
-        }
-        currentChunk = [];
-        collecting = false;
-      }
-    }
-
-    if (currentChunk.length > 0 && currentChunk.join('\n').length > 100) {
-      excerpts.push(currentChunk.join('\n'));
-    }
-
-    const result = excerpts.slice(0, 3).join('\n\n---\n\n');
-    return result.length > 0 ? result.slice(0, 2000) : undefined;
-  }
-
-  private summarizeAction(action: CollaborationAction): string {
-    switch (action.type) {
-      case 'proposal':
-        return action.content;
-      case 'feedback':
-        return `→${action.targetWriterId}: ${action.feedback}`;
-      case 'draft':
-        return `[${action.section}] ${action.text}`;
-      case 'volunteer':
-        return `${action.section}に立候補: ${action.reason}`;
-    }
-  }
-
-  private parseToolResponse(response: ToolCallResponse): FacilitationResult {
-    const parsed = parseToolArguments<unknown>(response, 'submit_facilitation');
-    return FacilitationResultSchema.parse(parsed);
-  }
+  return { facilitateRound, composeFinal };
 }
+

@@ -1,13 +1,13 @@
-export { WriterAgent, DEFAULT_WRITERS, type WriterConfig } from './writer.js';
-export { JudgeAgent, type JudgeResult } from './judge.js';
+export { createWriter, DEFAULT_WRITERS, type WriterConfig } from './writer.js';
+export { createJudge, type JudgeResult } from './judge.js';
 export {
-  PlotterAgent,
+  createPlotter,
   type PlotterConfig,
   type PlotResult,
 } from './plotter.js';
-export { ReaderEvaluator } from './reader-evaluator.js';
-export { ReaderJuryAgent } from './reader-jury.js';
-export { CorrectorAgent } from './corrector.js';
+export { createReaderEvaluator } from './reader-evaluator.js';
+export { createReaderJury } from './reader-jury.js';
+export { createCorrector } from './corrector.js';
 export type {
   ScoreBreakdown,
   GenerationResult,

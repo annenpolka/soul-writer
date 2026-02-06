@@ -1,52 +1,51 @@
-import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
-import type { CorrectionResult, Violation, ThemeContext } from './types.js';
+import type { CorrectionResult, Violation, ThemeContext, CorrectorDeps, Corrector } from './types.js';
 import { buildPrompt } from '../template/composer.js';
 
 /**
- * CorrectorAgent fixes compliance violations in text using LLM
+ * Build corrector prompt context (pure function)
  */
-export class CorrectorAgent {
-  private llmClient: LLMClient;
-  private soulText: SoulText;
-  private themeContext?: ThemeContext;
+export function buildCorrectorContext(
+  soulText: SoulText,
+  text: string,
+  violations: Violation[],
+  themeContext?: ThemeContext,
+): Record<string, unknown> {
+  const violationList = violations
+    .map(
+      (v, i) =>
+        `${i + 1}. [${v.type}] "${v.context}" - ${v.rule} (severity: ${v.severity})`
+    )
+    .join('\n');
 
-  constructor(llmClient: LLMClient, soulText: SoulText, themeContext?: ThemeContext) {
-    this.llmClient = llmClient;
-    this.soulText = soulText;
-    this.themeContext = themeContext;
-  }
+  const u = soulText.constitution.universal;
 
-  /**
-   * Correct text by fixing specified violations
-   */
-  async correct(text: string, violations: Violation[]): Promise<CorrectionResult> {
-    const violationList = violations
-      .map(
-        (v, i) =>
-          `${i + 1}. [${v.type}] "${v.context}" - ${v.rule} (severity: ${v.severity})`
-      )
-      .join('\n');
-
-    const u = this.soulText.constitution.universal;
-
-    const context = {
-      forbiddenWords: u.vocabulary.forbidden_words,
-      forbiddenSimiles: u.rhetoric.forbidden_similes,
-      specialMark: u.vocabulary.special_marks.mark,
-      specialMarkForms: u.vocabulary.special_marks.forms,
-      themeContext: this.themeContext,
-      text,
-      violationList,
-    };
-
-    const { system: systemPrompt, user: userPrompt } = buildPrompt('corrector', context);
-    const correctedText = await this.llmClient.complete(systemPrompt, userPrompt);
-    const tokensUsed = this.llmClient.getTotalTokens();
-
-    return {
-      correctedText,
-      tokensUsed,
-    };
-  }
+  return {
+    forbiddenWords: u.vocabulary.forbidden_words,
+    forbiddenSimiles: u.rhetoric.forbidden_similes,
+    specialMark: u.vocabulary.special_marks.mark,
+    specialMarkForms: u.vocabulary.special_marks.forms,
+    themeContext,
+    text,
+    violationList,
+  };
 }
+
+/**
+ * Create a functional Corrector from dependencies
+ */
+export function createCorrector(deps: CorrectorDeps): Corrector {
+  const { llmClient, soulText, themeContext } = deps;
+
+  return {
+    correct: async (text: string, violations: Violation[]): Promise<CorrectionResult> => {
+      const context = buildCorrectorContext(soulText, text, violations, themeContext);
+      const { system: systemPrompt, user: userPrompt } = buildPrompt('corrector', context);
+      const correctedText = await llmClient.complete(systemPrompt, userPrompt);
+      const tokensUsed = llmClient.getTotalTokens();
+
+      return { correctedText, tokensUsed };
+    },
+  };
+}
+

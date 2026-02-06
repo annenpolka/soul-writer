@@ -1,1 +1,1 @@
-export { CorrectionLoop } from './loop.js';
+export { createCorrectionLoop, type CorrectionLoopDeps, type CorrectionChecker, type CorrectionRunner } from './loop.js';

@@ -1,92 +1,95 @@
-import type { CorrectorAgent } from '../agents/corrector.js';
-import type { ComplianceChecker } from '../compliance/checker.js';
-import type { CorrectionLoopResult, Violation, ChapterContext } from '../agents/types.js';
+import type { CorrectionLoopResult, Violation, ChapterContext, Corrector, ComplianceResult } from '../agents/types.js';
 
 const DEFAULT_MAX_ATTEMPTS = 3;
 
 /**
- * CorrectionLoop repeatedly attempts to fix violations until compliant or max attempts reached
+ * Checker interface for FP CorrectionLoop
  */
-export class CorrectionLoop {
-  private corrector: CorrectorAgent;
-  private checker: ComplianceChecker;
-  private maxAttempts: number;
+export interface CorrectionChecker {
+  check: (text: string) => ComplianceResult;
+  checkWithContext: (text: string, ctx: ChapterContext) => Promise<ComplianceResult>;
+}
 
-  constructor(
-    corrector: CorrectorAgent,
-    checker: ComplianceChecker,
-    maxAttempts: number = DEFAULT_MAX_ATTEMPTS
-  ) {
-    this.corrector = corrector;
-    this.checker = checker;
-    this.maxAttempts = maxAttempts;
-  }
+/**
+ * Dependencies for functional CorrectionLoop
+ */
+export interface CorrectionLoopDeps {
+  corrector: Corrector;
+  checker: CorrectionChecker;
+  maxAttempts?: number;
+}
 
-  private async checkText(text: string, chapterContext?: ChapterContext) {
+/**
+ * FP CorrectionLoop interface
+ */
+export interface CorrectionRunner {
+  run: (text: string, initialViolations?: Violation[], chapterContext?: ChapterContext) => Promise<CorrectionLoopResult>;
+}
+
+/**
+ * Create a functional CorrectionLoop from dependencies
+ */
+export function createCorrectionLoop(deps: CorrectionLoopDeps): CorrectionRunner {
+  const { corrector, checker, maxAttempts = DEFAULT_MAX_ATTEMPTS } = deps;
+
+  async function checkText(text: string, chapterContext?: ChapterContext): Promise<ComplianceResult> {
     if (chapterContext) {
-      return this.checker.checkWithContext(text, chapterContext);
+      return checker.checkWithContext(text, chapterContext);
     }
-    return this.checker.check(text);
+    return checker.check(text);
   }
 
-  /**
-   * Run the correction loop until text is compliant or max attempts reached
-   */
-  async run(text: string, initialViolations?: Violation[], chapterContext?: ChapterContext): Promise<CorrectionLoopResult> {
-    // Initial compliance check (async if chapterContext provided)
-    const initialResult = await this.checkText(text, chapterContext);
+  return {
+    run: async (text: string, initialViolations?: Violation[], chapterContext?: ChapterContext): Promise<CorrectionLoopResult> => {
+      const initialResult = await checkText(text, chapterContext);
 
-    // Merge initial violations (e.g. from caller's prior async check) with check result
-    const mergedViolations = initialViolations
-      ? [...initialResult.violations, ...initialViolations.filter(v => !initialResult.violations.some(sv => sv.type === v.type && sv.context === v.context))]
-      : initialResult.violations;
+      const mergedViolations = initialViolations
+        ? [...initialResult.violations, ...initialViolations.filter(v => !initialResult.violations.some(sv => sv.type === v.type && sv.context === v.context))]
+        : initialResult.violations;
 
-    if (initialResult.isCompliant && mergedViolations.length === 0) {
-      return {
-        success: true,
-        finalText: text,
-        attempts: 0,
-        totalTokensUsed: 0,
-      };
-    }
-
-    let currentText = text;
-    let currentViolations = mergedViolations;
-    const originalViolations = [...mergedViolations];
-    let attempts = 0;
-    let totalTokensUsed = 0;
-
-    while (attempts < this.maxAttempts) {
-      attempts++;
-
-      // Attempt correction
-      const correctionResult = await this.corrector.correct(currentText, currentViolations);
-      totalTokensUsed += correctionResult.tokensUsed;
-      currentText = correctionResult.correctedText;
-
-      // Check compliance of corrected text (async if chapterContext provided)
-      const checkResult = await this.checkText(currentText, chapterContext);
-
-      if (checkResult.isCompliant) {
+      if (initialResult.isCompliant && mergedViolations.length === 0) {
         return {
           success: true,
-          finalText: currentText,
-          attempts,
-          totalTokensUsed,
+          finalText: text,
+          attempts: 0,
+          totalTokensUsed: 0,
         };
       }
 
-      // Update violations for next iteration
-      currentViolations = checkResult.violations;
-    }
+      let currentText = text;
+      let currentViolations = mergedViolations;
+      const originalViolations = [...mergedViolations];
+      let attempts = 0;
+      let totalTokensUsed = 0;
 
-    // Max attempts reached without achieving compliance
-    return {
-      success: false,
-      finalText: currentText,
-      attempts,
-      totalTokensUsed,
-      originalViolations,
-    };
-  }
+      while (attempts < maxAttempts) {
+        attempts++;
+
+        const correctionResult = await corrector.correct(currentText, currentViolations);
+        totalTokensUsed += correctionResult.tokensUsed;
+        currentText = correctionResult.correctedText;
+
+        const checkResult = await checkText(currentText, chapterContext);
+
+        if (checkResult.isCompliant) {
+          return {
+            success: true,
+            finalText: currentText,
+            attempts,
+            totalTokensUsed,
+          };
+        }
+
+        currentViolations = checkResult.violations;
+      }
+
+      return {
+        success: false,
+        finalText: currentText,
+        attempts,
+        totalTokensUsed,
+        originalViolations,
+      };
+    },
+  };
 }

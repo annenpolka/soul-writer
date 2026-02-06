@@ -1,5 +1,5 @@
 import type {
-  CheckpointRepository,
+  CheckpointRepo,
   Checkpoint,
   CheckpointPhase,
 } from './checkpoint-repository.js';
@@ -9,68 +9,42 @@ export interface ResumeState extends Record<string, unknown> {
   _progress: Record<string, unknown>;
 }
 
-/**
- * High-level manager for checkpoint operations
- * Provides convenient methods for saving and resuming from checkpoints
- */
-export class CheckpointManager {
-  private repo: CheckpointRepository;
+// =====================
+// FP API
+// =====================
 
-  constructor(repo: CheckpointRepository) {
-    this.repo = repo;
-  }
-
-  /**
-   * Save a checkpoint with current state
-   */
-  async saveCheckpoint(
-    taskId: string,
-    phase: CheckpointPhase,
-    state: Record<string, unknown>,
-    progress: Record<string, unknown> = {}
-  ): Promise<Checkpoint> {
-    return this.repo.create({
-      taskId,
-      phase,
-      progress,
-      state,
-    });
-  }
-
-  /**
-   * Get the most recent checkpoint for a task
-   */
-  async getLatestCheckpoint(taskId: string): Promise<Checkpoint | undefined> {
-    return this.repo.findLatestByTaskId(taskId);
-  }
-
-  /**
-   * Check if a task can be resumed from a checkpoint
-   */
-  async canResume(taskId: string): Promise<boolean> {
-    const checkpoint = await this.repo.findLatestByTaskId(taskId);
-    return checkpoint !== undefined;
-  }
-
-  /**
-   * Get the state needed to resume a task
-   * Returns the state merged with metadata about the checkpoint
-   */
-  async getResumeState(taskId: string): Promise<ResumeState | undefined> {
-    const checkpoint = await this.repo.findLatestByTaskId(taskId);
-    if (!checkpoint) return undefined;
-
-    return {
-      ...checkpoint.state,
-      _phase: checkpoint.phase,
-      _progress: checkpoint.progress,
-    };
-  }
-
-  /**
-   * Clear all checkpoints for a task
-   */
-  async clearCheckpoints(taskId: string): Promise<void> {
-    await this.repo.deleteByTaskId(taskId);
-  }
+export interface CheckpointManagerFn {
+  saveCheckpoint: (taskId: string, phase: CheckpointPhase, state: Record<string, unknown>, progress?: Record<string, unknown>) => Promise<Checkpoint>;
+  getLatestCheckpoint: (taskId: string) => Promise<Checkpoint | undefined>;
+  canResume: (taskId: string) => Promise<boolean>;
+  getResumeState: (taskId: string) => Promise<ResumeState | undefined>;
+  clearCheckpoints: (taskId: string) => Promise<void>;
 }
+
+export function createCheckpointManager(repo: CheckpointRepo): CheckpointManagerFn {
+  return {
+    saveCheckpoint: async (taskId, phase, state, progress = {}) => {
+      return repo.create({ taskId, phase, progress, state });
+    },
+    getLatestCheckpoint: async (taskId) => {
+      return repo.findLatestByTaskId(taskId);
+    },
+    canResume: async (taskId) => {
+      const checkpoint = await repo.findLatestByTaskId(taskId);
+      return checkpoint !== undefined;
+    },
+    getResumeState: async (taskId) => {
+      const checkpoint = await repo.findLatestByTaskId(taskId);
+      if (!checkpoint) return undefined;
+      return {
+        ...checkpoint.state,
+        _phase: checkpoint.phase,
+        _progress: checkpoint.progress,
+      };
+    },
+    clearCheckpoints: async (taskId) => {
+      await repo.deleteByTaskId(taskId);
+    },
+  };
+}
+

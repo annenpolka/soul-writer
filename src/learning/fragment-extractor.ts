@@ -18,48 +18,42 @@ export interface ExtractionResult {
   tokensUsed: number;
 }
 
-/**
- * Extracts high-quality fragments from generated text for potential soul expansion
- */
-export class FragmentExtractor {
-  private llmClient: LLMClient;
-
-  constructor(llmClient: LLMClient) {
-    this.llmClient = llmClient;
-  }
-
-  /**
-   * Extract notable fragments from text
-   */
-  async extract(text: string, context: ExtractionContext): Promise<ExtractionResult> {
-    const templateContext = {
-      text,
-      complianceScore: String(context.complianceScore),
-      readerScore: String(context.readerScore),
-    };
-
-    const { system: systemPrompt, user: userPrompt } = buildPrompt('fragment-extractor', templateContext);
-    const response = await this.llmClient.complete(systemPrompt, userPrompt);
-    const tokensUsed = this.llmClient.getTotalTokens();
-
-    try {
-      const parsed = JSON.parse(response) as { fragments: ExtractedFragment[] };
-      return {
-        fragments: parsed.fragments || [],
-        tokensUsed,
-      };
-    } catch {
-      return {
-        fragments: [],
-        tokensUsed,
-      };
-    }
-  }
-
-  /**
-   * Filter fragments by minimum quality score
-   */
-  filterHighQuality(fragments: ExtractedFragment[], minScore: number): ExtractedFragment[] {
-    return fragments.filter((f) => f.score >= minScore);
-  }
+export interface FragmentExtractorFn {
+  extract(text: string, context: ExtractionContext): Promise<ExtractionResult>;
+  filterHighQuality(fragments: ExtractedFragment[], minScore: number): ExtractedFragment[];
 }
+
+export function createFragmentExtractor(llmClient: LLMClient): FragmentExtractorFn {
+  return {
+    async extract(text: string, context: ExtractionContext): Promise<ExtractionResult> {
+      const templateContext = {
+        text,
+        complianceScore: String(context.complianceScore),
+        readerScore: String(context.readerScore),
+      };
+
+      const { system: systemPrompt, user: userPrompt } = buildPrompt('fragment-extractor', templateContext);
+      const response = await llmClient.complete(systemPrompt, userPrompt);
+      const tokensUsed = llmClient.getTotalTokens();
+
+      try {
+        const parsed = JSON.parse(response) as { fragments: ExtractedFragment[] };
+        return {
+          fragments: parsed.fragments || [],
+          tokensUsed,
+        };
+      } catch (e) {
+        console.warn('[fragment-extractor] JSON parse failed, returning empty fragments:', e instanceof Error ? e.message : e);
+        return {
+          fragments: [],
+          tokensUsed,
+        };
+      }
+    },
+
+    filterHighQuality(fragments: ExtractedFragment[], minScore: number): ExtractedFragment[] {
+      return fragments.filter((f) => f.score >= minScore);
+    },
+  };
+}
+
