@@ -1,6 +1,6 @@
-export { CollaborationSession } from './session.js';
-export { CollaborativeWriter } from './collaborative-writer.js';
-export { ModeratorAgent } from './moderator.js';
+export { createCollaborationSession, type CollaborationSessionFn, type CollaborationSessionDeps } from './session.js';
+export { createCollaborativeWriter, type CollaborativeWriterFn, type CollaborativeWriterDeps } from './collaborative-writer.js';
+export { createModerator, type ModeratorFn, type ModeratorDeps, type WriterInfo } from './moderator.js';
 export { toTournamentResult } from './adapter.js';
 export { COLLABORATION_TOOLS, parseToolCallToAction, getToolByName } from './tools.js';
 export {

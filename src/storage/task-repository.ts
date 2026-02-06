@@ -1,4 +1,4 @@
-import type { DatabaseConnection } from './database.js';
+import type Database from 'better-sqlite3';
 
 export interface Task {
   id: string;
@@ -16,121 +16,107 @@ export interface CreateTaskInput {
   params: Record<string, unknown>;
 }
 
-/**
- * Repository for managing tasks in the database
- */
-export class TaskRepository {
-  private db: DatabaseConnection;
+type TaskRow = {
+  id: string;
+  soul_id: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  params: string;
+  error: string | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+};
 
-  constructor(db: DatabaseConnection) {
-    this.db = db;
-  }
+function rowToTask(r: TaskRow): Task {
+  return {
+    id: r.id,
+    soulId: r.soul_id,
+    status: r.status,
+    params: JSON.parse(r.params),
+    error: r.error,
+    createdAt: r.created_at,
+    startedAt: r.started_at,
+    completedAt: r.completed_at,
+  };
+}
 
-  async create(input: CreateTaskInput): Promise<Task> {
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
-    const paramsJson = JSON.stringify(input.params);
+export interface TaskRepo {
+  create: (input: CreateTaskInput) => Promise<Task>;
+  findById: (id: string) => Promise<Task | undefined>;
+  findPending: () => Promise<Task[]>;
+  markStarted: (id: string) => Promise<Task | undefined>;
+  markCompleted: (id: string) => Promise<Task | undefined>;
+  markFailed: (id: string, error: string) => Promise<Task | undefined>;
+}
 
-    this.db.getSqlite().prepare(`
-      INSERT INTO tasks (id, soul_id, status, params, created_at)
-      VALUES (?, ?, 'pending', ?, ?)
-    `).run(id, input.soulId, paramsJson, now);
-
-    return {
-      id,
-      soulId: input.soulId,
-      status: 'pending',
-      params: input.params,
-      error: null,
-      createdAt: now,
-      startedAt: null,
-      completedAt: null,
-    };
-  }
-
-  async findById(id: string): Promise<Task | undefined> {
-    const result = this.db.getSqlite().prepare(`
+export function createTaskRepo(sqlite: Database.Database): TaskRepo {
+  const findById = async (id: string): Promise<Task | undefined> => {
+    const result = sqlite.prepare(`
       SELECT id, soul_id, status, params, error, created_at, started_at, completed_at
       FROM tasks WHERE id = ?
-    `).get(id) as {
-      id: string;
-      soul_id: string;
-      status: 'pending' | 'running' | 'completed' | 'failed';
-      params: string;
-      error: string | null;
-      created_at: string;
-      started_at: string | null;
-      completed_at: string | null;
-    } | undefined;
+    `).get(id) as TaskRow | undefined;
 
     if (!result) return undefined;
+    return rowToTask(result);
+  };
 
-    return {
-      id: result.id,
-      soulId: result.soul_id,
-      status: result.status,
-      params: JSON.parse(result.params),
-      error: result.error,
-      createdAt: result.created_at,
-      startedAt: result.started_at,
-      completedAt: result.completed_at,
-    };
-  }
+  return {
+    create: async (input) => {
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+      const paramsJson = JSON.stringify(input.params);
 
-  async findPending(): Promise<Task[]> {
-    const results = this.db.getSqlite().prepare(`
-      SELECT id, soul_id, status, params, error, created_at, started_at, completed_at
-      FROM tasks WHERE status = 'pending' ORDER BY created_at ASC
-    `).all() as Array<{
-      id: string;
-      soul_id: string;
-      status: 'pending' | 'running' | 'completed' | 'failed';
-      params: string;
-      error: string | null;
-      created_at: string;
-      started_at: string | null;
-      completed_at: string | null;
-    }>;
+      sqlite.prepare(`
+        INSERT INTO tasks (id, soul_id, status, params, created_at)
+        VALUES (?, ?, 'pending', ?, ?)
+      `).run(id, input.soulId, paramsJson, now);
 
-    return results.map((r) => ({
-      id: r.id,
-      soulId: r.soul_id,
-      status: r.status,
-      params: JSON.parse(r.params),
-      error: r.error,
-      createdAt: r.created_at,
-      startedAt: r.started_at,
-      completedAt: r.completed_at,
-    }));
-  }
+      return {
+        id,
+        soulId: input.soulId,
+        status: 'pending',
+        params: input.params,
+        error: null,
+        createdAt: now,
+        startedAt: null,
+        completedAt: null,
+      };
+    },
 
-  async markStarted(id: string): Promise<Task | undefined> {
-    const now = new Date().toISOString();
+    findById,
 
-    this.db.getSqlite().prepare(`
-      UPDATE tasks SET status = 'running', started_at = ? WHERE id = ?
-    `).run(now, id);
+    findPending: async () => {
+      const results = sqlite.prepare(`
+        SELECT id, soul_id, status, params, error, created_at, started_at, completed_at
+        FROM tasks WHERE status = 'pending' ORDER BY created_at ASC
+      `).all() as TaskRow[];
 
-    return this.findById(id);
-  }
+      return results.map(rowToTask);
+    },
 
-  async markCompleted(id: string): Promise<Task | undefined> {
-    const now = new Date().toISOString();
+    markStarted: async (id) => {
+      const now = new Date().toISOString();
+      sqlite.prepare(`
+        UPDATE tasks SET status = 'running', started_at = ? WHERE id = ?
+      `).run(now, id);
+      return findById(id);
+    },
 
-    this.db.getSqlite().prepare(`
-      UPDATE tasks SET status = 'completed', completed_at = ? WHERE id = ?
-    `).run(now, id);
+    markCompleted: async (id) => {
+      const now = new Date().toISOString();
+      sqlite.prepare(`
+        UPDATE tasks SET status = 'completed', completed_at = ? WHERE id = ?
+      `).run(now, id);
+      return findById(id);
+    },
 
-    return this.findById(id);
-  }
-
-  async markFailed(id: string, error: string): Promise<Task | undefined> {
-    const now = new Date().toISOString();
-
-    this.db.getSqlite().prepare(`
-      UPDATE tasks SET status = 'failed', error = ?, completed_at = ? WHERE id = ?
-    `).run(error, now, id);
-
-    return this.findById(id);
-  }
+    markFailed: async (id, error) => {
+      const now = new Date().toISOString();
+      sqlite.prepare(`
+        UPDATE tasks SET status = 'failed', error = ?, completed_at = ? WHERE id = ?
+      `).run(error, now, id);
+      return findById(id);
+    },
+  };
 }
+

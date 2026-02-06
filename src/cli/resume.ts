@@ -1,14 +1,14 @@
 import dotenv from 'dotenv';
 import { CerebrasClient } from '../llm/cerebras.js';
-import { SoulTextManager } from '../soul/manager.js';
+import { loadSoulTextManager } from '../soul/manager.js';
 import { DatabaseConnection } from '../storage/database.js';
-import { TaskRepository } from '../storage/task-repository.js';
-import { WorkRepository } from '../storage/work-repository.js';
-import { CheckpointRepository } from '../storage/checkpoint-repository.js';
-import { CheckpointManager } from '../storage/checkpoint-manager.js';
-import { SoulCandidateRepository } from '../storage/soul-candidate-repository.js';
-import { FullPipeline } from '../pipeline/full.js';
-import { Logger } from '../logger.js';
+import { createTaskRepo } from '../storage/task-repository.js';
+import { createWorkRepo } from '../storage/work-repository.js';
+import { createCheckpointRepo } from '../storage/checkpoint-repository.js';
+import { createCheckpointManager } from '../storage/checkpoint-manager.js';
+import { createSoulCandidateRepo } from '../storage/soul-candidate-repository.js';
+import { createFullPipeline } from '../pipeline/full.js';
+import { createLogger } from '../logger.js';
 
 dotenv.config();
 
@@ -22,7 +22,7 @@ export interface ResumeOptions {
 export async function resume(options: ResumeOptions): Promise<void> {
   const { taskId, soul, dbPath = 'soul-writer.db', verbose = false } = options;
 
-  const logger = new Logger({
+  const logger = createLogger({
     verbose,
     logFile: verbose ? `logs/resume-${Date.now()}.log` : undefined,
   });
@@ -45,7 +45,7 @@ export async function resume(options: ResumeOptions): Promise<void> {
 
   // Load soul text
   console.log(`Loading soul text from "${soul}"...`);
-  const soulManager = await SoulTextManager.load(soul);
+  const soulManager = await loadSoulTextManager(soul);
   console.log(`✓ Loaded: ${soulManager.getConstitution().meta.soul_name}\n`);
 
   // Initialize database
@@ -55,11 +55,12 @@ export async function resume(options: ResumeOptions): Promise<void> {
   console.log(`✓ Database ready\n`);
 
   // Create repositories
-  const taskRepo = new TaskRepository(db);
-  const workRepo = new WorkRepository(db);
-  const checkpointRepo = new CheckpointRepository(db);
-  const checkpointManager = new CheckpointManager(checkpointRepo);
-  const candidateRepo = new SoulCandidateRepository(db);
+  const sqlite = db.getSqlite();
+  const taskRepo = createTaskRepo(sqlite);
+  const workRepo = createWorkRepo(sqlite);
+  const checkpointRepo = createCheckpointRepo(sqlite);
+  const checkpointManager = createCheckpointManager(checkpointRepo);
+  const candidateRepo = createSoulCandidateRepo(sqlite);
 
   // Check if task can be resumed
   console.log(`Checking checkpoint for task ${taskId}...`);
@@ -80,16 +81,16 @@ export async function resume(options: ResumeOptions): Promise<void> {
   const llmClient = new CerebrasClient({ apiKey, model });
 
   // Create pipeline
-  const pipeline = new FullPipeline(
+  const pipeline = createFullPipeline({
     llmClient,
     soulManager,
     checkpointManager,
     taskRepo,
     workRepo,
     candidateRepo,
-    {},
+    config: {},
     logger,
-  );
+  });
 
   console.log('Resuming story generation...\n');
 

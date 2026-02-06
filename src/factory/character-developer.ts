@@ -67,116 +67,111 @@ export interface CharacterDevelopResult {
   tokensUsed: number;
 }
 
-/**
- * Develops detailed character configurations for a given theme.
- * Ensures character diversity across batch runs.
- */
-export class CharacterDeveloperAgent {
-  private llmClient: LLMClient;
-  private soulText: SoulText;
+// --- FP interface ---
 
-  constructor(llmClient: LLMClient, soulText: SoulText) {
-    this.llmClient = llmClient;
-    this.soulText = soulText;
+export interface CharacterDeveloperFn {
+  develop: (theme: GeneratedTheme, charMacGuffins?: CharacterMacGuffin[]) => Promise<CharacterDevelopResult>;
+}
+
+// --- Internal helpers ---
+
+function buildCharDevContext(soulText: SoulText, theme: GeneratedTheme, charMacGuffins?: CharacterMacGuffin[]): Record<string, unknown> {
+  const ctx: Record<string, unknown> = {};
+
+  const characters = soulText.worldBible.characters;
+  if (Object.keys(characters).length > 0) {
+    ctx.existingCharacters = Object.entries(characters).map(([name, char]) => {
+      return { name, role: char.role, voiceSuffix: char.voice ? `（口調: ${char.voice}）` : '' };
+    });
   }
 
-  async develop(theme: GeneratedTheme, charMacGuffins?: CharacterMacGuffin[]): Promise<CharacterDevelopResult> {
-    const tokensBefore = this.llmClient.getTotalTokens();
-
-    const context = this.buildContext(theme, charMacGuffins);
-    const { system: systemPrompt, user: userPrompt } = buildPrompt('character-developer', context);
-    assertToolCallingClient(this.llmClient);
-    const response = await this.llmClient.completeWithTools(
-      systemPrompt,
-      userPrompt,
-      [SUBMIT_CHARACTERS_TOOL],
-      {
-        toolChoice: { type: 'function', function: { name: 'submit_characters' } },
-        temperature: 0.8,
-      },
-    );
-
-    const developed = this.parseToolResponse(response, theme);
-    const tokensUsed = this.llmClient.getTotalTokens() - tokensBefore;
-
-    return { developed, tokensUsed };
+  const castingRules = soulText.promptConfig?.agents?.character_developer?.casting_rules;
+  if (castingRules) {
+    ctx.castingRules = castingRules.map(r => ({ text: r }));
   }
 
-  private buildContext(theme: GeneratedTheme, charMacGuffins?: CharacterMacGuffin[]): Record<string, unknown> {
-    const ctx: Record<string, unknown> = {};
+  ctx.themeInfo = {
+    emotion: theme.emotion,
+    timeline: theme.timeline,
+    premise: theme.premise,
+    tone: theme.tone,
+    narrative_type: theme.narrative_type || '',
+  };
 
-    // Existing characters as structured array
-    const characters = this.soulText.worldBible.characters;
-    if (Object.keys(characters).length > 0) {
-      ctx.existingCharacters = Object.entries(characters).map(([name, char]) => {
-        return { name, role: char.role, voiceSuffix: char.voice ? `（口調: ${char.voice}）` : '' };
-      });
-    }
+  ctx.themeCharacters = theme.characters.map(c => ({
+    name: c.name,
+    isNew: c.isNew,
+    tag: c.isNew ? '（新規）' : '（既存）',
+    descSuffix: c.description ? `: ${c.description}` : '',
+  }));
 
-    // Casting rules as structured array
-    const castingRules = this.soulText.promptConfig?.agents?.character_developer?.casting_rules;
-    if (castingRules) {
-      ctx.castingRules = castingRules.map(r => ({ text: r }));
-    }
-    // If no castingRules, YAML will use default rules via condition
+  if (charMacGuffins && charMacGuffins.length > 0) {
+    ctx.characterMacGuffins = charMacGuffins.map(m => ({
+      name: m.characterName,
+      secret: m.secret,
+      surfaceSigns: m.surfaceSigns.join('、'),
+    }));
+  }
 
-    // Theme info as structured object
-    ctx.themeInfo = {
-      emotion: theme.emotion,
-      timeline: theme.timeline,
-      premise: theme.premise,
-      tone: theme.tone,
-      narrative_type: theme.narrative_type || '',
-    };
+  return ctx;
+}
 
-    // Theme characters as structured array
-    ctx.themeCharacters = theme.characters.map(c => ({
+function charDevFallback(theme: GeneratedTheme): DevelopedCharacters {
+  return {
+    characters: theme.characters.map(c => ({
       name: c.name,
       isNew: c.isNew,
-      tag: c.isNew ? '（新規）' : '（既存）',
-      descSuffix: c.description ? `: ${c.description}` : '',
-    }));
-
-    // MacGuffins for character depth
-    if (charMacGuffins && charMacGuffins.length > 0) {
-      ctx.characterMacGuffins = charMacGuffins.map(m => ({
-        name: m.characterName,
-        secret: m.secret,
-        surfaceSigns: m.surfaceSigns.join('、'),
-      }));
-    }
-
-    return ctx;
-  }
-
-  private parseToolResponse(response: ToolCallResponse, theme: GeneratedTheme): DevelopedCharacters {
-    let raw: unknown;
-    try {
-      raw = parseToolArguments<unknown>(response, 'submit_characters');
-    } catch {
-      return this.fallback(theme);
-    }
-
-    const result = LLMCharacterResponseSchema.safeParse(raw);
-    if (!result.success || result.data.characters.length === 0) {
-      return this.fallback(theme);
-    }
-    return {
-      characters: result.data.characters,
-      castingRationale: result.data.castingRationale,
-    };
-  }
-
-  private fallback(theme: GeneratedTheme): DevelopedCharacters {
-    return {
-      characters: theme.characters.map(c => ({
-        name: c.name,
-        isNew: c.isNew,
-        role: c.description || '',
-        description: c.description || '',
-        voice: '',
-      })),
-      castingRationale: 'Fallback: テーマ生成時のキャラクターをそのまま使用',
-    };
-  }
+      role: c.description || '',
+      description: c.description || '',
+      voice: '',
+    })),
+    castingRationale: 'Fallback: テーマ生成時のキャラクターをそのまま使用',
+  };
 }
+
+function parseCharDevToolResponse(response: ToolCallResponse, theme: GeneratedTheme): DevelopedCharacters {
+  let raw: unknown;
+  try {
+    raw = parseToolArguments<unknown>(response, 'submit_characters');
+  } catch {
+    return charDevFallback(theme);
+  }
+
+  const result = LLMCharacterResponseSchema.safeParse(raw);
+  if (!result.success || result.data.characters.length === 0) {
+    return charDevFallback(theme);
+  }
+  return {
+    characters: result.data.characters,
+    castingRationale: result.data.castingRationale,
+  };
+}
+
+// --- Factory function ---
+
+export function createCharacterDeveloper(llmClient: LLMClient, soulText: SoulText): CharacterDeveloperFn {
+  return {
+    develop: async (theme: GeneratedTheme, charMacGuffins?: CharacterMacGuffin[]): Promise<CharacterDevelopResult> => {
+      const tokensBefore = llmClient.getTotalTokens();
+
+      const context = buildCharDevContext(soulText, theme, charMacGuffins);
+      const { system: systemPrompt, user: userPrompt } = buildPrompt('character-developer', context);
+      assertToolCallingClient(llmClient);
+      const response = await llmClient.completeWithTools(
+        systemPrompt,
+        userPrompt,
+        [SUBMIT_CHARACTERS_TOOL],
+        {
+          toolChoice: { type: 'function', function: { name: 'submit_characters' } },
+          temperature: 0.8,
+        },
+      );
+
+      const developed = parseCharDevToolResponse(response, theme);
+      const tokensUsed = llmClient.getTotalTokens() - tokensBefore;
+
+      return { developed, tokensUsed };
+    },
+  };
+}
+

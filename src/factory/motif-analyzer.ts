@@ -28,65 +28,68 @@ export interface MotifAnalysisResult {
   tokensUsed: number;
 }
 
-/**
- * Analyzes recent works to extract frequently repeated motifs/patterns.
- * Results are used to guide theme generation away from repetitive patterns.
- */
-export class MotifAnalyzerAgent {
-  private llmClient: LLMClient;
+// --- FP interface ---
 
-  constructor(llmClient: LLMClient) {
-    this.llmClient = llmClient;
-  }
-
-  async analyze(works: Work[]): Promise<MotifAnalysisResult> {
-    if (works.length === 0) {
-      return { frequentMotifs: [], tokensUsed: 0 };
-    }
-
-    const tokensBefore = this.llmClient.getTotalTokens();
-
-    const context = {
-      works: works.map(w => ({
-        title: w.title,
-        excerpt: w.content.slice(0, 2000),
-      })),
-      workCount: works.length,
-    };
-
-    const { system: systemPrompt, user: userPrompt } = buildPrompt('motif-analyzer', context);
-
-    assertToolCallingClient(this.llmClient);
-    const response = await this.llmClient.completeWithTools(
-      systemPrompt,
-      userPrompt,
-      [SUBMIT_MOTIF_ANALYSIS_TOOL],
-      {
-        toolChoice: { type: 'function', function: { name: 'submit_motif_analysis' } },
-        temperature: 0.3,
-      },
-    );
-
-    const motifs = this.parseToolResponse(response);
-    const tokensAfter = this.llmClient.getTotalTokens();
-
-    return {
-      frequentMotifs: motifs,
-      tokensUsed: tokensAfter - tokensBefore,
-    };
-  }
-
-  private parseToolResponse(response: ToolCallResponse): string[] {
-    let parsed: unknown;
-    try {
-      parsed = parseToolArguments<unknown>(response, 'submit_motif_analysis');
-    } catch {
-      return [];
-    }
-
-    if (!parsed || typeof parsed !== 'object') return [];
-    const raw = parsed as { frequentMotifs?: unknown; frequent_motifs?: unknown };
-    const motifs = raw.frequent_motifs ?? raw.frequentMotifs;
-    return Array.isArray(motifs) ? motifs.filter((m) => typeof m === 'string') : [];
-  }
+export interface MotifAnalyzerFn {
+  analyze: (works: Work[]) => Promise<MotifAnalysisResult>;
 }
+
+// --- Internal helpers ---
+
+function parseMotifToolResponse(response: ToolCallResponse): string[] {
+  let parsed: unknown;
+  try {
+    parsed = parseToolArguments<unknown>(response, 'submit_motif_analysis');
+  } catch {
+    return [];
+  }
+
+  if (!parsed || typeof parsed !== 'object') return [];
+  const raw = parsed as { frequentMotifs?: unknown; frequent_motifs?: unknown };
+  const motifs = raw.frequent_motifs ?? raw.frequentMotifs;
+  return Array.isArray(motifs) ? motifs.filter((m) => typeof m === 'string') : [];
+}
+
+// --- Factory function ---
+
+export function createMotifAnalyzer(llmClient: LLMClient): MotifAnalyzerFn {
+  return {
+    analyze: async (works: Work[]): Promise<MotifAnalysisResult> => {
+      if (works.length === 0) {
+        return { frequentMotifs: [], tokensUsed: 0 };
+      }
+
+      const tokensBefore = llmClient.getTotalTokens();
+
+      const context = {
+        works: works.map(w => ({
+          title: w.title,
+          excerpt: w.content.slice(0, 2000),
+        })),
+        workCount: works.length,
+      };
+
+      const { system: systemPrompt, user: userPrompt } = buildPrompt('motif-analyzer', context);
+
+      assertToolCallingClient(llmClient);
+      const response = await llmClient.completeWithTools(
+        systemPrompt,
+        userPrompt,
+        [SUBMIT_MOTIF_ANALYSIS_TOOL],
+        {
+          toolChoice: { type: 'function', function: { name: 'submit_motif_analysis' } },
+          temperature: 0.3,
+        },
+      );
+
+      const motifs = parseMotifToolResponse(response);
+      const tokensAfter = llmClient.getTotalTokens();
+
+      return {
+        frequentMotifs: motifs,
+        tokensUsed: tokensAfter - tokensBefore,
+      };
+    },
+  };
+}
+

@@ -41,101 +41,103 @@ export interface PlotMacGuffinResult {
   tokensUsed: number;
 }
 
-export class PlotMacGuffinAgent {
-  private llmClient: LLMClient;
-  private soulText: SoulText;
+// --- FP interface ---
 
-  constructor(llmClient: LLMClient, soulText: SoulText) {
-    this.llmClient = llmClient;
-    this.soulText = soulText;
-  }
-
-  async generate(theme: GeneratedTheme, charMacGuffins?: CharacterMacGuffin[]): Promise<PlotMacGuffinResult> {
-    const tokensBefore = this.llmClient.getTotalTokens();
-
-    const context = this.buildContext(theme, charMacGuffins);
-    const { system: systemPrompt, user: userPrompt } = buildPrompt('plot-macguffin', context);
-    assertToolCallingClient(this.llmClient);
-    const response = await this.llmClient.completeWithTools(
-      systemPrompt,
-      userPrompt,
-      [SUBMIT_PLOT_MACGUFFINS_TOOL],
-      {
-        toolChoice: { type: 'function', function: { name: 'submit_plot_macguffins' } },
-        temperature: 0.9,
-      },
-    );
-
-    const macguffins = this.parseToolResponse(response);
-    const tokensUsed = this.llmClient.getTotalTokens() - tokensBefore;
-
-    return { macguffins, tokensUsed };
-  }
-
-  private buildContext(theme: GeneratedTheme, charMacGuffins?: CharacterMacGuffin[]): Record<string, unknown> {
-    const ctx: Record<string, unknown> = {};
-
-    ctx.themeInfo = {
-      emotion: theme.emotion,
-      timeline: theme.timeline,
-      premise: theme.premise,
-      tone: theme.tone,
-      scene_types: theme.scene_types,
-    };
-
-    // Technology for world-grounded mysteries
-    const tech = this.soulText.worldBible.technology;
-    if (Object.keys(tech).length > 0) {
-      ctx.technologyEntries = Object.entries(tech).map(
-        ([name, desc]) => ({ name, description: String(desc) }),
-      );
-    }
-
-    // Society
-    const society = this.soulText.worldBible.society;
-    if (Object.keys(society).length > 0) {
-      ctx.societyEntries = Object.entries(society).map(
-        ([name, desc]) => ({ name, description: String(desc) }),
-      );
-    }
-
-    // Character secrets for interweaving
-    if (charMacGuffins && charMacGuffins.length > 0) {
-      ctx.characterSecrets = charMacGuffins.map(m => ({
-        name: m.characterName,
-        secret: m.secret,
-      }));
-    }
-
-    return ctx;
-  }
-
-  private parseToolResponse(response: ToolCallResponse): PlotMacGuffin[] {
-    let raw: unknown;
-    try {
-      raw = parseToolArguments<unknown>(response, 'submit_plot_macguffins');
-    } catch {
-      return this.fallback();
-    }
-
-    const items = Array.isArray(raw) ? raw : (raw as { plotMacGuffins?: unknown }).plotMacGuffins;
-    if (!Array.isArray(items)) {
-      return this.fallback();
-    }
-
-    const validated = items.map((item: unknown) => PlotMacGuffinSchema.safeParse(item))
-      .filter((r: { success: boolean }) => r.success)
-      .map((r: { success: true; data: PlotMacGuffin }) => r.data);
-    return validated.length > 0 ? validated : this.fallback();
-  }
-
-  private fallback(): PlotMacGuffin[] {
-    return [{
-      name: '説明のつかない現象',
-      surfaceAppearance: 'システムの一時的な異常として処理される',
-      hiddenLayer: '誰かの意図的な介入の可能性',
-      tensionQuestions: ['なぜこのタイミングで起きたのか'],
-      presenceHint: '物語の転換点付近',
-    }];
-  }
+export interface PlotMacGuffinFn {
+  generate: (theme: GeneratedTheme, charMacGuffins?: CharacterMacGuffin[]) => Promise<PlotMacGuffinResult>;
 }
+
+// --- Internal helpers ---
+
+function buildPlotMacGuffinContext(soulText: SoulText, theme: GeneratedTheme, charMacGuffins?: CharacterMacGuffin[]): Record<string, unknown> {
+  const ctx: Record<string, unknown> = {};
+
+  ctx.themeInfo = {
+    emotion: theme.emotion,
+    timeline: theme.timeline,
+    premise: theme.premise,
+    tone: theme.tone,
+    scene_types: theme.scene_types,
+  };
+
+  const tech = soulText.worldBible.technology;
+  if (Object.keys(tech).length > 0) {
+    ctx.technologyEntries = Object.entries(tech).map(
+      ([name, desc]) => ({ name, description: String(desc) }),
+    );
+  }
+
+  const society = soulText.worldBible.society;
+  if (Object.keys(society).length > 0) {
+    ctx.societyEntries = Object.entries(society).map(
+      ([name, desc]) => ({ name, description: String(desc) }),
+    );
+  }
+
+  if (charMacGuffins && charMacGuffins.length > 0) {
+    ctx.characterSecrets = charMacGuffins.map(m => ({
+      name: m.characterName,
+      secret: m.secret,
+    }));
+  }
+
+  return ctx;
+}
+
+function plotMacGuffinFallback(): PlotMacGuffin[] {
+  return [{
+    name: '説明のつかない現象',
+    surfaceAppearance: 'システムの一時的な異常として処理される',
+    hiddenLayer: '誰かの意図的な介入の可能性',
+    tensionQuestions: ['なぜこのタイミングで起きたのか'],
+    presenceHint: '物語の転換点付近',
+  }];
+}
+
+function parsePlotMacGuffinToolResponse(response: ToolCallResponse): PlotMacGuffin[] {
+  let raw: unknown;
+  try {
+    raw = parseToolArguments<unknown>(response, 'submit_plot_macguffins');
+  } catch {
+    return plotMacGuffinFallback();
+  }
+
+  const items = Array.isArray(raw) ? raw : (raw as { plotMacGuffins?: unknown }).plotMacGuffins;
+  if (!Array.isArray(items)) {
+    return plotMacGuffinFallback();
+  }
+
+  const validated = items.map((item: unknown) => PlotMacGuffinSchema.safeParse(item))
+    .filter((r: { success: boolean }) => r.success)
+    .map((r: { success: true; data: PlotMacGuffin }) => r.data);
+  return validated.length > 0 ? validated : plotMacGuffinFallback();
+}
+
+// --- Factory function ---
+
+export function createPlotMacGuffinAgent(llmClient: LLMClient, soulText: SoulText): PlotMacGuffinFn {
+  return {
+    generate: async (theme: GeneratedTheme, charMacGuffins?: CharacterMacGuffin[]): Promise<PlotMacGuffinResult> => {
+      const tokensBefore = llmClient.getTotalTokens();
+
+      const context = buildPlotMacGuffinContext(soulText, theme, charMacGuffins);
+      const { system: systemPrompt, user: userPrompt } = buildPrompt('plot-macguffin', context);
+      assertToolCallingClient(llmClient);
+      const response = await llmClient.completeWithTools(
+        systemPrompt,
+        userPrompt,
+        [SUBMIT_PLOT_MACGUFFINS_TOOL],
+        {
+          toolChoice: { type: 'function', function: { name: 'submit_plot_macguffins' } },
+          temperature: 0.9,
+        },
+      );
+
+      const macguffins = parsePlotMacGuffinToolResponse(response);
+      const tokensUsed = llmClient.getTotalTokens() - tokensBefore;
+
+      return { macguffins, tokensUsed };
+    },
+  };
+}
+

@@ -314,3 +314,142 @@ export interface FullPipelineResult {
   learningCandidates: number;
   antiPatternsCollected: number;
 }
+
+// =====================
+// FP Type Aliases
+// =====================
+
+import type { LLMClient } from '../llm/types.js';
+import type { SoulText } from '../soul/manager.js';
+import type { NarrativeRules } from '../factory/narrative-rules.js';
+import type { DevelopedCharacter } from '../factory/character-developer.js';
+
+/**
+ * FP Agent Dependencies — shared base for all agents
+ */
+export interface AgentDeps {
+  llmClient: LLMClient;
+  soulText: SoulText;
+}
+
+/**
+ * Corrector agent dependencies
+ */
+export interface CorrectorDeps extends AgentDeps {
+  themeContext?: ThemeContext;
+}
+
+/**
+ * Writer agent dependencies
+ */
+export interface WriterDeps extends AgentDeps {
+  config: WriterConfig;
+  narrativeRules?: NarrativeRules;
+  developedCharacters?: DevelopedCharacter[];
+  themeContext?: ThemeContext;
+  macGuffinContext?: MacGuffinContext;
+}
+
+/**
+ * FP Corrector interface — returned by createCorrector()
+ */
+export interface Corrector {
+  correct: (text: string, violations: Violation[]) => Promise<CorrectionResult>;
+}
+
+/**
+ * FP Writer interface — returned by createWriter()
+ */
+export interface Writer {
+  generate: (prompt: string) => Promise<string>;
+  generateWithMetadata: (prompt: string) => Promise<GenerationResult>;
+  getId: () => string;
+  getConfig: () => WriterConfig;
+}
+
+/**
+ * Judge agent dependencies
+ */
+export interface JudgeDeps extends AgentDeps {
+  narrativeRules?: NarrativeRules;
+  themeContext?: ThemeContext;
+}
+
+/**
+ * FP Judge interface — returned by createJudge()
+ */
+export interface Judge {
+  evaluate: (textA: string, textB: string) => Promise<JudgeResult>;
+}
+
+/**
+ * Plotter agent dependencies
+ */
+export interface PlotterDeps extends AgentDeps {
+  config: PlotterConfig;
+}
+
+/**
+ * FP Plotter interface — returned by createPlotter()
+ */
+export interface Plotter {
+  generatePlot: () => Promise<import('../schemas/plot.js').Plot>;
+}
+
+/**
+ * ReaderEvaluator agent dependencies
+ */
+export interface ReaderEvaluatorDeps extends AgentDeps {
+  persona: import('../schemas/reader-personas.js').ReaderPersona;
+}
+
+/**
+ * FP ReaderEvaluator interface — returned by createReaderEvaluator()
+ */
+export interface ReaderEval {
+  evaluate: (text: string, previousEvaluation?: PersonaEvaluation) => Promise<PersonaEvaluation>;
+}
+
+/**
+ * ReaderJury agent dependencies
+ */
+export interface ReaderJuryDeps extends AgentDeps {
+  personas?: import('../schemas/reader-personas.js').ReaderPersona[];
+}
+
+/**
+ * FP ReaderJury interface — returned by createReaderJury()
+ */
+export interface ReaderJury {
+  evaluate: (text: string, previousResult?: ReaderJuryResult) => Promise<ReaderJuryResult>;
+}
+
+/**
+ * Synthesis agent dependencies
+ */
+export interface SynthesisDeps extends AgentDeps {
+  narrativeRules?: NarrativeRules;
+  themeContext?: ThemeContext;
+}
+
+/**
+ * FP Synthesis interface — returned by createSynthesisAgent()
+ */
+export interface Synthesizer {
+  synthesize: (championText: string, championId: string, allGenerations: GenerationResult[], rounds: import('../tournament/arena.js').MatchResult[]) => Promise<import('../synthesis/synthesis-agent.js').SynthesisResult>;
+}
+
+/**
+ * Retake agent dependencies
+ */
+export interface RetakeDeps extends AgentDeps {
+  narrativeRules?: NarrativeRules;
+  themeContext?: ThemeContext;
+}
+
+/**
+ * FP Retake interface — returned by createRetakeAgent()
+ */
+export interface Retaker {
+  retake: (originalText: string, feedback: string) => Promise<import('../retake/retake-agent.js').RetakeResult>;
+}

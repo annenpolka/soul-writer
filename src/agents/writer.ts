@@ -1,252 +1,50 @@
-import type { LLMClient } from '../llm/types.js';
-import type { SoulText } from '../soul/manager.js';
-import { DEFAULT_WRITERS, type WriterConfig, type GenerationResult, type ThemeContext, type MacGuffinContext } from './types.js';
-import { type NarrativeRules, buildPovRules, resolveNarrativeRules } from '../factory/narrative-rules.js';
-import type { DevelopedCharacter } from '../factory/character-developer.js';
+import { DEFAULT_WRITERS, type WriterConfig, type GenerationResult, type WriterDeps, type Writer } from './types.js';
+import { resolveNarrativeRules } from '../factory/narrative-rules.js';
 import { buildPrompt } from '../template/composer.js';
+import { buildWriterContext } from './context/writer-context.js';
 
 export { DEFAULT_WRITERS, type WriterConfig };
 
 /**
- * Writer agent that generates text based on soul text
+ * Create a functional Writer from dependencies
  */
-export class WriterAgent {
-  private llmClient: LLMClient;
-  private soulText: SoulText;
-  private config: WriterConfig;
-  private narrativeRules: NarrativeRules;
-  private developedCharacters?: DevelopedCharacter[];
-  private themeContext?: ThemeContext;
-  private macGuffinContext?: MacGuffinContext;
+export function createWriter(deps: WriterDeps): Writer {
+  const { llmClient, soulText, config, developedCharacters, themeContext, macGuffinContext } = deps;
+  const narrativeRules = deps.narrativeRules ?? resolveNarrativeRules();
 
-  constructor(
-    llmClient: LLMClient,
-    soulText: SoulText,
-    config: WriterConfig = DEFAULT_WRITERS[0],
-    narrativeRules?: NarrativeRules,
-    developedCharacters?: DevelopedCharacter[],
-    themeContext?: ThemeContext,
-    macGuffinContext?: MacGuffinContext,
-  ) {
-    this.llmClient = llmClient;
-    this.soulText = soulText;
-    this.config = config;
-    this.narrativeRules = narrativeRules ?? resolveNarrativeRules();
-    this.developedCharacters = developedCharacters;
-    this.themeContext = themeContext;
-    this.macGuffinContext = macGuffinContext;
-  }
-
-  getId(): string {
-    return this.config.id;
-  }
-
-  getConfig(): WriterConfig {
-    return { ...this.config };
-  }
-
-  /**
-   * Generate text based on the given prompt
-   */
-  async generate(prompt: string): Promise<string> {
-    const context = this.buildContext(prompt);
-    const { system: systemPrompt, user: userPrompt } = buildPrompt('writer', context);
-
-    return this.llmClient.complete(systemPrompt, userPrompt, {
-      temperature: this.config.temperature,
-      topP: this.config.topP,
-    });
-  }
-
-  /**
-   * Generate text and return detailed result
-   */
-  async generateWithMetadata(prompt: string): Promise<GenerationResult> {
-    const tokensBefore = this.llmClient.getTotalTokens();
-    const text = await this.generate(prompt);
-    const tokensAfter = this.llmClient.getTotalTokens();
-
-    return {
-      writerId: this.config.id,
-      text,
-      tokensUsed: tokensAfter - tokensBefore,
-    };
-  }
-
-  private buildContext(prompt: string): Record<string, unknown> {
-    const ctx: Record<string, unknown> = {};
-
-    ctx.criticalRules = this.buildCriticalRules();
-    ctx.constitution = this.buildConstitutionData();
-    ctx.narrativeRules = this.narrativeRules;
-
-    // Characters (structured data for include)
-    if (this.developedCharacters && this.developedCharacters.length > 0) {
-      ctx.developedCharacters = this.developedCharacters.map(c => ({
-        ...c,
-        displayName: `${c.name}${c.isNew ? '（新規）' : '（既存）'}`,
-      }));
-    } else {
-      ctx.worldBibleCharacters = Object.entries(this.soulText.worldBible.characters).map(
-        ([name, char]) => {
-          return { name, role: char.role, traits: char.traits, speech_pattern: char.speech_pattern };
-        },
-      );
-    }
-
-    // Character constraints (structured data for include)
-    const constraintEntries = this.buildCharacterConstraintEntries();
-    if (constraintEntries.length > 0) {
-      ctx.characterConstraintEntries = constraintEntries;
-    }
-
-    // Terminology (structured data for include)
-    ctx.terminologyEntries = Object.entries(this.soulText.worldBible.terminology).map(
-      ([term, definition]) => ({ term, definition }),
-    );
-
-    // Anti-soul (structured data for include)
-    ctx.antiSoulEntries = this.buildAntiSoulEntries();
-
-    // Fragments (structured data for include)
-    ctx.fragmentCategories = this.buildFragmentCategories();
-
-    // isDefaultProtagonist flag for template conditions
-    if (this.narrativeRules.isDefaultProtagonist) {
-      ctx.isDefaultProtagonist = true;
-    }
-
-    // Raw soultext (optional)
-    if (this.soulText.rawSoultext) {
-      ctx.rawSoultext = this.soulText.rawSoultext;
-    }
-
-    // Persona directive (injected when persona pool is used)
-    if (this.config.personaDirective) {
-      ctx.personaDirective = this.config.personaDirective;
-    }
-
-    // Theme context for consistent tone/emotion
-    if (this.themeContext) {
-      ctx.themeContext = this.themeContext;
-    }
-
-    // MacGuffin context for character secrets and plot mysteries
-    if (this.macGuffinContext) {
-      ctx.macGuffinContext = this.macGuffinContext;
-    }
-
-    ctx.prompt = prompt;
-
-    return ctx;
-  }
-
-  private buildCriticalRules(): string {
-    const parts: string[] = [];
-    parts.push('【最重要ルール】');
-    for (const rule of buildPovRules(this.narrativeRules)) {
-      parts.push(rule);
-    }
-    parts.push('- 文体は冷徹・簡潔・乾いた語り。装飾過多や感傷的表現を避ける');
-    if (this.narrativeRules.isDefaultProtagonist) {
-      parts.push('- 原作にない設定やキャラクターを捏造しない');
-      parts.push('- 「ライオン」は透心固有の内面シンボル。内面の比喩としてのみ使用可。可視的な獣・データ獣としての登場禁止');
-    } else {
-      parts.push('- この世界観に存在し得る設定・キャラクターを使用すること');
-    }
-    parts.push('- 参考断片の表現をそのままコピーしない。文体の「質感」を吸収し、独自の描写で新しいシーンを構築すること');
-    parts.push('- 参考断片は文体の質感を学ぶためのもの。シーンやプロットを再現してはならない');
-    parts.push('- 原作に存在しない新しい描写・比喩・状況を積極的に創作すること');
-    const writerConfig = this.soulText.promptConfig?.agents?.writer;
-    if (writerConfig?.critical_rules) {
-      for (const rule of writerConfig.critical_rules) {
-        parts.push(`- ${rule}`);
-      }
-    }
-    parts.push('- 出力はプレーンテキストの小説本文のみ。マークダウン記法は一切使用禁止');
-    parts.push('- 禁止: **太字**, *斜体*, `コード`, # 見出し, - リスト, > 引用ブロック');
-    return parts.join('\n');
-  }
-
-  private buildConstitutionData(): Record<string, unknown> {
-    const c = this.soulText.constitution;
-    const u = c.universal;
-    const ps = c.protagonist_specific;
-    const isDefault = this.narrativeRules.isDefaultProtagonist;
-
-    const result: Record<string, unknown> = {
-      // Always include universal
-      vocabulary: {
-        ...u.vocabulary,
-        bracket_notations_required: u.vocabulary.bracket_notations.filter(
-          (b: { required: boolean }) => b.required,
-        ),
-      },
-      rhetoric: u.rhetoric,
-      thematic_constraints: u.thematic_constraints,
-    };
-
-    if (isDefault) {
-      // Include protagonist-specific for default protagonist
-      result.sentence_structure = ps.sentence_structure;
-      result.narrative = {
-        ...ps.narrative,
-        dialogue_style_entries: Object.entries(ps.narrative.dialogue_style_by_character).map(
-          ([name, style]) => ({ name, style }),
-        ),
-      };
-      result.scene_modes = ps.scene_modes;
-      result.dry_humor = ps.dry_humor;
-    } else {
-      // Include new character guide for non-default protagonist
-      result.new_character_guide = u.new_character_guide;
-    }
-
-    return result;
-  }
-
-  private buildCharacterConstraintEntries(): Array<{ name: string; rules: string[] }> {
-    const constraints = this.soulText.promptConfig?.character_constraints;
-    if (!constraints) return [];
-
-    const filter = this.developedCharacters
-      ? (charName: string) => this.developedCharacters!.some(c => c.name.includes(charName))
-      : undefined;
-
-    const entries = Object.entries(constraints);
-    const filtered = filter ? entries.filter(([name]) => filter(name)) : entries;
-    return filtered.map(([name, rules]) => ({ name, rules }));
-  }
-
-  private buildAntiSoulEntries(): Array<{ category: string; examples: Array<{ text: string; reason: string }> }> {
-    const result: Array<{ category: string; examples: Array<{ text: string; reason: string }> }> = [];
-    for (const [category, entries] of Object.entries(this.soulText.antiSoul.categories)) {
-      if (entries.length > 0) {
-        result.push({
-          category,
-          examples: entries.slice(0, 2).map(e => ({
-            text: e.text.slice(0, 150),
-            reason: e.reason,
-          })),
-        });
-      }
-    }
-    return result;
-  }
-
-  private buildFragmentCategories(): Array<{ name: string; focusLabel: string; items: Array<{ text: string }> }> {
-    const focusCategories = this.config.focusCategories;
-    const result: Array<{ name: string; focusLabel: string; items: Array<{ text: string }> }> = [];
-    for (const [category, fragments] of this.soulText.fragments) {
-      if (fragments.length === 0) continue;
-      const isFocus = focusCategories?.includes(category);
-      const count = isFocus ? Math.min(3, fragments.length) : Math.min(1, fragments.length);
-      result.push({
-        name: category,
-        focusLabel: isFocus ? '（重点）' : '',
-        items: fragments.slice(0, count).map(f => ({ text: f.text })),
+  return {
+    generate: async (prompt: string): Promise<string> => {
+      const context = buildWriterContext({
+        prompt, soulText, config, narrativeRules, developedCharacters, themeContext, macGuffinContext,
       });
-    }
-    return result;
-  }
+      const { system: systemPrompt, user: userPrompt } = buildPrompt('writer', context);
+      return llmClient.complete(systemPrompt, userPrompt, {
+        temperature: config.temperature,
+        topP: config.topP,
+      });
+    },
+
+    generateWithMetadata: async (prompt: string): Promise<GenerationResult> => {
+      const tokensBefore = llmClient.getTotalTokens();
+      const context = buildWriterContext({
+        prompt, soulText, config, narrativeRules, developedCharacters, themeContext, macGuffinContext,
+      });
+      const { system: systemPrompt, user: userPrompt } = buildPrompt('writer', context);
+      const text = await llmClient.complete(systemPrompt, userPrompt, {
+        temperature: config.temperature,
+        topP: config.topP,
+      });
+      const tokensAfter = llmClient.getTotalTokens();
+      return {
+        writerId: config.id,
+        text,
+        tokensUsed: tokensAfter - tokensBefore,
+      };
+    },
+
+    getId: () => config.id,
+
+    getConfig: () => ({ ...config }),
+  };
 }
+

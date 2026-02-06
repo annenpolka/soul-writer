@@ -1,9 +1,9 @@
 import type { LLMClient } from '../llm/types.js';
-import type { SoulTextManager } from '../soul/manager.js';
-import type { CheckpointManager } from '../storage/checkpoint-manager.js';
-import type { TaskRepository } from '../storage/task-repository.js';
-import type { WorkRepository } from '../storage/work-repository.js';
-import type { SoulCandidateRepository } from '../storage/soul-candidate-repository.js';
+import type { SoulTextManagerFn } from '../soul/manager.js';
+import type { CheckpointManagerFn } from '../storage/checkpoint-manager.js';
+import type { TaskRepo } from '../storage/task-repository.js';
+import type { WorkRepo } from '../storage/work-repository.js';
+import type { SoulCandidateRepo } from '../storage/soul-candidate-repository.js';
 import {
   type FullPipelineConfig,
   type FullPipelineResult,
@@ -16,400 +16,120 @@ import {
   DEFAULT_FULL_PIPELINE_CONFIG,
 } from '../agents/types.js';
 import type { Plot, Chapter } from '../schemas/plot.js';
-import { PlotterAgent } from '../agents/plotter.js';
-import { TournamentArena } from '../tournament/arena.js';
+import { createPlotter } from '../agents/plotter.js';
+import { createTournamentArena } from '../tournament/arena.js';
 import { selectTournamentWriters, DEFAULT_TEMPERATURE_SLOTS, type TemperatureSlot } from '../tournament/persona-pool.js';
-import { ComplianceChecker } from '../compliance/checker.js';
-import { CorrectorAgent } from '../agents/corrector.js';
-import { CorrectionLoop } from '../correction/loop.js';
-import { ReaderJuryAgent } from '../agents/reader-jury.js';
-import { LearningPipeline } from '../learning/learning-pipeline.js';
-import { FragmentExtractor } from '../learning/fragment-extractor.js';
-import { SoulExpander } from '../learning/soul-expander.js';
-import { AntiSoulCollector } from '../learning/anti-soul-collector.js';
-import { RetakeAgent } from '../retake/retake-agent.js';
-import { RetakeLoop, DEFAULT_RETAKE_CONFIG } from '../retake/retake-loop.js';
-import { JudgeAgent } from '../agents/judge.js';
-import { SynthesisAgent } from '../synthesis/synthesis-agent.js';
-import { CollaborationSession } from '../collaboration/session.js';
+import { createCheckerFromSoulText } from '../compliance/checker.js';
+import { createCorrector } from '../agents/corrector.js';
+import { createCorrectionLoop } from '../correction/loop.js';
+import { createReaderJury } from '../agents/reader-jury.js';
+import { createLearningPipeline } from '../learning/learning-pipeline.js';
+import { createFragmentExtractor } from '../learning/fragment-extractor.js';
+import { createSoulExpander } from '../learning/soul-expander.js';
+import { createAntiSoulCollector } from '../learning/anti-soul-collector.js';
+import { createRetakeAgent } from '../retake/retake-agent.js';
+import { createRetakeLoop, DEFAULT_RETAKE_CONFIG } from '../retake/retake-loop.js';
+import { createJudge } from '../agents/judge.js';
+import { createWriter } from '../agents/writer.js';
+import { createSynthesisAgent } from '../synthesis/synthesis-agent.js';
+import { createCollaborationSession } from '../collaboration/session.js';
 import { toTournamentResult } from '../collaboration/adapter.js';
-import { resolveNarrativeRules, type NarrativeRules } from '../factory/narrative-rules.js';
-import type { Logger } from '../logger.js';
+import { resolveNarrativeRules } from '../factory/narrative-rules.js';
+import { buildChapterPrompt } from './chapter-prompt.js';
+import type { LoggerFn } from '../logger.js';
 
-/**
- * Full pipeline that integrates all generation, compliance, evaluation, and learning features
- */
-export class FullPipeline {
-  private llmClient: LLMClient;
-  private soulManager: SoulTextManager;
-  private checkpointManager: CheckpointManager;
-  private taskRepo: TaskRepository;
-  private workRepo: WorkRepository;
-  private candidateRepo: SoulCandidateRepository;
-  private config: FullPipelineConfig;
-  private logger?: Logger;
+// =====================
+// Pure helper functions
+// =====================
 
-  constructor(
-    llmClient: LLMClient,
-    soulManager: SoulTextManager,
-    checkpointManager: CheckpointManager,
-    taskRepo: TaskRepository,
-    workRepo: WorkRepository,
-    candidateRepo: SoulCandidateRepository,
-    config: Partial<FullPipelineConfig> = {},
-    logger?: Logger,
-  ) {
-    this.llmClient = llmClient;
-    this.soulManager = soulManager;
-    this.checkpointManager = checkpointManager;
-    this.taskRepo = taskRepo;
-    this.workRepo = workRepo;
-    this.candidateRepo = candidateRepo;
-    this.config = { ...DEFAULT_FULL_PIPELINE_CONFIG, ...config };
-    this.logger = logger;
-    // Convert developedCharacters to Character[] for narrative rules resolution
-    const chars = this.config.developedCharacters?.map(c => ({
-      name: c.name,
-      isNew: c.isNew,
-      description: c.description,
-    }));
-    this.narrativeRules = resolveNarrativeRules(this.config.narrativeType, chars);
-  }
-
-  private narrativeRules: NarrativeRules;
-
-  /**
-   * Resolve theme context from config.themeContext or config.theme
-   */
-  private resolveThemeContext(): ThemeContext | undefined {
-    // Prefer explicit themeContext if provided
-    if (this.config.themeContext) {
-      return this.config.themeContext;
-    }
-    // Build from theme if available
-    if (this.config.theme) {
-      return {
-        emotion: this.config.theme.emotion,
-        timeline: this.config.theme.timeline,
-        premise: this.config.theme.premise,
-        tone: this.config.theme.tone,
-        narrative_type: this.config.theme.narrative_type,
-        scene_types: this.config.theme.scene_types,
-      };
-    }
-    return undefined;
-  }
-
-  /**
-   * Resolve MacGuffin context from config
-   */
-  private resolveMacGuffinContext(): MacGuffinContext | undefined {
-    if (!this.config.characterMacGuffins && !this.config.plotMacGuffins) {
-      return undefined;
-    }
+export function resolveThemeContext(config: FullPipelineConfig): ThemeContext | undefined {
+  if (config.themeContext) return config.themeContext;
+  if (config.theme) {
     return {
-      characterMacGuffins: this.config.characterMacGuffins,
-      plotMacGuffins: this.config.plotMacGuffins,
+      emotion: config.theme.emotion,
+      timeline: config.theme.timeline,
+      premise: config.theme.premise,
+      tone: config.theme.tone,
+      narrative_type: config.theme.narrative_type,
+      scene_types: config.theme.scene_types,
     };
   }
+  return undefined;
+}
 
-  private getTemperatureSlots(): TemperatureSlot[] {
-    const config = this.soulManager.getPromptConfig()?.tournament?.temperature_slots;
-    if (!config || config.length === 0) return DEFAULT_TEMPERATURE_SLOTS;
-    return config.map(s => ({
-      label: s.label,
-      range: s.range as [number, number],
-      topPRange: s.topP_range as [number, number],
-    }));
-  }
+export function resolveMacGuffinContext(config: FullPipelineConfig): MacGuffinContext | undefined {
+  if (!config.characterMacGuffins && !config.plotMacGuffins) return undefined;
+  return {
+    characterMacGuffins: config.characterMacGuffins,
+    plotMacGuffins: config.plotMacGuffins,
+  };
+}
 
-  /**
-   * Generate a full story with all pipeline features
-   */
-  async generateStory(prompt: string): Promise<FullPipelineResult> {
-    // 1. Create task in database
-    const task = await this.taskRepo.create({
-      soulId: this.soulManager.getConstitution().meta.soul_id,
-      params: { prompt, config: this.config },
-    });
-    await this.taskRepo.markStarted(task.id);
+export function getTemperatureSlots(soulManager: SoulTextManagerFn): TemperatureSlot[] {
+  const config = soulManager.getPromptConfig()?.tournament?.temperature_slots;
+  if (!config || config.length === 0) return DEFAULT_TEMPERATURE_SLOTS;
+  return config.map(s => ({
+    label: s.label,
+    range: s.range as [number, number],
+    topPRange: s.topP_range as [number, number],
+  }));
+}
 
-    try {
-      return await this._executeStory(task.id, prompt);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      await this.taskRepo.markFailed(task.id, message);
-      throw error;
-    }
-  }
+// =====================
+// FP API
+// =====================
 
-  private async _executeStory(taskId: string, prompt: string): Promise<FullPipelineResult> {
-    // 2. Generate plot
-    const plotter = new PlotterAgent(this.llmClient, this.soulManager.getSoulText(), {
-      chapterCount: this.config.chapterCount,
-      targetTotalLength: this.config.targetTotalLength,
-      developedCharacters: this.config.developedCharacters,
-      theme: this.config.theme,
-      plotMacGuffins: this.config.plotMacGuffins,
-      characterMacGuffins: this.config.characterMacGuffins,
-    });
-    const plotResult = await plotter.generatePlot();
-    let totalTokensUsed = plotResult.tokensUsed;
+export interface FullPipelineDeps {
+  llmClient: LLMClient;
+  soulManager: SoulTextManagerFn;
+  checkpointManager: CheckpointManagerFn;
+  taskRepo: TaskRepo;
+  workRepo: WorkRepo;
+  candidateRepo: SoulCandidateRepo;
+  config: Partial<FullPipelineConfig>;
+  logger?: LoggerFn;
+}
 
-    this.logger?.section('Plot Generated');
-    this.logger?.debug('Plot', {
-      title: plotResult.plot.title,
-      theme: plotResult.plot.theme,
-      chapters: plotResult.plot.chapters.map(c => ({ index: c.index, title: c.title, summary: c.summary })),
-      tokensUsed: plotResult.tokensUsed,
-    });
+export interface FullPipelineRunner {
+  generateStory(prompt: string): Promise<FullPipelineResult>;
+  resume(taskId: string): Promise<FullPipelineResult>;
+  getConfig(): FullPipelineConfig;
+}
 
-    // Log themeContext for debugging
-    const themeContext = this.resolveThemeContext();
-    if (themeContext) {
-      this.logger?.debug('ThemeContext', themeContext);
-    }
+export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
+  const config: FullPipelineConfig = { ...DEFAULT_FULL_PIPELINE_CONFIG, ...deps.config };
+  const { llmClient, soulManager, checkpointManager, taskRepo, workRepo, candidateRepo, logger } = deps;
 
-    // Log macGuffinContext for debugging
-    const macGuffinContext = this.resolveMacGuffinContext();
-    if (macGuffinContext) {
-      this.logger?.debug('MacGuffinContext', macGuffinContext);
-    }
+  const chars = config.developedCharacters?.map(c => ({
+    name: c.name,
+    isNew: c.isNew,
+    description: c.description,
+  }));
+  const narrativeRules = resolveNarrativeRules(config.narrativeType, chars);
+  const themeContext = resolveThemeContext(config);
+  const macGuffinContext = resolveMacGuffinContext(config);
+  const temperatureSlots = getTemperatureSlots(soulManager);
 
-    // 3. Save plot checkpoint
-    await this.checkpointManager.saveCheckpoint(
-      taskId,
-      'plot_generation',
-      { plot: plotResult.plot, chapters: [] },
-      { completedChapters: 0, totalChapters: plotResult.plot.chapters.length }
-    );
-
-    // 4. Generate each chapter
-    const chapterResults: ChapterPipelineResult[] = [];
-    let learningCandidates = 0;
-    let antiPatternsCollected = 0;
-    const chapterContext: ChapterContext = { previousChapterTexts: [] };
-
-    for (const chapter of plotResult.plot.chapters) {
-      this.logger?.section(`Chapter ${chapter.index}: ${chapter.title}`);
-      const chapterResult = await this.generateChapter(chapter, plotResult.plot, chapterContext);
-      chapterResults.push(chapterResult);
-      chapterContext.previousChapterTexts.push(chapterResult.text);
-      totalTokensUsed += chapterResult.tokensUsed;
-
-      // Track learning candidates
-      if (chapterResult.learningResult && !chapterResult.learningResult.skipped) {
-        learningCandidates += chapterResult.learningResult.added;
-      }
-
-      // Save checkpoint after each chapter
-      await this.checkpointManager.saveCheckpoint(
-        taskId,
-        'chapter_done',
-        { plot: plotResult.plot, chapters: chapterResults },
-        { completedChapters: chapterResults.length, totalChapters: plotResult.plot.chapters.length }
-      );
-    }
-
-    // 5. Calculate average scores
-    const avgComplianceScore =
-      chapterResults.reduce((sum, c) => sum + c.complianceResult.score, 0) / chapterResults.length;
-    const avgReaderScore =
-      chapterResults.reduce((sum, c) => sum + c.readerJuryResult.aggregatedScore, 0) /
-      chapterResults.length;
-
-    // 6. Archive work to database
-    const work = await this.workRepo.create({
-      soulId: this.soulManager.getConstitution().meta.soul_id,
-      title: plotResult.plot.title,
-      content: chapterResults.map((c) => c.text).join('\n\n---\n\n'),
-      totalChapters: chapterResults.length,
-      totalTokens: totalTokensUsed,
-      complianceScore: avgComplianceScore,
-      readerScore: avgReaderScore,
-    });
-
-    // 7. Run learning pipeline for each high-quality chapter (now that work exists)
-    const extractor = new FragmentExtractor(this.llmClient);
-    const expander = new SoulExpander(this.candidateRepo);
-    const learningPipeline = new LearningPipeline(extractor, expander);
-
-    for (let i = 0; i < chapterResults.length; i++) {
-      const chapterResult = chapterResults[i];
-      const learningResult = await learningPipeline.process({
-        soulId: this.soulManager.getConstitution().meta.soul_id,
-        workId: work.id,
-        text: chapterResult.text,
-        complianceScore: chapterResult.complianceResult.score,
-        readerScore: chapterResult.readerJuryResult.aggregatedScore,
-        chapterId: `chapter_${chapterResult.chapterIndex}`,
-      });
-
-      // Update chapter result with learning result
-      chapterResults[i] = { ...chapterResult, learningResult };
-
-      if (learningResult && !learningResult.skipped) {
-        learningCandidates += learningResult.added;
-      }
-    }
-
-    this.logger?.section('Learning Pipeline Complete');
-    this.logger?.debug('Learning summary', { learningCandidates, antiPatternsCollected });
-
-    // 8. Mark task as completed
-    await this.taskRepo.markCompleted(taskId);
-
-    return {
-      taskId: taskId,
-      plot: plotResult.plot,
-      chapters: chapterResults,
-      totalTokensUsed,
-      avgComplianceScore,
-      avgReaderScore,
-      learningCandidates,
-      antiPatternsCollected,
-    };
-  }
-
-  /**
-   * Resume a previously interrupted story generation
-   */
-  async resume(taskId: string): Promise<FullPipelineResult> {
-    // 1. Get latest checkpoint
-    const resumeState = await this.checkpointManager.getResumeState(taskId);
-    if (!resumeState) {
-      throw new Error(`No checkpoint found for task: ${taskId}`);
-    }
-
-    // 2. Extract saved state
-    const plot = resumeState.plot as Plot;
-    const completedChapters = (resumeState.chapters || []) as ChapterPipelineResult[];
-    const progress = resumeState._progress as { completedChapters: number; totalChapters: number };
-
-    // 3. Get task and mark as running again
-    const task = await this.taskRepo.findById(taskId);
-    if (!task) {
-      throw new Error(`Task not found: ${taskId}`);
-    }
-    await this.taskRepo.markStarted(taskId);
-
-    try {
-      return await this._executeResume(taskId, plot, completedChapters, progress);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      await this.taskRepo.markFailed(taskId, message);
-      throw error;
-    }
-  }
-
-  private async _executeResume(
-    taskId: string,
-    plot: Plot,
-    completedChapters: ChapterPipelineResult[],
-    progress: { completedChapters: number; totalChapters: number },
-  ): Promise<FullPipelineResult> {
-    // 4. Continue from next chapter
-    const chapterResults: ChapterPipelineResult[] = [...completedChapters];
-    const remainingChapters = plot.chapters.slice(progress.completedChapters);
-    let totalTokensUsed = completedChapters.reduce((sum, c) => sum + c.tokensUsed, 0);
-    let learningCandidates = completedChapters.reduce(
-      (sum, c) => sum + (c.learningResult?.added || 0),
-      0
-    );
-    const antiPatternsCollected = 0;
-    // Reconstruct chapter context from completed chapters
-    const chapterContext: ChapterContext = {
-      previousChapterTexts: completedChapters.map(c => c.text),
-    };
-
-    for (const chapter of remainingChapters) {
-      const chapterResult = await this.generateChapter(chapter, plot, chapterContext);
-      chapterResults.push(chapterResult);
-      chapterContext.previousChapterTexts.push(chapterResult.text);
-      totalTokensUsed += chapterResult.tokensUsed;
-
-      if (chapterResult.learningResult && !chapterResult.learningResult.skipped) {
-        learningCandidates += chapterResult.learningResult.added;
-      }
-
-      await this.checkpointManager.saveCheckpoint(
-        taskId,
-        'chapter_done',
-        { plot, chapters: chapterResults },
-        { completedChapters: chapterResults.length, totalChapters: plot.chapters.length }
-      );
-    }
-
-    // 5. Calculate average scores
-    const avgComplianceScore =
-      chapterResults.reduce((sum, c) => sum + c.complianceResult.score, 0) / chapterResults.length;
-    const avgReaderScore =
-      chapterResults.reduce((sum, c) => sum + c.readerJuryResult.aggregatedScore, 0) /
-      chapterResults.length;
-
-    // 6. Archive work to database
-    const work = await this.workRepo.create({
-      soulId: this.soulManager.getConstitution().meta.soul_id,
-      title: plot.title,
-      content: chapterResults.map((c) => c.text).join('\n\n---\n\n'),
-      totalChapters: chapterResults.length,
-      totalTokens: totalTokensUsed,
-      complianceScore: avgComplianceScore,
-      readerScore: avgReaderScore,
-    });
-
-    // 7. Run learning pipeline for newly generated chapters
-    const extractor = new FragmentExtractor(this.llmClient);
-    const expander = new SoulExpander(this.candidateRepo);
-    const learningPipeline = new LearningPipeline(extractor, expander);
-
-    for (let i = progress.completedChapters; i < chapterResults.length; i++) {
-      const chapterResult = chapterResults[i];
-      const learningResult = await learningPipeline.process({
-        soulId: this.soulManager.getConstitution().meta.soul_id,
-        workId: work.id,
-        text: chapterResult.text,
-        complianceScore: chapterResult.complianceResult.score,
-        readerScore: chapterResult.readerJuryResult.aggregatedScore,
-        chapterId: `chapter_${chapterResult.chapterIndex}`,
-      });
-
-      chapterResults[i] = { ...chapterResult, learningResult };
-
-      if (learningResult && !learningResult.skipped) {
-        learningCandidates += learningResult.added;
-      }
-    }
-
-    // 8. Mark task as completed
-    await this.taskRepo.markCompleted(taskId);
-
-    return {
-      taskId,
-      plot,
-      chapters: chapterResults,
-      totalTokensUsed,
-      avgComplianceScore,
-      avgReaderScore,
-      learningCandidates,
-      antiPatternsCollected,
-    };
-  }
-
-  /**
-   * Generate a single chapter with compliance check, correction, and reader evaluation
-   */
-  protected async generateChapter(
+  async function generateChapter(
     chapter: Chapter,
     plot: Plot,
-    chapterContext?: ChapterContext,
+    chapterCtx?: ChapterContext,
   ): Promise<ChapterPipelineResult> {
-    const tokensStart = this.llmClient.getTotalTokens();
+    const tokensStart = llmClient.getTotalTokens();
 
-    const chapterPrompt = this.buildChapterPrompt(chapter, plot);
-    const writerPersonas = this.soulManager.getWriterPersonas();
+    const chapterPromptText = buildChapterPrompt({
+      chapter,
+      plot,
+      narrativeType: config.narrativeType,
+      narrativeRules,
+      developedCharacters: config.developedCharacters,
+      characterMacGuffins: config.characterMacGuffins,
+      plotMacGuffins: config.plotMacGuffins,
+    });
+
+    const writerPersonas = soulManager.getWriterPersonas();
     const writerConfigs = writerPersonas.length > 0
-      ? selectTournamentWriters(writerPersonas, this.getTemperatureSlots())
+      ? selectTournamentWriters(writerPersonas, temperatureSlots)
       : undefined;
 
     let finalText: string;
@@ -417,37 +137,57 @@ export class FullPipeline {
     let correctionAttempts = 0;
     let synthesized = false;
 
-    if (this.config.mode === 'collaboration') {
-      // Collaboration mode: use collab-specific personas
-      const collabPersonas = this.soulManager.getCollabPersonas();
+    if (config.mode === 'collaboration') {
+      const collabPersonas = soulManager.getCollabPersonas();
       const collabConfigs = collabPersonas.length > 0
-        ? selectTournamentWriters(collabPersonas, this.getTemperatureSlots())
+        ? selectTournamentWriters(collabPersonas, temperatureSlots)
         : writerConfigs;
-      this.logger?.section('Collaboration Start');
-      const session = new CollaborationSession(
-        this.llmClient,
-        this.soulManager.getSoulText(),
-        collabConfigs ?? [],
-        this.config.collaborationConfig,
-        this.resolveThemeContext(),
-        this.resolveMacGuffinContext(),
-        this.logger,
-      );
-      const collabResult = await session.run(chapterPrompt);
+      logger?.section('Collaboration Start');
+      const session = createCollaborationSession({
+        llmClient,
+        soulText: soulManager.getSoulText(),
+        writerConfigs: collabConfigs ?? [],
+        config: config.collaborationConfig,
+        themeContext,
+        macGuffinContext,
+        logger,
+      });
+      const collabResult = await session.run(chapterPromptText);
       tournamentResult = toTournamentResult(collabResult);
       finalText = collabResult.finalText;
     } else {
-      // Tournament mode (default)
-      const arena = new TournamentArena(this.llmClient, this.soulManager.getSoulText(), writerConfigs, this.narrativeRules, this.config.developedCharacters, this.resolveThemeContext(), this.resolveMacGuffinContext(), this.logger);
-      tournamentResult = await arena.runTournament(chapterPrompt);
+      const { DEFAULT_WRITERS } = await import('../agents/types.js');
+      const writers = (writerConfigs ?? DEFAULT_WRITERS).map((wc) =>
+        createWriter({
+          llmClient,
+          soulText: soulManager.getSoulText(),
+          config: wc,
+          narrativeRules,
+          developedCharacters: config.developedCharacters,
+          themeContext,
+          macGuffinContext,
+        }),
+      );
+      const arena = createTournamentArena({
+        writers,
+        createJudge: () =>
+          createJudge({
+            llmClient,
+            soulText: soulManager.getSoulText(),
+            narrativeRules,
+            themeContext,
+          }),
+        tokenTracker: { getTokens: () => llmClient.getTotalTokens() },
+        logger,
+      });
+      tournamentResult = await arena.runTournament(chapterPromptText);
       finalText = tournamentResult.championText;
 
-      // Synthesis: enhance champion using elements from all entries
       if (tournamentResult.allGenerations.length > 1) {
-        this.logger?.section('Synthesis');
+        logger?.section('Synthesis');
         const beforeLength = finalText.length;
         try {
-          const synthesizer = new SynthesisAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules, this.resolveThemeContext());
+          const synthesizer = createSynthesisAgent({ llmClient, soulText: soulManager.getSoulText(), narrativeRules, themeContext });
           const synthesisResult = await synthesizer.synthesize(
             tournamentResult.championText,
             tournamentResult.champion,
@@ -456,37 +196,36 @@ export class FullPipeline {
           );
           finalText = synthesisResult.synthesizedText;
           synthesized = true;
-          this.logger?.debug('Synthesis result', { synthesized: true, beforeLength, afterLength: finalText.length });
+          logger?.debug('Synthesis result', { synthesized: true, beforeLength, afterLength: finalText.length });
         } catch (err) {
           console.warn(`Chapter ${chapter.index}: Synthesis failed, using champion text as-is.`, err);
-          this.logger?.debug('Synthesis failed', { error: String(err) });
+          logger?.debug('Synthesis failed', { error: String(err) });
         }
       }
     }
 
-    // 2. Compliance check (with async rules and chapter context)
-    this.logger?.section('Compliance Check');
-    const checker = ComplianceChecker.fromSoulText(this.soulManager.getSoulText(), this.narrativeRules, this.llmClient);
-    let complianceResult: ComplianceResult = chapterContext
-      ? await checker.checkWithContext(finalText, chapterContext)
+    // Compliance check (with async rules and chapter context)
+    logger?.section('Compliance Check');
+    const checker = createCheckerFromSoulText(soulManager.getSoulText(), narrativeRules, llmClient);
+    let complianceResult: ComplianceResult = chapterCtx
+      ? await checker.checkWithContext(finalText, chapterCtx)
       : checker.check(finalText);
-    this.logger?.debug('Compliance result', complianceResult);
+    logger?.debug('Compliance result', complianceResult);
 
-    // 3. Correction loop if needed
+    // Correction loop if needed
     if (!complianceResult.isCompliant) {
-      this.logger?.section('Correction Loop');
-      const corrector = new CorrectorAgent(this.llmClient, this.soulManager.getSoulText(), this.resolveThemeContext());
-      const loop = new CorrectionLoop(corrector, checker, this.config.maxCorrectionAttempts);
-      const correctionResult = await loop.run(finalText, complianceResult.violations, chapterContext);
+      logger?.section('Correction Loop');
+      const corrector = createCorrector({ llmClient, soulText: soulManager.getSoulText(), themeContext });
+      const loop = createCorrectionLoop({ corrector, checker, maxAttempts: config.maxCorrectionAttempts });
+      const correctionResult = await loop.run(finalText, complianceResult.violations, chapterCtx);
 
       correctionAttempts = correctionResult.attempts;
       finalText = correctionResult.finalText;
       complianceResult = checker.check(finalText);
-      this.logger?.debug('Correction result', { attempts: correctionAttempts, success: correctionResult.success, finalCompliance: complianceResult });
+      logger?.debug('Correction result', { attempts: correctionAttempts, success: correctionResult.success, finalCompliance: complianceResult });
 
-      // 4. Collect anti-patterns if correction failed
       if (!correctionResult.success) {
-        const collector = new AntiSoulCollector(this.soulManager.getSoulText().antiSoul);
+        const collector = createAntiSoulCollector(soulManager.getSoulText().antiSoul);
         collector.collectFromFailedCorrection(correctionResult);
         console.warn(
           `Chapter ${chapter.index}: Correction failed after ${correctionAttempts} attempts. Continuing with best effort.`
@@ -494,34 +233,32 @@ export class FullPipeline {
       }
     }
 
-    // 5. Retake loop (post-tournament, pre-reader-jury)
-    this.logger?.section('Retake Loop');
-    const retakeAgent = new RetakeAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules, this.resolveThemeContext());
-    const judgeAgent = new JudgeAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules, this.resolveThemeContext());
-    const retakeLoop = new RetakeLoop(retakeAgent, judgeAgent, DEFAULT_RETAKE_CONFIG);
+    // Retake loop (post-tournament, pre-reader-jury)
+    logger?.section('Retake Loop');
+    const retakeAgent = createRetakeAgent({ llmClient, soulText: soulManager.getSoulText(), narrativeRules, themeContext });
+    const judgeAgent = createJudge({ llmClient, soulText: soulManager.getSoulText(), narrativeRules, themeContext });
+    const retakeLoop = createRetakeLoop({ retaker: retakeAgent, judge: judgeAgent, config: DEFAULT_RETAKE_CONFIG });
     const retakeResult = await retakeLoop.run(finalText);
-    this.logger?.debug('Retake result', { improved: retakeResult.improved, retakeCount: retakeResult.retakeCount });
+    logger?.debug('Retake result', { improved: retakeResult.improved, retakeCount: retakeResult.retakeCount });
     if (retakeResult.improved) {
       finalText = retakeResult.finalText;
-      // Re-check compliance after retake
       complianceResult = checker.check(finalText);
     }
 
-    // 6. Reader jury evaluation (with retake loop on failure, max 2 retakes)
-    this.logger?.section('Reader Jury Evaluation');
-    const readerJury = new ReaderJuryAgent(this.llmClient, this.soulManager.getSoulText());
+    // Reader jury evaluation (with retake loop on failure, max 2 retakes)
+    logger?.section('Reader Jury Evaluation');
+    const readerJury = createReaderJury({ llmClient, soulText: soulManager.getSoulText() });
     let readerJuryResult: ReaderJuryResult = await readerJury.evaluate(finalText);
-    this.logger?.debug('Reader Jury result', readerJuryResult);
+    logger?.debug('Reader Jury result', readerJuryResult);
 
     const MAX_READER_RETAKES = 2;
     const feedbackHistory: string[] = [];
     for (let readerRetake = 0; readerRetake < MAX_READER_RETAKES && !readerJuryResult.passed; readerRetake++) {
-      this.logger?.section(`Reader Jury Retake ${readerRetake + 1}/${MAX_READER_RETAKES}`);
+      logger?.section(`Reader Jury Retake ${readerRetake + 1}/${MAX_READER_RETAKES}`);
       const prevScore = readerJuryResult.aggregatedScore;
       const prevText = finalText;
       const prevResult = readerJuryResult;
 
-      // Build feedback from reader evaluations and accumulate history
       const currentFeedback = readerJuryResult.evaluations
         .map((e) => `${e.personaName}:\n  [良] ${e.feedback.strengths}\n  [課題] ${e.feedback.weaknesses}\n  [提案] ${e.feedback.suggestion}`)
         .join('\n');
@@ -532,21 +269,16 @@ export class FullPipeline {
         : `読者陪審員から複数回のフィードバックを受けています。前回の改善点も踏まえて修正してください:\n\n` +
           feedbackHistory.map((fb, idx) => `【第${idx + 1}回レビュー】\n${fb}`).join('\n\n');
 
-      // Retake using accumulated reader feedback
-      const readerRetakeAgent = new RetakeAgent(this.llmClient, this.soulManager.getSoulText(), this.narrativeRules, this.resolveThemeContext());
+      const readerRetakeAgent = createRetakeAgent({ llmClient, soulText: soulManager.getSoulText(), narrativeRules, themeContext });
       const retakeResult2 = await readerRetakeAgent.retake(finalText, feedbackMessage);
       finalText = retakeResult2.retakenText;
 
-      // Re-check compliance after retake
       complianceResult = checker.check(finalText);
-
-      // Re-evaluate with reader jury (passing previous result for context)
       readerJuryResult = await readerJury.evaluate(finalText, readerJuryResult);
-      this.logger?.debug(`Reader Jury Retake ${readerRetake + 1} result`, readerJuryResult);
+      logger?.debug(`Reader Jury Retake ${readerRetake + 1} result`, readerJuryResult);
 
-      // Abort if score degraded — revert to previous text
       if (readerJuryResult.aggregatedScore <= prevScore) {
-        this.logger?.debug(`Reader Jury Retake aborted: score degraded (${prevScore.toFixed(3)} → ${readerJuryResult.aggregatedScore.toFixed(3)})`);
+        logger?.debug(`Reader Jury Retake aborted: score degraded (${prevScore.toFixed(3)} → ${readerJuryResult.aggregatedScore.toFixed(3)})`);
         finalText = prevText;
         readerJuryResult = prevResult;
         complianceResult = checker.check(finalText);
@@ -554,12 +286,9 @@ export class FullPipeline {
       }
     }
 
-    this.logger?.debug(`Chapter text (${finalText.length}文字)`, finalText);
+    logger?.debug(`Chapter text (${finalText.length}文字)`, finalText);
 
-    // Note: Learning pipeline is executed after work is archived (in generateStory/resume)
-    // to satisfy foreign key constraint on work_id
-
-    const tokensUsed = this.llmClient.getTotalTokens() - tokensStart;
+    const tokensUsed = llmClient.getTotalTokens() - tokensStart;
 
     return {
       chapterIndex: chapter.index,
@@ -573,102 +302,249 @@ export class FullPipeline {
     };
   }
 
-  /**
-   * Build a prompt for chapter generation
-   */
-  protected buildChapterPrompt(chapter: Chapter, plot: Plot): string {
-    const parts: string[] = [];
+  async function runLearningPipeline(
+    chapterResults: ChapterPipelineResult[],
+    workId: string,
+    startIndex: number = 0,
+  ): Promise<number> {
+    const extractor = createFragmentExtractor(llmClient);
+    const expander = createSoulExpander(candidateRepo);
+    const learning = createLearningPipeline(extractor, expander);
+    let learningCandidates = 0;
 
-    parts.push(`# ${plot.title}`);
-    parts.push(`テーマ: ${plot.theme}`);
-    parts.push('');
+    for (let i = startIndex; i < chapterResults.length; i++) {
+      const chapterResult = chapterResults[i];
+      const learningResult = await learning.process({
+        soulId: soulManager.getConstitution().meta.soul_id,
+        workId,
+        text: chapterResult.text,
+        complianceScore: chapterResult.complianceResult.score,
+        readerScore: chapterResult.readerJuryResult.aggregatedScore,
+        chapterId: `chapter_${chapterResult.chapterIndex}`,
+      });
 
-    // Inject narrative rules
-    if (this.config.narrativeType) {
-      parts.push(`## ナラティブ`);
-      parts.push(`- 型: ${this.config.narrativeType}`);
-      parts.push(`- ${this.narrativeRules.povDescription}`);
-      parts.push('');
-    }
-
-    // Inject developed characters
-    if (this.config.developedCharacters && this.config.developedCharacters.length > 0) {
-      parts.push('## 登場人物');
-      for (const c of this.config.developedCharacters) {
-        const tag = c.isNew ? '（新規）' : '（既存）';
-        parts.push(`- ${c.name}${tag}: ${c.role}`);
-        if (c.description) parts.push(`  背景: ${c.description}`);
-        if (c.voice) parts.push(`  口調: ${c.voice}`);
+      chapterResults[i] = { ...chapterResult, learningResult };
+      if (learningResult && !learningResult.skipped) {
+        learningCandidates += learningResult.added;
       }
-      parts.push('');
     }
 
-    parts.push(`## ${chapter.title}（第${chapter.index}章）`);
-    parts.push(`概要: ${chapter.summary}`);
-    parts.push('');
-    parts.push('### キーイベント');
-    for (const event of chapter.key_events) {
-      parts.push(`- ${event}`);
-    }
-    parts.push('');
-    // Inject character MacGuffins as surface signs
-    if (this.config.characterMacGuffins && this.config.characterMacGuffins.length > 0) {
-      parts.push('## キャラクターの秘密（表出サインとして描写に織り込むこと）');
-      for (const m of this.config.characterMacGuffins) {
-        parts.push(`- ${m.characterName}: ${m.surfaceSigns.join('、')}`);
-      }
-      parts.push('');
-    }
-
-    // Inject plot MacGuffins as tension questions
-    if (this.config.plotMacGuffins && this.config.plotMacGuffins.length > 0) {
-      parts.push('## 物語の謎（解決不要、雰囲気として漂わせること）');
-      for (const m of this.config.plotMacGuffins) {
-        parts.push(`- ${m.name}: ${m.tensionQuestions.join('、')}（${m.presenceHint}）`);
-      }
-      parts.push('');
-    }
-
-    // Variation constraints
-    if (chapter.variation_constraints) {
-      const vc = chapter.variation_constraints;
-      parts.push('### バリエーション制約');
-      parts.push(`- 構造型: ${vc.structure_type}`);
-      parts.push(`- 感情曲線: ${vc.emotional_arc}`);
-      parts.push(`- テンポ: ${vc.pacing}`);
-      if (vc.deviation_from_previous) {
-        parts.push(`- 前章との差分: ${vc.deviation_from_previous}`);
-      }
-      if (vc.motif_budget && vc.motif_budget.length > 0) {
-        parts.push('- モチーフ使用上限:');
-        for (const mb of vc.motif_budget) {
-          parts.push(`  - 「${mb.motif}」: 最大${mb.max_uses}回`);
-        }
-      }
-      parts.push('');
-    }
-
-    // Epistemic constraints
-    if (chapter.epistemic_constraints && chapter.epistemic_constraints.length > 0) {
-      parts.push('### 認識制約（epistemic constraints）');
-      parts.push('この章の各視点キャラクターは以下を知らない/見ない。厳守すること:');
-      for (const ec of chapter.epistemic_constraints) {
-        parts.push(`- ${ec.perspective}: ${ec.constraints.join(' / ')}`);
-      }
-      parts.push('');
-    }
-
-    parts.push(`目標文字数: ${chapter.target_length}字`);
-    parts.push('');
-    parts.push('この章を執筆してください。');
-
-    return parts.join('\n');
+    return learningCandidates;
   }
 
-  /**
-   * Get current configuration
-   */
-  getConfig(): FullPipelineConfig {
-    return { ...this.config };
+  async function executeStory(taskId: string, _prompt: string): Promise<FullPipelineResult> {
+    // Generate plot
+    const plotter = createPlotter({
+      llmClient,
+      soulText: soulManager.getSoulText(),
+      config: {
+        chapterCount: config.chapterCount,
+        targetTotalLength: config.targetTotalLength,
+        developedCharacters: config.developedCharacters,
+        theme: config.theme,
+        plotMacGuffins: config.plotMacGuffins,
+        characterMacGuffins: config.characterMacGuffins,
+      },
+    });
+    const tokensBefore = llmClient.getTotalTokens();
+    const plot = await plotter.generatePlot();
+    const plotTokensUsed = llmClient.getTotalTokens() - tokensBefore;
+    let totalTokensUsed = plotTokensUsed;
+
+    logger?.section('Plot Generated');
+    logger?.debug('Plot', {
+      title: plot.title,
+      theme: plot.theme,
+      chapters: plot.chapters.map((c: Chapter) => ({ index: c.index, title: c.title, summary: c.summary })),
+      tokensUsed: plotTokensUsed,
+    });
+
+    if (themeContext) logger?.debug('ThemeContext', themeContext);
+    if (macGuffinContext) logger?.debug('MacGuffinContext', macGuffinContext);
+
+    // Save plot checkpoint
+    await checkpointManager.saveCheckpoint(
+      taskId,
+      'plot_generation',
+      { plot, chapters: [] },
+      { completedChapters: 0, totalChapters: plot.chapters.length }
+    );
+
+    // Generate each chapter
+    const chapterResults: ChapterPipelineResult[] = [];
+    let learningCandidates = 0;
+    const antiPatternsCollected = 0;
+    const chapterCtx: ChapterContext = { previousChapterTexts: [] };
+
+    for (const ch of plot.chapters) {
+      logger?.section(`Chapter ${ch.index}: ${ch.title}`);
+      const chapterResult = await generateChapter(ch, plot, chapterCtx);
+      chapterResults.push(chapterResult);
+      chapterCtx.previousChapterTexts.push(chapterResult.text);
+      totalTokensUsed += chapterResult.tokensUsed;
+
+      if (chapterResult.learningResult && !chapterResult.learningResult.skipped) {
+        learningCandidates += chapterResult.learningResult.added;
+      }
+
+      await checkpointManager.saveCheckpoint(
+        taskId,
+        'chapter_done',
+        { plot: plot, chapters: chapterResults },
+        { completedChapters: chapterResults.length, totalChapters: plot.chapters.length }
+      );
+    }
+
+    // Calculate average scores
+    const avgComplianceScore =
+      chapterResults.reduce((sum, c) => sum + c.complianceResult.score, 0) / chapterResults.length;
+    const avgReaderScore =
+      chapterResults.reduce((sum, c) => sum + c.readerJuryResult.aggregatedScore, 0) / chapterResults.length;
+
+    // Archive work to database
+    const work = await workRepo.create({
+      soulId: soulManager.getConstitution().meta.soul_id,
+      title: plot.title,
+      content: chapterResults.map((c) => c.text).join('\n\n---\n\n'),
+      totalChapters: chapterResults.length,
+      totalTokens: totalTokensUsed,
+      complianceScore: avgComplianceScore,
+      readerScore: avgReaderScore,
+    });
+
+    // Run learning pipeline
+    learningCandidates += await runLearningPipeline(chapterResults, work.id);
+
+    logger?.section('Learning Pipeline Complete');
+    logger?.debug('Learning summary', { learningCandidates, antiPatternsCollected });
+
+    // Mark task as completed
+    await taskRepo.markCompleted(taskId);
+
+    return {
+      taskId,
+      plot,
+      chapters: chapterResults,
+      totalTokensUsed,
+      avgComplianceScore,
+      avgReaderScore,
+      learningCandidates,
+      antiPatternsCollected,
+    };
   }
+
+  async function executeResume(
+    taskId: string,
+    plot: Plot,
+    completedChapters: ChapterPipelineResult[],
+    progress: { completedChapters: number; totalChapters: number },
+  ): Promise<FullPipelineResult> {
+    const chapterResults: ChapterPipelineResult[] = [...completedChapters];
+    const remainingChapters = plot.chapters.slice(progress.completedChapters);
+    let totalTokensUsed = completedChapters.reduce((sum, c) => sum + c.tokensUsed, 0);
+    let learningCandidates = completedChapters.reduce(
+      (sum, c) => sum + (c.learningResult?.added || 0),
+      0
+    );
+    const antiPatternsCollected = 0;
+    const chapterCtx: ChapterContext = {
+      previousChapterTexts: completedChapters.map(c => c.text),
+    };
+
+    for (const ch of remainingChapters) {
+      const chapterResult = await generateChapter(ch, plot, chapterCtx);
+      chapterResults.push(chapterResult);
+      chapterCtx.previousChapterTexts.push(chapterResult.text);
+      totalTokensUsed += chapterResult.tokensUsed;
+
+      if (chapterResult.learningResult && !chapterResult.learningResult.skipped) {
+        learningCandidates += chapterResult.learningResult.added;
+      }
+
+      await checkpointManager.saveCheckpoint(
+        taskId,
+        'chapter_done',
+        { plot, chapters: chapterResults },
+        { completedChapters: chapterResults.length, totalChapters: plot.chapters.length }
+      );
+    }
+
+    const avgComplianceScore =
+      chapterResults.reduce((sum, c) => sum + c.complianceResult.score, 0) / chapterResults.length;
+    const avgReaderScore =
+      chapterResults.reduce((sum, c) => sum + c.readerJuryResult.aggregatedScore, 0) / chapterResults.length;
+
+    const work = await workRepo.create({
+      soulId: soulManager.getConstitution().meta.soul_id,
+      title: plot.title,
+      content: chapterResults.map((c) => c.text).join('\n\n---\n\n'),
+      totalChapters: chapterResults.length,
+      totalTokens: totalTokensUsed,
+      complianceScore: avgComplianceScore,
+      readerScore: avgReaderScore,
+    });
+
+    learningCandidates += await runLearningPipeline(chapterResults, work.id, progress.completedChapters);
+
+    await taskRepo.markCompleted(taskId);
+
+    return {
+      taskId,
+      plot,
+      chapters: chapterResults,
+      totalTokensUsed,
+      avgComplianceScore,
+      avgReaderScore,
+      learningCandidates,
+      antiPatternsCollected,
+    };
+  }
+
+  return {
+    async generateStory(prompt: string): Promise<FullPipelineResult> {
+      const task = await taskRepo.create({
+        soulId: soulManager.getConstitution().meta.soul_id,
+        params: { prompt, config },
+      });
+      await taskRepo.markStarted(task.id);
+
+      try {
+        return await executeStory(task.id, prompt);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        await taskRepo.markFailed(task.id, message);
+        throw error;
+      }
+    },
+
+    async resume(taskId: string): Promise<FullPipelineResult> {
+      const resumeState = await checkpointManager.getResumeState(taskId);
+      if (!resumeState) {
+        throw new Error(`No checkpoint found for task: ${taskId}`);
+      }
+
+      const plot = resumeState.plot as Plot;
+      const completed = (resumeState.chapters || []) as ChapterPipelineResult[];
+      const progress = resumeState._progress as { completedChapters: number; totalChapters: number };
+
+      const task = await taskRepo.findById(taskId);
+      if (!task) {
+        throw new Error(`Task not found: ${taskId}`);
+      }
+      await taskRepo.markStarted(taskId);
+
+      try {
+        return await executeResume(taskId, plot, completed, progress);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        await taskRepo.markFailed(taskId, message);
+        throw error;
+      }
+    },
+
+    getConfig(): FullPipelineConfig {
+      return { ...config };
+    },
+  };
 }
+

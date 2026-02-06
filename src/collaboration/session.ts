@@ -1,8 +1,8 @@
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import type { WriterConfig, ThemeContext, MacGuffinContext } from '../agents/types.js';
-import { CollaborativeWriter } from './collaborative-writer.js';
-import { ModeratorAgent } from './moderator.js';
+import { createCollaborativeWriter, type CollaborativeWriterFn } from './collaborative-writer.js';
+import { createModerator, type ModeratorFn } from './moderator.js';
 import type {
   CollaborationConfig,
   CollaborationResult,
@@ -11,33 +11,52 @@ import type {
   FeedbackAction,
 } from './types.js';
 import { DEFAULT_COLLABORATION_CONFIG, COLLABORATION_SAFETY_LIMIT } from './types.js';
-import type { Logger } from '../logger.js';
+import type { LoggerFn } from '../logger.js';
 
-export class CollaborationSession {
-  private writers: CollaborativeWriter[];
-  private moderator: ModeratorAgent;
-  private config: CollaborationConfig;
-  private llmClient: LLMClient;
-  private logger?: Logger;
+// --- FP interface ---
 
-  constructor(
-    llmClient: LLMClient,
-    soulText: SoulText,
-    writerConfigs: WriterConfig[],
-    config?: Partial<CollaborationConfig>,
-    themeContext?: ThemeContext,
-    macGuffinContext?: MacGuffinContext,
-    logger?: Logger,
-  ) {
-    this.llmClient = llmClient;
-    this.config = { ...DEFAULT_COLLABORATION_CONFIG, ...config };
-    this.writers = writerConfigs.map((wc) => new CollaborativeWriter(llmClient, soulText, wc, themeContext, macGuffinContext));
-    this.moderator = new ModeratorAgent(llmClient, soulText);
-    this.logger = logger;
+export interface CollaborationSessionFn {
+  run: (prompt: string) => Promise<CollaborationResult>;
+}
+
+export interface CollaborationSessionDeps {
+  llmClient: LLMClient;
+  soulText: SoulText;
+  writerConfigs: WriterConfig[];
+  config?: Partial<CollaborationConfig>;
+  themeContext?: ThemeContext;
+  macGuffinContext?: MacGuffinContext;
+  logger?: LoggerFn;
+}
+
+// --- Internal helpers ---
+
+function summarizeAction(action: CollaborationAction): string {
+  switch (action.type) {
+    case 'proposal':
+      return action.content;
+    case 'feedback':
+      return `→${action.targetWriterId} [${action.sentiment}]: ${action.feedback}`;
+    case 'draft':
+      return `[${action.section}] ${action.text}`;
+    case 'volunteer':
+      return `${action.section}に立候補: ${action.reason}`;
   }
+}
 
-  async run(prompt: string): Promise<CollaborationResult> {
-    const tokensBefore = this.llmClient.getTotalTokens();
+// --- Factory function ---
+
+export function createCollaborationSession(deps: CollaborationSessionDeps): CollaborationSessionFn {
+  const { llmClient, soulText, writerConfigs, themeContext, macGuffinContext, logger } = deps;
+  const config: CollaborationConfig = { ...DEFAULT_COLLABORATION_CONFIG, ...deps.config };
+
+  const writers: CollaborativeWriterFn[] = writerConfigs.map((wc) =>
+    createCollaborativeWriter({ llmClient, soulText, config: wc, themeContext, macGuffinContext }),
+  );
+  const moderator: ModeratorFn = createModerator({ llmClient, soulText });
+
+  const run = async (prompt: string): Promise<CollaborationResult> => {
+    const tokensBefore = llmClient.getTotalTokens();
 
     const state: CollaborationState = {
       rounds: [],
@@ -48,17 +67,17 @@ export class CollaborationSession {
     };
 
     let lastConsensusScore = 0;
-    let remainingRounds = this.config.maxRounds;
+    let remainingRounds = config.maxRounds;
     let totalRounds = 0;
 
     while (remainingRounds > 0 && totalRounds < COLLABORATION_SAFETY_LIMIT) {
       totalRounds++;
       remainingRounds--;
-      this.logger?.section(`Collaboration Round ${totalRounds} (remaining: ${remainingRounds}) [${state.currentPhase}]`);
+      logger?.section(`Collaboration Round ${totalRounds} (remaining: ${remainingRounds}) [${state.currentPhase}]`);
 
       // All writers participate in parallel (partial failures tolerated)
       const results = await Promise.allSettled(
-        this.writers.map((w) => w.participate(state, prompt)),
+        writers.map((w) => w.participate(state, prompt)),
       );
       const actions: CollaborationAction[] = results
         .filter((r): r is PromiseFulfilledResult<CollaborationAction[]> => r.status === 'fulfilled')
@@ -66,7 +85,7 @@ export class CollaborationSession {
 
       // Log writer actions
       for (const action of actions) {
-        this.logger?.debug(`[${action.type}] ${action.writerId}`, this.summarizeAction(action));
+        logger?.debug(`[${action.type}] ${action.writerId}`, summarizeAction(action));
       }
 
       // Update drafts from draft actions
@@ -77,15 +96,15 @@ export class CollaborationSession {
       }
 
       // Moderator facilitates
-      const writerInfos = this.writers.map((w) => ({
+      const writerInfos = writers.map((w) => ({
         id: w.id,
         name: w.name,
         focusCategories: w.focusCategories,
       }));
 
-      const facilitation = await this.moderator.facilitateRound(state, actions, writerInfos);
+      const facilitation = await moderator.facilitateRound(state, actions, writerInfos);
 
-      this.logger?.debug('Moderator facilitation', {
+      logger?.debug('Moderator facilitation', {
         nextPhase: facilitation.nextPhase,
         consensusScore: facilitation.consensusScore,
         shouldTerminate: facilitation.shouldTerminate,
@@ -106,13 +125,13 @@ export class CollaborationSession {
       });
 
       const hasDrafts = Object.keys(state.currentDrafts).length > 0;
-      const thresholdMet = facilitation.consensusScore >= this.config.earlyTerminationThreshold;
+      const thresholdMet = facilitation.consensusScore >= config.earlyTerminationThreshold;
 
       if (facilitation.shouldTerminate && hasDrafts && thresholdMet) {
-        this.logger?.debug('Early termination: consensus reached', {
+        logger?.debug('Early termination: consensus reached', {
           hasDrafts,
           consensusScore: facilitation.consensusScore,
-          threshold: this.config.earlyTerminationThreshold,
+          threshold: config.earlyTerminationThreshold,
         });
         state.consensusReached = true;
         break;
@@ -122,7 +141,7 @@ export class CollaborationSession {
       if (facilitation.continueRounds > 0) {
         const extension = Math.min(facilitation.continueRounds, COLLABORATION_SAFETY_LIMIT - totalRounds);
         if (extension > remainingRounds) {
-          this.logger?.debug('Moderator extends rounds', {
+          logger?.debug('Moderator extends rounds', {
             requested: facilitation.continueRounds,
             granted: extension,
             totalRounds,
@@ -133,25 +152,25 @@ export class CollaborationSession {
     }
 
     // Compose final text
-    this.logger?.section('Collaboration: Composing Final Text');
+    logger?.section('Collaboration: Composing Final Text');
     const feedbackActions = state.rounds
       .flatMap((r) => r.actions)
       .filter((a): a is FeedbackAction => a.type === 'feedback');
 
-    this.logger?.debug('Composing final', {
+    logger?.debug('Composing final', {
       draftSections: Object.keys(state.currentDrafts),
       feedbackCount: feedbackActions.length,
       totalRounds: state.rounds.length,
     });
 
-    const { text: finalText } = await this.moderator.composeFinal(
+    const { text: finalText } = await moderator.composeFinal(
       state.currentDrafts,
       feedbackActions,
     );
 
-    const totalTokensUsed = this.llmClient.getTotalTokens() - tokensBefore;
+    const totalTokensUsed = llmClient.getTotalTokens() - tokensBefore;
 
-    this.logger?.debug('Collaboration complete', {
+    logger?.debug('Collaboration complete', {
       finalTextLength: finalText.length,
       totalTokensUsed,
       consensusScore: lastConsensusScore,
@@ -161,22 +180,12 @@ export class CollaborationSession {
     return {
       finalText,
       rounds: state.rounds,
-      participants: this.writers.map((w) => w.id),
+      participants: writers.map((w) => w.id),
       totalTokensUsed,
       consensusScore: lastConsensusScore,
     };
-  }
+  };
 
-  private summarizeAction(action: CollaborationAction): string {
-    switch (action.type) {
-      case 'proposal':
-        return action.content;
-      case 'feedback':
-        return `→${action.targetWriterId} [${action.sentiment}]: ${action.feedback}`;
-      case 'draft':
-        return `[${action.section}] ${action.text}`;
-      case 'volunteer':
-        return `${action.section}に立候補: ${action.reason}`;
-    }
-  }
+  return { run };
 }
+
