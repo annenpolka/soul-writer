@@ -128,6 +128,10 @@ export class SelfRepetitionRule implements AsyncComplianceRule {
       return [];
     }
 
+    if (!Array.isArray(report.repetitions)) {
+      return [];
+    }
+
     return report.repetitions.map((r) => {
       // Try to find position of first example in text
       const firstExample = r.examples[0] || '';

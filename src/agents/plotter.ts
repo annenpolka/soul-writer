@@ -8,16 +8,19 @@ import {
   type Plotter,
 } from './types.js';
 import { buildPrompt } from '../template/composer.js';
-import { buildPlotterContext } from './context/plotter-context.js';
-import { parsePlotResponse } from './parsers/plotter-parser.js';
+import { buildPlotterContext, buildChapterConstraintContext } from './context/plotter-context.js';
+import { parsePlotSkeletonResponse, parseChapterConstraintsResponse } from './parsers/plotter-parser.js';
 
 export { type PlotterConfig, type PlotResult };
 
-const SUBMIT_PLOT_TOOL: ToolDefinition = {
+/**
+ * Phase 1 tool: submit plot skeleton (title, theme, chapters basics)
+ */
+const SUBMIT_PLOT_SKELETON_TOOL: ToolDefinition = {
   type: 'function',
   function: {
-    name: 'submit_plot',
-    description: '物語のプロット構造を提出する',
+    name: 'submit_plot_skeleton',
+    description: '物語のプロット骨格を提出する（章の基本情報のみ）',
     parameters: {
       type: 'object',
       properties: {
@@ -33,6 +36,33 @@ const SUBMIT_PLOT_TOOL: ToolDefinition = {
               summary: { type: 'string' },
               key_events: { type: 'array', items: { type: 'string' } },
               target_length: { type: 'number' },
+            },
+            required: ['index', 'title', 'summary', 'key_events', 'target_length'],
+          },
+        },
+      },
+      required: ['title', 'theme', 'chapters'],
+    },
+  },
+};
+
+/**
+ * Phase 2 tool: submit chapter constraints (variation + epistemic)
+ */
+const SUBMIT_CHAPTER_CONSTRAINTS_TOOL: ToolDefinition = {
+  type: 'function',
+  function: {
+    name: 'submit_chapter_constraints',
+    description: '各章の変奏制約と認識制約を提出する',
+    parameters: {
+      type: 'object',
+      properties: {
+        chapters: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              index: { type: 'number' },
               variation_constraints: {
                 type: 'object',
                 properties: {
@@ -66,39 +96,79 @@ const SUBMIT_PLOT_TOOL: ToolDefinition = {
                 },
               },
             },
-            required: ['index', 'title', 'summary', 'key_events', 'target_length'],
+            required: ['index'],
           },
         },
       },
-      required: ['title', 'theme', 'chapters'],
+      required: ['chapters'],
     },
   },
 };
 
 /**
- * Create a functional Plotter from dependencies
+ * Create a functional Plotter from dependencies.
+ * Internally uses 2-phase generation:
+ *   Phase 1: plot skeleton (title, theme, chapter basics)
+ *   Phase 2: chapter constraints (variation + epistemic)
  */
 export function createPlotter(deps: PlotterDeps): Plotter {
   const { llmClient, soulText, config } = deps;
 
   return {
     generatePlot: async (): Promise<Plot> => {
-      const context = buildPlotterContext({ soulText, config });
-      const { system: systemPrompt, user: userPrompt } = buildPrompt('plotter', context);
-
       assertToolCallingClient(llmClient);
-      const response = await llmClient.completeWithTools(
-        systemPrompt,
-        userPrompt,
-        [SUBMIT_PLOT_TOOL],
+
+      // Phase 1: Generate plot skeleton
+      const skeletonContext = buildPlotterContext({ soulText, config });
+      const { system: skeletonSystem, user: skeletonUser } = buildPrompt('plotter', skeletonContext);
+
+      const skeletonResponse = await llmClient.completeWithTools(
+        skeletonSystem,
+        skeletonUser,
+        [SUBMIT_PLOT_SKELETON_TOOL],
         {
-          toolChoice: { type: 'function', function: { name: 'submit_plot' } },
+          toolChoice: { type: 'function', function: { name: 'submit_plot_skeleton' } },
           temperature: config.temperature,
         },
       );
 
-      return parsePlotResponse(response);
+      const skeleton = parsePlotSkeletonResponse(skeletonResponse);
+
+      // Phase 2: Generate chapter constraints
+      const constraintContext = buildChapterConstraintContext({ skeleton, config });
+      const { system: constraintSystem, user: constraintUser } = buildPrompt('plotter-constraints', constraintContext);
+
+      const constraintResponse = await llmClient.completeWithTools(
+        constraintSystem,
+        constraintUser,
+        [SUBMIT_CHAPTER_CONSTRAINTS_TOOL],
+        {
+          toolChoice: { type: 'function', function: { name: 'submit_chapter_constraints' } },
+          temperature: config.temperature,
+        },
+      );
+
+      const batchConstraints = parseChapterConstraintsResponse(constraintResponse);
+
+      // Merge skeleton + constraints into final Plot
+      const constraintMap = new Map(
+        batchConstraints.chapters.map(c => [c.index, c]),
+      );
+
+      const chapters = skeleton.chapters.map(ch => {
+        const constraints = constraintMap.get(ch.index);
+        return {
+          ...ch,
+          variation_constraints: constraints?.variation_constraints,
+          epistemic_constraints: constraints?.epistemic_constraints,
+        };
+      });
+
+      return {
+        title: skeleton.title,
+        theme: skeleton.theme,
+        chapters,
+      };
     },
   };
 }
-

@@ -51,7 +51,38 @@ export const PlotSchema = z.object({
   chapters: z.array(ChapterSchema).min(1),
 });
 
+/**
+ * Chapter skeleton - basic chapter info without constraints (Phase 1 output)
+ */
+export const ChapterSkeletonSchema = z.object({
+  index: z.number().int().positive(),
+  title: z.string().min(1),
+  summary: z.string().min(1),
+  key_events: z.array(z.string()).min(1),
+  target_length: z.number().int().positive().default(4000),
+});
+
+/**
+ * Plot skeleton - plot structure without chapter constraints (Phase 1 output)
+ */
+export const PlotSkeletonSchema = z.object({
+  title: z.string().min(1),
+  theme: z.string().min(1),
+  chapters: z.array(ChapterSkeletonSchema).min(1),
+});
+
+/**
+ * Chapter constraints - variation and epistemic constraints only (Phase 2 output)
+ */
+export const ChapterConstraintsSchema = z.object({
+  variation_constraints: VariationConstraintsSchema.optional(),
+  epistemic_constraints: z.array(EpistemicConstraintSchema).optional(),
+});
+
 export type VariationConstraints = z.infer<typeof VariationConstraintsSchema>;
 export type EpistemicConstraint = z.infer<typeof EpistemicConstraintSchema>;
 export type Chapter = z.infer<typeof ChapterSchema>;
+export type ChapterSkeleton = z.infer<typeof ChapterSkeletonSchema>;
+export type ChapterConstraints = z.infer<typeof ChapterConstraintsSchema>;
 export type Plot = z.infer<typeof PlotSchema>;
+export type PlotSkeleton = z.infer<typeof PlotSkeletonSchema>;
