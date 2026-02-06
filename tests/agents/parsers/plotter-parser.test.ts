@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { ToolCallResponse } from '../../../src/llm/types.js';
-import { parsePlotResponse } from '../../../src/agents/parsers/plotter-parser.js';
+import { parsePlotResponse, coerceStringifiedArrays } from '../../../src/agents/parsers/plotter-parser.js';
 
 function makeToolResponse(args: string): ToolCallResponse {
   return {
@@ -151,5 +151,94 @@ describe('parsePlotResponse', () => {
     const response = makeToolResponse(invalidPlot);
 
     expect(() => parsePlotResponse(response)).toThrow('Plot validation failed');
+  });
+
+  it('should coerce chapters from JSON string to array', () => {
+    const chapters = [
+      { index: 1, title: '章1', summary: '概要', key_events: ['イベント'], target_length: 4000 },
+    ];
+    const plot = JSON.stringify({
+      title: 'テスト',
+      theme: 'テーマ',
+      chapters: JSON.stringify(chapters),
+    });
+    const response = makeToolResponse(plot);
+    const result = parsePlotResponse(response);
+
+    expect(result.chapters).toHaveLength(1);
+    expect(result.chapters[0].title).toBe('章1');
+  });
+
+  it('should coerce key_events from JSON string to array', () => {
+    const plot = JSON.stringify({
+      title: 'テスト',
+      theme: 'テーマ',
+      chapters: [{
+        index: 1,
+        title: '章1',
+        summary: '概要',
+        key_events: JSON.stringify(['起床', 'MRタグ確認']),
+        target_length: 4000,
+      }],
+    });
+    const response = makeToolResponse(plot);
+    const result = parsePlotResponse(response);
+
+    expect(result.chapters[0].key_events).toEqual(['起床', 'MRタグ確認']);
+  });
+
+  it('should coerce both chapters and key_events from JSON strings', () => {
+    const chapters = [
+      { index: 1, title: '章1', summary: '概要', key_events: JSON.stringify(['イベント']), target_length: 4000 },
+    ];
+    const plot = JSON.stringify({
+      title: 'テスト',
+      theme: 'テーマ',
+      chapters: JSON.stringify(chapters),
+    });
+    const response = makeToolResponse(plot);
+    const result = parsePlotResponse(response);
+
+    expect(result.chapters).toHaveLength(1);
+    expect(result.chapters[0].key_events).toEqual(['イベント']);
+  });
+
+  it('should throw when chapters is an invalid string', () => {
+    const plot = JSON.stringify({
+      title: 'テスト',
+      theme: 'テーマ',
+      chapters: 'not-valid-json',
+    });
+    const response = makeToolResponse(plot);
+
+    expect(() => parsePlotResponse(response)).toThrow('Plot validation failed');
+  });
+});
+
+describe('coerceStringifiedArrays', () => {
+  it('should pass through non-object values', () => {
+    expect(coerceStringifiedArrays(null)).toBeNull();
+    expect(coerceStringifiedArrays(undefined)).toBeUndefined();
+    expect(coerceStringifiedArrays(42)).toBe(42);
+    expect(coerceStringifiedArrays('string')).toBe('string');
+  });
+
+  it('should pass through objects without string arrays', () => {
+    const input = { title: 'test', chapters: [{ key_events: ['a'] }] };
+    const result = coerceStringifiedArrays(input) as Record<string, unknown>;
+    expect(result.chapters).toEqual([{ key_events: ['a'] }]);
+  });
+
+  it('should coerce motif_budget from string', () => {
+    const budget = [{ motif: 'ライオン', max_uses: 2 }];
+    const input = {
+      chapters: [{
+        key_events: ['e'],
+        motif_budget: JSON.stringify(budget),
+      }],
+    };
+    const result = coerceStringifiedArrays(input) as Record<string, unknown>;
+    const ch = (result.chapters as Record<string, unknown>[])[0];
+    expect(ch.motif_budget).toEqual(budget);
   });
 });
