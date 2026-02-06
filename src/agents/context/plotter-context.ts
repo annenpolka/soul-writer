@@ -1,5 +1,6 @@
 import type { SoulText } from '../../soul/manager.js';
 import type { PlotterConfig } from '../types.js';
+import type { PlotSkeleton } from '../../schemas/plot.js';
 
 /**
  * Input for buildPlotterContext
@@ -84,4 +85,31 @@ export function buildPlotterContext(input: PlotterContextInput): Record<string, 
   ctx.chapterInstruction = `${config.chapterCount}章構成の物語を設計してください。\n総文字数の目安: ${config.targetTotalLength}字`;
 
   return ctx;
+}
+
+/**
+ * Input for buildChapterConstraintContext
+ */
+export interface ChapterConstraintContextInput {
+  skeleton: PlotSkeleton;
+  config: PlotterConfig;
+}
+
+/**
+ * Build the template context for chapter constraints generation (Phase 2).
+ */
+export function buildChapterConstraintContext(input: ChapterConstraintContextInput): Record<string, unknown> {
+  const { skeleton, config } = input;
+  return {
+    plotTitle: skeleton.title,
+    plotTheme: skeleton.theme,
+    chapters: skeleton.chapters.map(ch => ({
+      index: ch.index,
+      title: ch.title,
+      summary: ch.summary,
+      key_events: ch.key_events.join('、'),
+    })),
+    chapterCount: config.chapterCount,
+    narrativeType: config.theme?.narrative_type ?? '一人称内面独白',
+  };
 }

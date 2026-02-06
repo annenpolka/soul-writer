@@ -77,17 +77,34 @@ const createMockLLMClient = (): LLMClient => {
     }),
     completeWithTools: vi.fn().mockImplementation((_systemPrompt: string, _userPrompt: string, tools) => {
       const toolName = tools[0]?.function?.name;
-      if (toolName === 'submit_plot') {
+      if (toolName === 'submit_plot_skeleton') {
         return Promise.resolve({
           toolCalls: [{
             id: 'tc-1', type: 'function',
             function: {
-              name: 'submit_plot',
+              name: 'submit_plot_skeleton',
               arguments: JSON.stringify({
                 title: 'テスト小説', theme: 'テーマ',
                 chapters: [
                   { index: 1, title: '第一章', summary: '始まりの章', key_events: ['出会い', '発見'], target_length: 4000 },
                   { index: 2, title: '第二章', summary: '展開の章', key_events: ['対立', '決断'], target_length: 4000 },
+                ],
+              }),
+            },
+          }],
+          content: null, tokensUsed: 50,
+        });
+      }
+      if (toolName === 'submit_chapter_constraints') {
+        return Promise.resolve({
+          toolCalls: [{
+            id: 'tc-1', type: 'function',
+            function: {
+              name: 'submit_chapter_constraints',
+              arguments: JSON.stringify({
+                chapters: [
+                  { index: 1, variation_constraints: { structure_type: 'single_scene', emotional_arc: 'ascending', pacing: 'slow_burn' } },
+                  { index: 2, variation_constraints: { structure_type: 'parallel_montage', emotional_arc: 'descending', pacing: 'rapid_cuts', deviation_from_previous: '前章との差分' } },
                 ],
               }),
             },
