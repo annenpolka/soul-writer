@@ -43,7 +43,7 @@ function buildFeedback(scores: import('../agents/types.js').ScoreBreakdown, minV
   const feedbackParts: string[] = [];
 
   if (voiceScore < minVoiceThreshold) {
-    feedbackParts.push('語り声の再現度が低い。「わたし」の冷徹で乾いた一人称視点を徹底すること。');
+    feedbackParts.push('語り声の再現度が低い。冷徹で乾いた語り口を徹底すること。');
   }
   if ((scores.style ?? 0.5) < 0.6) {
     feedbackParts.push('文体のリズムが原作と異なる。短-短-長-短のリズムを意識すること。');

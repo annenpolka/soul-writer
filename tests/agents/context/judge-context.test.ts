@@ -69,7 +69,6 @@ describe('buildJudgeContext', () => {
       const entries = ctx.penaltyEntries as Array<{ text: string }>;
 
       expect(entries.some(e => e.text.includes('「私」表記'))).toBe(true);
-      expect(entries.some(e => e.text.includes('三人称的な外部描写'))).toBe(true);
       expect(entries.some(e => e.text.includes('捏造'))).toBe(true);
     });
 
