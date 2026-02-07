@@ -81,7 +81,6 @@ describe('buildPovRules', () => {
     const rules = resolveNarrativeRules();
     const lines = buildPovRules(rules);
     expect(lines.some(l => l.includes('わたし'))).toBe(true);
-    expect(lines.some(l => l.includes('御鐘透心'))).toBe(true);
   });
 
   it('generates third-person rules', () => {

@@ -65,33 +65,6 @@ function checkPovConsistency(narrativeRules: NarrativeRules | undefined, text: s
     }
   }
 
-  // Check for third-person narrative patterns
-  const thirdPersonPatterns = [
-    /透心は(?:思った|感じた|考えた|言った)/g,
-    /彼女(?:の|は|が|を|に)(?!.*[「」])/g,
-  ];
-
-  for (const segment of segments) {
-    if (segment.isDialogue) continue;
-
-    for (const pattern of thirdPersonPatterns) {
-      pattern.lastIndex = 0;
-      let match: RegExpExecArray | null;
-      while ((match = pattern.exec(segment.text)) !== null) {
-        const absPos = segment.offset + match.index;
-        const contextStart = Math.max(0, absPos - 15);
-        const contextEnd = Math.min(text.length, absPos + match[0].length + 15);
-        violations.push({
-          type: 'theme_violation',
-          position: { start: absPos, end: absPos + match[0].length },
-          context: text.slice(contextStart, contextEnd),
-          rule: '三人称描写の混入（一人称視点を維持すること）',
-          severity: 'warning',
-        });
-      }
-    }
-  }
-
   return violations;
 }
 

@@ -148,11 +148,6 @@ export function buildPovRules(rules: NarrativeRules, promptConfig?: PromptConfig
 
   if (rules.pov === 'first-person' && rules.pronoun) {
     lines.push(`- 一人称は必ず「${rules.pronoun}」（ひらがな）を使用。「私」「僕」「俺」は禁止`);
-    if (rules.isDefaultProtagonist) {
-      lines.push('- 視点は御鐘透心の一人称のみ。三人称的な外部描写は禁止');
-    } else {
-      lines.push('- 主人公の一人称視点を維持。三人称的な外部描写は禁止');
-    }
   } else if (rules.pov === 'first-person') {
     // first-person but no fixed pronoun (e.g. 書簡体)
     lines.push('- 一人称視点で語る。書き手に応じた人称を使用');
