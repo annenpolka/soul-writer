@@ -2,6 +2,7 @@ import type { Chapter, Plot } from '../schemas/plot.js';
 import type { NarrativeRules } from '../factory/narrative-rules.js';
 import type { DevelopedCharacter } from '../factory/character-developer.js';
 import type { CharacterMacGuffin, PlotMacGuffin } from '../schemas/macguffin.js';
+import type { PreviousChapterAnalysis } from './chapter-summary.js';
 
 export interface ChapterPromptInput {
   chapter: Chapter;
@@ -11,6 +12,7 @@ export interface ChapterPromptInput {
   developedCharacters?: DevelopedCharacter[];
   characterMacGuffins?: CharacterMacGuffin[];
   plotMacGuffins?: PlotMacGuffin[];
+  previousChapterAnalysis?: PreviousChapterAnalysis;
 }
 
 /**
@@ -72,6 +74,34 @@ export function buildChapterPrompt(input: ChapterPromptInput): string {
     parts.push('');
   }
 
+  // Previous chapter analysis
+  if (input.previousChapterAnalysis) {
+    const pca = input.previousChapterAnalysis;
+    parts.push('## 前章からの接続と変奏');
+    parts.push('### 前章の概要');
+    parts.push(pca.storySummary);
+    parts.push('');
+    parts.push('### この章で避けるべきパターン（前章で使用済み）');
+    parts.push(`- 感情遷移: ${pca.avoidanceDirective.emotionalBeats.join(' → ')}`);
+    parts.push(`- 支配的イメージ: ${pca.avoidanceDirective.dominantImagery.join('、')}`);
+    parts.push(`- リズム: ${pca.avoidanceDirective.rhythmProfile}`);
+    parts.push(`- 構造: ${pca.avoidanceDirective.structuralPattern}`);
+    parts.push('上記と異なるアプローチで執筆すること。');
+    parts.push('');
+  }
+
+  // Dramaturgy and arc role
+  if (chapter.dramaturgy) {
+    parts.push(`### ドラマトゥルギー（起動装置）`);
+    parts.push(chapter.dramaturgy);
+    parts.push('');
+  }
+  if (chapter.arc_role) {
+    parts.push(`### 物語的機能`);
+    parts.push(chapter.arc_role);
+    parts.push('');
+  }
+
   // Variation constraints
   if (chapter.variation_constraints) {
     const vc = chapter.variation_constraints;
@@ -86,6 +116,15 @@ export function buildChapterPrompt(input: ChapterPromptInput): string {
       parts.push('- モチーフ使用上限:');
       for (const mb of vc.motif_budget) {
         parts.push(`  - 「${mb.motif}」: 最大${mb.max_uses}回`);
+      }
+    }
+    if (vc.emotional_beats && vc.emotional_beats.length > 0) {
+      parts.push(`- 感情ビート（この順序で遷移させること）: ${vc.emotional_beats.join(' → ')}`);
+    }
+    if (vc.forbidden_patterns && vc.forbidden_patterns.length > 0) {
+      parts.push('- 禁止パターン（以下は使用禁止）:');
+      for (const fp of vc.forbidden_patterns) {
+        parts.push(`  - ${fp}`);
       }
     }
     parts.push('');

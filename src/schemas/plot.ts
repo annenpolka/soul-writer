@@ -17,6 +17,10 @@ export const VariationConstraintsSchema = z.object({
     motif: z.string(),
     max_uses: z.number().int().positive(),
   })).optional(),
+  /** Specific emotional beats sequence */
+  emotional_beats: z.array(z.string()).min(2).optional(),
+  /** Forbidden emotional/structural patterns */
+  forbidden_patterns: z.array(z.string()).optional(),
 });
 
 /**
@@ -38,6 +42,8 @@ export const ChapterSchema = z.object({
   summary: z.string().min(1),
   key_events: z.array(z.string()).min(1),
   target_length: z.number().int().positive().default(4000),
+  dramaturgy: z.string().min(1).optional(),
+  arc_role: z.string().min(1).optional(),
   variation_constraints: VariationConstraintsSchema.optional(),
   epistemic_constraints: z.array(EpistemicConstraintSchema).optional(),
 });
@@ -60,6 +66,8 @@ export const ChapterSkeletonSchema = z.object({
   summary: z.string().min(1),
   key_events: z.array(z.string()).min(1),
   target_length: z.number().int().positive().default(4000),
+  dramaturgy: z.string().min(1).optional(),
+  arc_role: z.string().min(1).optional(),
 });
 
 /**

@@ -36,6 +36,7 @@ import { createCollaborationSession } from '../collaboration/session.js';
 import { toTournamentResult } from '../collaboration/adapter.js';
 import { resolveNarrativeRules } from '../factory/narrative-rules.js';
 import { buildChapterPrompt } from './chapter-prompt.js';
+import { analyzePreviousChapter, type PreviousChapterAnalysis } from './chapter-summary.js';
 import type { LoggerFn } from '../logger.js';
 
 // =====================
@@ -117,6 +118,12 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
   ): Promise<ChapterPipelineResult> {
     const tokensStart = llmClient.getTotalTokens();
 
+    let previousChapterAnalysis: PreviousChapterAnalysis | undefined;
+    if (chapterCtx && chapterCtx.previousChapterTexts.length > 0) {
+      const lastText = chapterCtx.previousChapterTexts[chapterCtx.previousChapterTexts.length - 1];
+      previousChapterAnalysis = await analyzePreviousChapter(llmClient, lastText);
+    }
+
     const chapterPromptText = buildChapterPrompt({
       chapter,
       plot,
@@ -125,6 +132,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       developedCharacters: config.developedCharacters,
       characterMacGuffins: config.characterMacGuffins,
       plotMacGuffins: config.plotMacGuffins,
+      previousChapterAnalysis,
     });
 
     const writerPersonas = soulManager.getWriterPersonas();

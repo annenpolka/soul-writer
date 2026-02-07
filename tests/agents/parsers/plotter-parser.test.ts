@@ -240,6 +240,29 @@ describe('parsePlotSkeletonResponse', () => {
     expect(result.chapters[1].key_events).toEqual(['会話']);
   });
 
+  it('should parse skeleton with dramaturgy and arc_role', () => {
+    const json = JSON.stringify({
+      title: '螺旋の水位',
+      theme: '存在と監視',
+      chapters: [
+        {
+          index: 1,
+          title: '目覚め',
+          summary: '朝の始まり',
+          key_events: ['起床'],
+          target_length: 4000,
+          dramaturgy: '不穏な静寂からの覚醒',
+          arc_role: 'introduction',
+        },
+      ],
+    });
+    const response = makeToolResponse(json, 'submit_plot_skeleton');
+    const result = parsePlotSkeletonResponse(response);
+
+    expect(result.chapters[0].dramaturgy).toBe('不穏な静寂からの覚醒');
+    expect(result.chapters[0].arc_role).toBe('introduction');
+  });
+
   it('should apply default target_length', () => {
     const json = JSON.stringify({
       title: 'テスト',
@@ -361,6 +384,26 @@ describe('parseChapterConstraintsResponse', () => {
     expect(result.chapters).toEqual([]);
   });
 
+  it('should parse constraints with emotional_beats and forbidden_patterns', () => {
+    const json = JSON.stringify({
+      chapters: [{
+        index: 1,
+        variation_constraints: {
+          structure_type: 'single_scene',
+          emotional_arc: 'ascending',
+          pacing: 'slow_burn',
+          emotional_beats: ['不安', '期待', '絶望'],
+          forbidden_patterns: ['安易な救済', '説明的独白'],
+        },
+      }],
+    });
+    const response = makeToolResponse(json, 'submit_chapter_constraints');
+    const result = parseChapterConstraintsResponse(response);
+
+    expect(result.chapters[0].variation_constraints?.emotional_beats).toEqual(['不安', '期待', '絶望']);
+    expect(result.chapters[0].variation_constraints?.forbidden_patterns).toEqual(['安易な救済', '説明的独白']);
+  });
+
   it('should handle constraints with motif_budget', () => {
     const json = JSON.stringify({
       chapters: [{
@@ -393,6 +436,38 @@ describe('coerceStringifiedArrays', () => {
     const input = { title: 'test', chapters: [{ key_events: ['a'] }] };
     const result = coerceStringifiedArrays(input) as Record<string, unknown>;
     expect(result.chapters).toEqual([{ key_events: ['a'] }]);
+  });
+
+  it('should coerce emotional_beats from string in variation_constraints', () => {
+    const input = {
+      chapters: [{
+        key_events: ['e'],
+        variation_constraints: {
+          structure_type: 'single_scene',
+          emotional_beats: JSON.stringify(['不安', '期待']),
+        },
+      }],
+    };
+    const result = coerceStringifiedArrays(input) as Record<string, unknown>;
+    const ch = (result.chapters as Record<string, unknown>[])[0];
+    const vc = ch.variation_constraints as Record<string, unknown>;
+    expect(vc.emotional_beats).toEqual(['不安', '期待']);
+  });
+
+  it('should coerce forbidden_patterns from string in variation_constraints', () => {
+    const input = {
+      chapters: [{
+        key_events: ['e'],
+        variation_constraints: {
+          structure_type: 'single_scene',
+          forbidden_patterns: JSON.stringify(['安易な救済']),
+        },
+      }],
+    };
+    const result = coerceStringifiedArrays(input) as Record<string, unknown>;
+    const ch = (result.chapters as Record<string, unknown>[])[0];
+    const vc = ch.variation_constraints as Record<string, unknown>;
+    expect(vc.forbidden_patterns).toEqual(['安易な救済']);
   });
 
   it('should coerce motif_budget from string', () => {

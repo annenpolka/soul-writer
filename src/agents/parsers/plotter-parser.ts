@@ -42,6 +42,17 @@ export function coerceStringifiedArrays(parsed: unknown): unknown {
         chResult.motif_budget = tryParseJson(chResult.motif_budget);
         coerced = true;
       }
+      if (chResult.variation_constraints && typeof chResult.variation_constraints === 'object') {
+        const vc = chResult.variation_constraints as Record<string, unknown>;
+        if (typeof vc.emotional_beats === 'string') {
+          vc.emotional_beats = tryParseJson(vc.emotional_beats);
+          coerced = true;
+        }
+        if (typeof vc.forbidden_patterns === 'string') {
+          vc.forbidden_patterns = tryParseJson(vc.forbidden_patterns);
+          coerced = true;
+        }
+      }
       return chResult;
     });
   }

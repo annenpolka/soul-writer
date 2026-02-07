@@ -34,6 +34,29 @@ system:
         - 制約は具体的に書く（「知らない」だけでなく「何を知らないか」を明示）
 
     - type: heading
+      heading: 感情ビート設計
+
+    - type: text
+      text: |
+        各章にemotional_beats（感情の具体的遷移列）を設計してください:
+        - emotional_beatsは2〜5個の具体的な感情名の列（例: ["期待", "困惑", "恐怖", "諦念"]）
+        - 隣接する2章が同じ感情ビート列を持ってはならない
+        - 感情の「形状」を章ごとに変える（上昇一辺倒、V字、急降下→停滞、振動→収束等）
+        - 第2章以降はforbidden_patternsを必ず設定し、前章で使われた感情パターンと構造パターンを禁止する
+          例: forbidden_patterns: ["疎外→怒り→無力感", "都市空間→システム異常→観察→内省"]
+
+    - type: heading
+      heading: 章間多様性チェックリスト（自己検証用）
+
+    - type: text
+      text: |
+        出力前に以下を自己検証すること:
+        - 各章の起動装置（dramaturgy）は全て異なるか？
+        - 各章のemotional_beatsの「形状」は異なるか？
+        - 3章以上ある場合、中間章は両端の章と質的に異なるか？
+        - forbidden_patternsは前章の実際のパターンを正しく反映しているか？
+
+    - type: heading
       heading: 出力形式
 
     - type: text
@@ -49,7 +72,9 @@ system:
                 "emotional_arc": "ascending",
                 "pacing": "slow_burn",
                 "deviation_from_previous": null,
-                "motif_budget": [{"motif": "モチーフ名", "max_uses": 2}]
+                "motif_budget": [{"motif": "モチーフ名", "max_uses": 2}],
+                "emotional_beats": ["期待", "困惑", "恐怖", "諦念"],
+                "forbidden_patterns": ["疎外→怒り→無力感"]
               },
               "epistemic_constraints": [
                 {"perspective": "キャラ名", "constraints": ["知らないこと1", "知らないこと2"]}
