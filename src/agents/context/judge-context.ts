@@ -39,7 +39,6 @@ export function buildJudgeContext(input: JudgeContextInput): Record<string, unkn
   const penaltyEntries: Array<{ text: string }> = [];
   if (isDefaultProtagonist && pov === 'first-person') {
     penaltyEntries.push({ text: '「私」表記（「わたし」でなければならない）→ 大幅減点' });
-    penaltyEntries.push({ text: '三人称的な外部描写の混入 → 大幅減点' });
     penaltyEntries.push({ text: '原作にない設定やキャラクターの捏造 → 大幅減点' });
   } else {
     penaltyEntries.push({ text: '視点の一貫性が崩れている → 大幅減点' });

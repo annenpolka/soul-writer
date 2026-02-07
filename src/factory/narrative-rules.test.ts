@@ -123,7 +123,6 @@ describe('prompt-config integration', () => {
         description: '一人称（わたし）視点。御鐘透心の内面から語る',
         rules: [
           '一人称は必ず「わたし」（ひらがな）を使用。「私」「僕」「俺」は禁止',
-          '視点は御鐘透心の一人称のみ。三人称的な外部描写は禁止',
         ],
       },
       'third-person': {
@@ -178,7 +177,6 @@ describe('prompt-config integration', () => {
     const rules = resolveNarrativeRules(undefined, undefined, promptConfig);
     const lines = buildPovRules(rules, promptConfig);
     expect(lines).toContain('- 一人称は必ず「わたし」（ひらがな）を使用。「私」「僕」「俺」は禁止');
-    expect(lines).toContain('- 視点は御鐘透心の一人称のみ。三人称的な外部描写は禁止');
   });
 
   it('should use custom pov_rules for buildPovRules', () => {
