@@ -32,6 +32,8 @@ export function parseDefectDetectorResponse(response: ToolCallResponse): DefectD
         category: String(d.category ?? ''),
         description: String(d.description ?? ''),
         ...(d.location ? { location: String(d.location) } : {}),
+        ...(d.quoted_text ? { quotedText: String(d.quoted_text) } : {}),
+        ...(d.suggested_fix ? { suggestedFix: String(d.suggested_fix) } : {}),
       }));
 
     const criticalCount = defects.filter(d => d.severity === 'critical').length;
@@ -43,7 +45,12 @@ export function parseDefectDetectorResponse(response: ToolCallResponse): DefectD
 
     const feedback = defects.length === 0
       ? '欠陥なし'
-      : defects.map(d => `[${d.severity}] ${d.description}`).join('; ');
+      : defects.map(d => {
+          let line = `[${d.severity}/${d.category}] ${d.description}`;
+          if (d.quotedText) line += `\n  問題箇所: 「${d.quotedText}」`;
+          if (d.suggestedFix) line += `\n  修正方向: ${d.suggestedFix}`;
+          return line;
+        }).join('\n\n');
 
     return {
       defects,

@@ -109,8 +109,12 @@ system:
       text: |
         テキストを入念に検査し、submit_defects ツールで欠陥リストを提出してください。
         欠陥がない場合は空の配列を提出してください。
-        各欠陥には severity, category, description を必ず含めてください。
-        可能であれば location（該当箇所の概略）も含めてください。
+        各欠陥には以下を必ず含めてください:
+        - severity, category, description: 基本情報
+        - location: 該当箇所の概略（「冒頭の教室シーン」等）
+        - quoted_text: 問題箇所の原文引用（50〜150字）。必ずテキストから直接引用すること
+        - suggested_fix: 具体的修正方向（「観察だけで終わるシーンに、透心がデータをロックする行動を追加」等）
+        quoted_textとsuggested_fixは修正担当者が具体的に何をすべきか判断するために不可欠。
 
 user:
   sections:

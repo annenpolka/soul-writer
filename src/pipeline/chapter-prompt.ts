@@ -2,7 +2,7 @@ import type { Chapter, Plot } from '../schemas/plot.js';
 import type { NarrativeRules } from '../factory/narrative-rules.js';
 import type { DevelopedCharacter } from '../factory/character-developer.js';
 import type { CharacterMacGuffin, PlotMacGuffin } from '../schemas/macguffin.js';
-import type { PreviousChapterAnalysis } from './chapter-summary.js';
+import type { PreviousChapterAnalysis, EstablishedInsight } from './chapter-summary.js';
 
 export interface ChapterPromptInput {
   chapter: Chapter;
@@ -15,6 +15,8 @@ export interface ChapterPromptInput {
   previousChapterAnalysis?: PreviousChapterAnalysis;
   /** Motif avoidance list from past works analysis */
   motifAvoidanceList?: string[];
+  /** Cumulative established insights from previous chapters (WS4) */
+  establishedInsights?: EstablishedInsight[];
 }
 
 /**
@@ -168,6 +170,33 @@ export function buildChapterPrompt(input: ChapterPromptInput): string {
     parts.push('この章の各視点キャラクターは以下を知らない/見ない。厳守すること:');
     for (const ec of chapter.epistemic_constraints) {
       parts.push(`- ${ec.perspective}: ${ec.constraints.join(' / ')}`);
+    }
+    parts.push('');
+  }
+
+  // WS4: Established insights (cumulative "known" list)
+  if (input.establishedInsights && input.establishedInsights.length > 0) {
+    parts.push('## この物語で既に確立された認識（再発見禁止）');
+    for (const insight of input.establishedInsights) {
+      parts.push(`- Ch${insight.chapter}: ${insight.insight} → ${insight.rule}`);
+    }
+    parts.push('上記の認識は既に確立済み。再度「発見」させたり「気づき」として描いてはいけない。');
+    parts.push('');
+  }
+
+  // WS5: Chapter-level theme control
+  if (chapter.emotion_surface || chapter.emotion_subtext || chapter.thematic_insight !== undefined) {
+    parts.push('## この章のテーマ制御');
+    if (chapter.emotion_surface) {
+      parts.push(`表層感情: ${chapter.emotion_surface}`);
+    }
+    if (chapter.emotion_subtext) {
+      parts.push(`底流（描写しない、動作で暗示のみ）: ${chapter.emotion_subtext}`);
+    }
+    if (chapter.thematic_insight === null) {
+      parts.push('テーマ的認識: ★この章では認識に到達しない★ 疑問を提示するだけに留めること。');
+    } else if (chapter.thematic_insight) {
+      parts.push(`テーマ的認識: この章で到達する認識 → 「${chapter.thematic_insight}」`);
     }
     parts.push('');
   }

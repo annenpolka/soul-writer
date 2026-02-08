@@ -5,6 +5,7 @@ import { parseToolArguments } from '../../llm/tooling.js';
 const VALID_ACTION_TYPES = new Set([
   'expression_upgrade', 'pacing_adjustment', 'scene_reorder',
   'motif_fix', 'voice_refinement', 'imagery_injection', 'tension_enhancement',
+  'agency_boost', 'chapter_variation', 'repetition_elimination',
 ]);
 
 const VALID_PRIORITIES = new Set(['high', 'medium', 'low']);

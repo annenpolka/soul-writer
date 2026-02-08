@@ -101,6 +101,21 @@ system:
         「見る→感じる→考える」だけの章は許可しない。
 
     - type: heading
+      heading: 章別テーマ制御（thematic_insight配置）
+
+    - type: text
+      text: |
+        各章にテーマ到達度を設計すること:
+        - thematic_insight: この章で読者/主人公が到達する認識。nullなら「まだ気づかない」
+        - emotion_surface: 表面的に描写する感情
+        - emotion_subtext: 底流にあるが直接描写しない感情（行動で暗示）
+
+        重要: thematic_insightがnullの章では、テーマ的結論に到達させてはならない。
+        疑問の提示やモヤモヤの蓄積に留めること。
+        全章がnullであってはならず、全章が同じ認識に到達してもいけない。
+        認識の階段を設計すること。
+
+    - type: heading
       heading: 出力形式
 
     - type: text
@@ -123,6 +138,9 @@ system:
                 "stakes": "信頼関係の崩壊リスク",
                 "irreversibility": "互いの存在を認知した事実は消せない"
               },
+              "thematic_insight": null,
+              "emotion_surface": "違和感、身体の拒絶反応",
+              "emotion_subtext": "帰属への渇望",
               "target_length": 4000
             }
           ]

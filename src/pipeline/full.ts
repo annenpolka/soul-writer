@@ -34,7 +34,7 @@ import { createCollaborationSession } from '../collaboration/session.js';
 import { toTournamentResult } from '../collaboration/adapter.js';
 import { resolveNarrativeRules } from '../factory/narrative-rules.js';
 import { buildChapterPrompt } from './chapter-prompt.js';
-import { analyzePreviousChapter, type PreviousChapterAnalysis } from './chapter-summary.js';
+import { analyzePreviousChapter, extractEstablishedInsights, type PreviousChapterAnalysis, type EstablishedInsight } from './chapter-summary.js';
 import { defectResultToReaderJuryResult } from './adapters/defect-to-reader.js';
 import type { LoggerFn } from '../logger.js';
 
@@ -114,6 +114,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
     chapter: Chapter,
     plot: Plot,
     chapterCtx?: ChapterContext,
+    establishedInsights?: EstablishedInsight[],
   ): Promise<ChapterPipelineResult> {
     const tokensStart = llmClient.getTotalTokens();
 
@@ -133,6 +134,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       plotMacGuffins: config.plotMacGuffins,
       previousChapterAnalysis,
       motifAvoidanceList: config.motifAvoidanceList,
+      establishedInsights,
     });
 
     const writerPersonas = soulManager.getWriterPersonas();
@@ -249,20 +251,38 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       }
     }
 
-    // DefectDetector evaluation (with retake on failure, max 1 retry)
+    // DefectDetector evaluation (with retake on failure, max 2 retries)
     logger?.section('DefectDetector Evaluation');
     const detector = createDefectDetector({ llmClient, soulText: soulManager.getSoulText() });
     let defectResult = await detector.detect(finalText);
     logger?.debug('DefectDetector result', defectResult);
 
-    if (!defectResult.passed) {
-      logger?.section('DefectDetector Retake');
-      const retakeAgent = createRetakeAgent({ llmClient, soulText: soulManager.getSoulText(), narrativeRules, themeContext });
-      const retakeResult = await retakeAgent.retake(finalText, defectResult.feedback);
+    const MAX_RETAKES = 2;
+    let retakeCount = 0;
+    while (!defectResult.passed && retakeCount < MAX_RETAKES) {
+      logger?.section(`DefectDetector Retake ${retakeCount + 1}/${MAX_RETAKES}`);
+
+      // Extract plot chapter info for retake enrichment
+      const plotChapter = chapter.summary ? {
+        summary: chapter.summary,
+        keyEvents: chapter.key_events ?? [],
+        decisionPoint: chapter.decision_point,
+      } : undefined;
+
+      const retakeAgent = createRetakeAgent({
+        llmClient,
+        soulText: soulManager.getSoulText(),
+        narrativeRules,
+        themeContext,
+        chapterContext: chapterCtx,
+        plotChapter,
+      });
+      const retakeResult = await retakeAgent.retake(finalText, defectResult.feedback, defectResult.defects);
       finalText = retakeResult.retakenText;
       complianceResult = checker.check(finalText);
       defectResult = await detector.detect(finalText);
-      logger?.debug('DefectDetector Retake result', defectResult);
+      retakeCount++;
+      logger?.debug(`DefectDetector Retake ${retakeCount} result`, defectResult);
     }
 
     const readerJuryResult = defectResultToReaderJuryResult(defectResult);
@@ -357,13 +377,25 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
     let learningCandidates = 0;
     const antiPatternsCollected = 0;
     const chapterCtx: ChapterContext = { previousChapterTexts: [] };
+    const established: EstablishedInsight[] = [];
 
     for (const ch of plot.chapters) {
       logger?.section(`Chapter ${ch.index}: ${ch.title}`);
-      const chapterResult = await generateChapter(ch, plot, chapterCtx);
+      const chapterResult = await generateChapter(ch, plot, chapterCtx, established);
       chapterResults.push(chapterResult);
       chapterCtx.previousChapterTexts.push(chapterResult.text);
       totalTokensUsed += chapterResult.tokensUsed;
+
+      // WS4: Extract established insights for cumulative differential prompting
+      if (plot.chapters.length > 1 && ch.index < plot.chapters.length) {
+        try {
+          const newInsights = await extractEstablishedInsights(llmClient, chapterResult.text, ch.index);
+          established.push(...newInsights);
+          logger?.debug(`Established insights after Ch${ch.index}`, newInsights);
+        } catch (err) {
+          logger?.debug(`Failed to extract insights for Ch${ch.index}`, { error: String(err) });
+        }
+      }
 
       if (chapterResult.learningResult && !chapterResult.learningResult.skipped) {
         learningCandidates += chapterResult.learningResult.added;
@@ -432,12 +464,23 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
     const chapterCtx: ChapterContext = {
       previousChapterTexts: completedChapters.map(c => c.text),
     };
+    const established: EstablishedInsight[] = [];
 
     for (const ch of remainingChapters) {
-      const chapterResult = await generateChapter(ch, plot, chapterCtx);
+      const chapterResult = await generateChapter(ch, plot, chapterCtx, established);
       chapterResults.push(chapterResult);
       chapterCtx.previousChapterTexts.push(chapterResult.text);
       totalTokensUsed += chapterResult.tokensUsed;
+
+      // WS4: Extract established insights for cumulative differential prompting
+      if (plot.chapters.length > 1 && ch.index < plot.chapters.length) {
+        try {
+          const newInsights = await extractEstablishedInsights(llmClient, chapterResult.text, ch.index);
+          established.push(...newInsights);
+        } catch {
+          // Non-critical: continue without insights
+        }
+      }
 
       if (chapterResult.learningResult && !chapterResult.learningResult.skipped) {
         learningCandidates += chapterResult.learningResult.added;

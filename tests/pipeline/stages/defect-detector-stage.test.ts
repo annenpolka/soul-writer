@@ -229,8 +229,8 @@ describe('createDefectDetectorStage', () => {
     const ctx = makeContext();
     const result = await stage(ctx);
 
-    // detect called twice: initial + after retake
-    expect(detectMock).toHaveBeenCalledTimes(2);
+    // detect called 3 times: initial + 2 retakes (MAX_RETAKES=2)
+    expect(detectMock).toHaveBeenCalledTimes(3);
     expect(result.defectResult!.passed).toBe(false);
     expect(result.readerJuryResult!.passed).toBe(false);
   });

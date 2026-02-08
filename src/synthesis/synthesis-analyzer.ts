@@ -28,7 +28,7 @@ const SUBMIT_IMPROVEMENT_PLAN_TOOL: ToolDefinition = {
               section: { type: 'string' },
               type: {
                 type: 'string',
-                enum: ['expression_upgrade', 'pacing_adjustment', 'scene_reorder', 'motif_fix', 'voice_refinement', 'imagery_injection', 'tension_enhancement', 'agency_boost'],
+                enum: ['expression_upgrade', 'pacing_adjustment', 'scene_reorder', 'motif_fix', 'voice_refinement', 'imagery_injection', 'tension_enhancement', 'agency_boost', 'chapter_variation', 'repetition_elimination'],
               },
               description: { type: 'string' },
               source: { type: 'string' },

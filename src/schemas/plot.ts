@@ -63,6 +63,12 @@ export const ChapterSchema = z.object({
   decision_point: DecisionPointSchema.optional(),
   variation_constraints: VariationConstraintsSchema.optional(),
   epistemic_constraints: z.array(EpistemicConstraintSchema).optional(),
+  /** Thematic insight this chapter should arrive at. null = explicitly don't arrive at any conclusion */
+  thematic_insight: z.string().nullable().optional(),
+  /** Surface emotion to depict in this chapter */
+  emotion_surface: z.string().optional(),
+  /** Subtext emotion — implied through action, not described directly */
+  emotion_subtext: z.string().optional(),
 });
 
 /**
@@ -97,6 +103,12 @@ export const ChapterSkeletonSchema = z.object({
   arc_role: z.string().min(1).optional(),
   /** The decisive action/choice that must occur in this chapter */
   decision_point: DecisionPointSchema.optional(),
+  /** Thematic insight this chapter should arrive at. null = explicitly don't arrive at any conclusion */
+  thematic_insight: z.string().nullable().optional(),
+  /** Surface emotion to depict in this chapter */
+  emotion_surface: z.string().optional(),
+  /** Subtext emotion — implied through action, not described directly */
+  emotion_subtext: z.string().optional(),
 });
 
 /**
