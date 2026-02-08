@@ -34,11 +34,14 @@ const REPORT_REPETITIONS_TOOL: ToolDefinition = {
               examples: { type: 'array', items: { type: 'string' } },
             },
             required: ['type', 'description', 'severity', 'examples'],
+            additionalProperties: false,
           },
         },
       },
       required: ['repetitions'],
+      additionalProperties: false,
     },
+    strict: true,
   },
 };
 

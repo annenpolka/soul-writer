@@ -2,7 +2,7 @@ import Cerebras from '@cerebras/cerebras_cloud_sdk';
 import type { ChatCompletion } from '@cerebras/cerebras_cloud_sdk/resources/chat/completions.js';
 import type { LLMClient, CompletionOptions, CerebrasConfig, ToolDefinition, ToolCallOptions, ToolCallResponse, ToolCallResult } from './types.js';
 
-const DEFAULT_MAX_RETRIES = 5;
+const DEFAULT_MAX_RETRIES = 10;
 const DEFAULT_INITIAL_RETRY_DELAY_MS = 1000;
 const DEFAULT_MAX_RETRY_DELAY_MS = 30000;
 

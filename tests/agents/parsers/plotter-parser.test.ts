@@ -216,7 +216,7 @@ describe('parsePlotResponse', () => {
     });
     const response = makeToolResponse(plot);
 
-    expect(() => parsePlotResponse(response)).toThrow('Plot validation failed');
+    expect(() => parsePlotResponse(response)).toThrow('chapters field is a non-array string');
   });
 });
 

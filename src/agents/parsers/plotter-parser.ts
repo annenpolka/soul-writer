@@ -27,8 +27,15 @@ export function coerceStringifiedArrays(parsed: unknown): unknown {
   let coerced = false;
 
   if (typeof result.chapters === 'string') {
-    result.chapters = tryParseJson(result.chapters);
-    coerced = true;
+    const chaptersValue = tryParseJson(result.chapters);
+    if (Array.isArray(chaptersValue)) {
+      result.chapters = chaptersValue;
+      coerced = true;
+    } else {
+      throw new Error(
+        `[plotter-parser] chapters field is a non-array string (cannot coerce): "${String(result.chapters).substring(0, 100)}"`,
+      );
+    }
   }
 
   if (Array.isArray(result.chapters)) {

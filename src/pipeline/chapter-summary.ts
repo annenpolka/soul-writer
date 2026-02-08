@@ -27,7 +27,9 @@ const ANALYZE_CHAPTER_TOOL: ToolDefinition = {
         structuralPattern: { type: 'string', description: '章内構造パターン' },
       },
       required: ['storySummary', 'emotionalBeats', 'dominantImagery', 'rhythmProfile', 'structuralPattern'],
+      additionalProperties: false,
     },
+    strict: true,
   },
 };
 
@@ -65,10 +67,16 @@ export async function analyzePreviousChapter(
   return {
     storySummary: parsed.storySummary,
     avoidanceDirective: {
-      emotionalBeats: parsed.emotionalBeats,
-      dominantImagery: parsed.dominantImagery,
-      rhythmProfile: parsed.rhythmProfile,
-      structuralPattern: parsed.structuralPattern,
+      emotionalBeats: ensureStringArray(parsed.emotionalBeats),
+      dominantImagery: ensureStringArray(parsed.dominantImagery),
+      rhythmProfile: parsed.rhythmProfile ?? '',
+      structuralPattern: parsed.structuralPattern ?? '',
     },
   };
+}
+
+function ensureStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(String);
+  if (typeof value === 'string') return value.split(/[、,，]/).map(s => s.trim()).filter(Boolean);
+  return [];
 }
