@@ -155,7 +155,8 @@ export type ViolationType =
   | 'markdown_contamination'
   | 'quote_direct_copy'
   | 'self_repetition'
-  | 'chapter_variation';
+  | 'chapter_variation'
+  | 'chinese_contamination';
 
 /**
  * A single violation found in text

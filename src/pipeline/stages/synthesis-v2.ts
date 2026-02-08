@@ -21,6 +21,25 @@ export function createSynthesisV2Stage(): PipelineStage {
       chapterContext: ctx.chapterContext,
     });
 
+    const logger = ctx.deps.logger;
+    if (logger && result.plan) {
+      logger.section('Synthesis V2 Analysis');
+      logger.debug('Champion assessment', result.plan.championAssessment);
+      logger.debug('Preserve elements', result.plan.preserveElements);
+      logger.debug('Actions', result.plan.actions.map(a =>
+        `[${a.priority}] ${a.type}: ${a.description} (source: ${a.source})`
+      ));
+      if (result.plan.structuralChanges?.length) {
+        logger.debug('Structural changes', result.plan.structuralChanges);
+      }
+      logger.debug('Expression sources', result.plan.expressionSources.map(e =>
+        `${e.writerId}: ${e.expressions.length} expressions`
+      ));
+      const charDiff = result.synthesizedText.length - ctx.text.length;
+      const pctDiff = ((charDiff / ctx.text.length) * 100).toFixed(1);
+      logger.debug('Text change', `${charDiff > 0 ? '+' : ''}${charDiff} chars (${pctDiff}%)`);
+    }
+
     return {
       ...ctx,
       text: result.synthesizedText,

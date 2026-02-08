@@ -25,7 +25,7 @@ export function buildJudgeContext(input: JudgeContextInput): Record<string, unkn
   const criteriaEntries: Array<{ text: string }> = [];
   if (isDefaultProtagonist && pov === 'first-person') {
     criteriaEntries.push({ text: '1. **語り声の再現** (voice_accuracy): 一人称「わたし」、冷徹で乾いた語り口、短文リズム' });
-    criteriaEntries.push({ text: '2. **原作忠実度** (originality_fidelity): 原作の設定・キャラクター造形を捏造せず忠実に再現' });
+    criteriaEntries.push({ text: '2. **世界観忠実度** (originality_fidelity): 世界観の雰囲気・質感を損なわない設定・キャラクターを使用しているか。新規キャラクターの登場は減点対象ではない' });
   } else {
     criteriaEntries.push({ text: `1. **語り声の一貫性** (voice_accuracy): ${narrativeRules.povDescription}。冷徹で乾いた語り口、短文リズム` });
     criteriaEntries.push({ text: '2. **世界観忠実度** (originality_fidelity): この世界観に存在し得る設定・キャラクターを使用しているか' });
@@ -39,7 +39,6 @@ export function buildJudgeContext(input: JudgeContextInput): Record<string, unkn
   const penaltyEntries: Array<{ text: string }> = [];
   if (isDefaultProtagonist && pov === 'first-person') {
     penaltyEntries.push({ text: '「私」表記（「わたし」でなければならない）→ 大幅減点' });
-    penaltyEntries.push({ text: '原作にない設定やキャラクターの捏造 → 大幅減点' });
   } else {
     penaltyEntries.push({ text: '視点の一貫性が崩れている → 大幅減点' });
     penaltyEntries.push({ text: '世界観に存在し得ない設定の捏造 → 大幅減点' });
