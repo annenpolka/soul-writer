@@ -36,11 +36,14 @@ const REPORT_VARIATION_TOOL: ToolDefinition = {
               suggestion: { type: 'string' },
             },
             required: ['type', 'description', 'severity', 'suggestion'],
+            additionalProperties: false,
           },
         },
       },
       required: ['issues'],
+      additionalProperties: false,
     },
+    strict: true,
   },
 };
 
