@@ -59,7 +59,7 @@ const createMockLLMClient = (): LLMClient => {
       if (systemPrompt.includes('断片') || systemPrompt.includes('抽出')) {
         return Promise.resolve(
           JSON.stringify({
-            fragments: [{ text: '透心は静かに窓の外を見つめていた', category: 'introspection', score: 0.92, reason: '内省的な描写' }],
+            fragments: [],
           })
         );
       }
@@ -120,6 +120,35 @@ const createMockLLMClient = (): LLMClient => {
               arguments: JSON.stringify({
                 categoryScores: { style: 0.5, plot: 0.5, character: 0.5, worldbuilding: 0.5, readability: 0.5 },
                 feedback: '評価は低め',
+              }),
+            },
+          }],
+          content: null, tokensUsed: 50,
+        });
+      }
+      if (toolName === 'submit_defects') {
+        return Promise.resolve({
+          toolCalls: [{
+            id: 'tc-1', type: 'function',
+            function: {
+              name: 'submit_defects',
+              arguments: JSON.stringify({ defects: [] }),
+            },
+          }],
+          content: null, tokensUsed: 50,
+        });
+      }
+      if (toolName === 'submit_synthesis_analysis') {
+        return Promise.resolve({
+          toolCalls: [{
+            id: 'tc-1', type: 'function',
+            function: {
+              name: 'submit_synthesis_analysis',
+              arguments: JSON.stringify({
+                champion_assessment: 'Good base text',
+                preserve_elements: ['opening'],
+                actions: [],
+                expression_sources: [],
               }),
             },
           }],

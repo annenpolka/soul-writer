@@ -172,6 +172,23 @@ exports[`Prompt Snapshots > judge > should match snapshot 1`] = `
 - 形式ルール遵守だけでは高得点になりません。物語として読者を引き込むかが重要です
 - 0.3-0.7が標準的な範囲です。0.5は「可もなく不可もなく」
 
+## 弱点分析
+各テキストの弱点を分析してください。弱点ごとに以下を記述します:
+- category: style / voice / pacing / imagery / motif / worldbuilding
+- description: 弱点の具体的な説明
+- suggestedFix: 改善のための具体的な提案
+- severity: critical（致命的）/ major（重大）/ minor（軽微）
+
+## 軸別コメント
+6つの評価軸それぞれについて、テキストA・Bへの具体的コメントを記述してください。
+可能であればテキストから引用（exampleA, exampleB）を添えてください。
+軸: style, voice_accuracy, originality_fidelity, narrative_quality, novelty, compliance
+
+## セクション分析
+テキストを「導入・展開・クライマックス・結末」の4セクションに分けて、
+各セクションのA・Bそれぞれに excellent / good / adequate / weak の評価と
+具体的なコメントを付けてください。
+
 回答はJSON形式で返してください:
 \`\`\`json
 {
@@ -184,7 +201,17 @@ exports[`Prompt Snapshots > judge > should match snapshot 1`] = `
   "praised_excerpts": {
     "A": ["テキストAで特に優れていた表現・描写の引用（原文ママ、各50字以内、最大3つ）"],
     "B": ["テキストBで特に優れていた表現・描写の引用（原文ママ、各50字以内、最大3つ）"]
-  }
+  },
+  "weaknesses": {
+    "A": [{ "category": "...", "description": "...", "suggestedFix": "...", "severity": "..." }],
+    "B": [{ "category": "...", "description": "...", "suggestedFix": "...", "severity": "..." }]
+  },
+  "axis_comments": [
+    { "axis": "style", "commentA": "...", "commentB": "...", "exampleA": "...", "exampleB": "..." }
+  ],
+  "section_analysis": [
+    { "section": "導入", "ratingA": "...", "ratingB": "...", "commentA": "...", "commentB": "..." }
+  ]
 }
 \`\`\`
 "

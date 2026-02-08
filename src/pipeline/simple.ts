@@ -11,10 +11,9 @@ import { pipe, when, tryStage } from './compose.js';
 import { createTournamentStage } from './stages/tournament.js';
 import { createComplianceStage } from './stages/compliance.js';
 import { createCorrectionStage } from './stages/correction.js';
-import { createSynthesisStage } from './stages/synthesis.js';
-import { createJudgeRetakeStage } from './stages/judge-retake.js';
+import { createSynthesisV2Stage } from './stages/synthesis-v2.js';
 import { createAntiSoulCollectionStage } from './stages/anti-soul-collection.js';
-import { createReaderJuryRetakeLoopStage } from './stages/reader-jury-retake-loop.js';
+import { createDefectDetectorStage } from './stages/defect-detector-stage.js';
 import { createCollaborationStage } from './stages/collaboration.js';
 import type { PipelineStage, PipelineContext, PipelineDeps } from './types.js';
 
@@ -61,8 +60,8 @@ export interface SimplePipelineConfig {
  * Create a composable pipeline stage for single-chapter generation.
  *
  * In simple mode: only runs the generation stage (tournament or collaboration).
- * In full mode: generation → synthesis → compliance → correction → anti-soul collection →
- *               judge retake → reader jury retake loop.
+ * In full mode: generation → synthesis V2 → compliance → correction → anti-soul collection →
+ *               defect detector.
  */
 export function createSimplePipeline(config: SimplePipelineConfig = {}): PipelineStage {
   const maxCorrections = config.maxCorrectionAttempts ?? 3;
@@ -84,12 +83,11 @@ export function createSimplePipeline(config: SimplePipelineConfig = {}): Pipelin
   // Full mode: generation → post-processing pipeline
   return pipe(
     generationStage,
-    tryStage(createSynthesisStage()),
+    tryStage(createSynthesisV2Stage()),
     createComplianceStage(),
     when(ctx => !!(ctx.complianceResult && !ctx.complianceResult.isCompliant), createCorrectionStage(maxCorrections)),
     createAntiSoulCollectionStage(),
-    createJudgeRetakeStage(),
-    createReaderJuryRetakeLoopStage(),
+    createDefectDetectorStage(),
   );
 }
 
