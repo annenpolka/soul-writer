@@ -112,6 +112,16 @@ export function buildChapterPrompt(input: ChapterPromptInput): string {
     parts.push('');
   }
 
+  // Decision point (decisive action)
+  if (chapter.decision_point) {
+    parts.push(`### この章の決定的行動`);
+    parts.push(`行動: ${chapter.decision_point.action}`);
+    parts.push(`賭け金: ${chapter.decision_point.stakes}`);
+    parts.push(`不可逆な変化: ${chapter.decision_point.irreversibility}`);
+    parts.push(`この行動を必ず物語に組み込むこと。`);
+    parts.push('');
+  }
+
   // Dramaturgy and arc role
   if (chapter.dramaturgy) {
     parts.push(`### ドラマトゥルギー（起動装置）`);

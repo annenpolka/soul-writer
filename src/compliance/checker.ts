@@ -60,7 +60,7 @@ function buildRulesFromSoulText(
 
   rules.push(createPovConsistencyRule(narrativeRules));
 
-  if (isDefault) {
+  if (isDefault && ps.sentence_structure.typical_lengths) {
     const maxLen = parseInt(ps.sentence_structure.typical_lengths.forbidden.replace(/[^0-9]/g, '')) || 100;
     rules.push(createRhythmCheckRule(maxLen));
   }

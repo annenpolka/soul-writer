@@ -89,6 +89,18 @@ system:
           例: 「読者の信頼を構築し、後の裏切りの土台を作る」「対立を表面化させ、逃げ道を塞ぐ」
 
     - type: heading
+      heading: 決定的行動（decision_point）
+
+    - type: text
+      text: |
+        各章には必ず decision_point（決定的行動）を設計すること:
+        - action: 主人公またはキーキャラが取る具体的な行動（「名前を呼ぶ」「データを消す」「手を引く」等）
+        - stakes: その行動の賭け金（失うもの、リスク）
+        - irreversibility: 行動後に不可逆に変わること
+
+        「見る→感じる→考える」だけの章は許可しない。
+
+    - type: heading
       heading: 出力形式
 
     - type: text
@@ -106,6 +118,11 @@ system:
               "key_events": ["イベント1", "イベント2"],
               "dramaturgy": "対峙",
               "arc_role": "読者の信頼を構築し、後の裏切りの土台を作る",
+              "decision_point": {
+                "action": "透心がつるぎの本名を呼ぶ",
+                "stakes": "信頼関係の崩壊リスク",
+                "irreversibility": "互いの存在を認知した事実は消せない"
+              },
               "target_length": 4000
             }
           ]

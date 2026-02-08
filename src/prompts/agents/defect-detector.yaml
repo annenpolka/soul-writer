@@ -92,6 +92,17 @@ system:
         - 空間パターンの固定（管理空間→逸脱空間→帰路の反復）
 
     - type: heading
+      heading: 能動性欠如（agency_absence）の検出基準
+
+    - type: text
+      text: |
+        agency_absence（能動性欠如）の検出基準:
+        - 主人公が一度も選択・行動・介入しない章: critical
+        - 「見る→感じる→考える」ループが3回以上繰り返される: major
+        - 全キャラクターが受動的（誰も世界に介入しない）: critical
+        - 対話が存在するが、対話の結果何も変わらない: minor
+
+    - type: heading
       heading: 指示
 
     - type: text

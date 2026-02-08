@@ -36,6 +36,21 @@ export const EpistemicConstraintSchema = z.object({
 /**
  * Chapter schema - represents a single chapter in a plot
  */
+/**
+ * Decision point - the decisive action in a chapter
+ */
+export const DecisionPointSchema = z.object({
+  /** The concrete action the protagonist or key character takes */
+  action: z.string().min(1),
+  /** What is at stake - what could be lost */
+  stakes: z.string().min(1),
+  /** What irreversibly changes after the action */
+  irreversibility: z.string().min(1),
+});
+
+/**
+ * Chapter schema - represents a single chapter in a plot
+ */
 export const ChapterSchema = z.object({
   index: z.number().int().positive(),
   title: z.string().min(1),
@@ -44,6 +59,8 @@ export const ChapterSchema = z.object({
   target_length: z.number().int().positive().default(4000),
   dramaturgy: z.string().min(1).optional(),
   arc_role: z.string().min(1).optional(),
+  /** The decisive action/choice that must occur in this chapter */
+  decision_point: DecisionPointSchema.optional(),
   variation_constraints: VariationConstraintsSchema.optional(),
   epistemic_constraints: z.array(EpistemicConstraintSchema).optional(),
 });
@@ -78,6 +95,8 @@ export const ChapterSkeletonSchema = z.object({
   target_length: z.number().int().positive().default(4000),
   dramaturgy: z.string().min(1).optional(),
   arc_role: z.string().min(1).optional(),
+  /** The decisive action/choice that must occur in this chapter */
+  decision_point: DecisionPointSchema.optional(),
 });
 
 /**
@@ -102,6 +121,7 @@ export const ChapterConstraintsSchema = z.object({
   epistemic_constraints: z.array(EpistemicConstraintSchema).optional(),
 });
 
+export type DecisionPoint = z.infer<typeof DecisionPointSchema>;
 export type VariationConstraints = z.infer<typeof VariationConstraintsSchema>;
 export type EpistemicConstraint = z.infer<typeof EpistemicConstraintSchema>;
 export type Chapter = z.infer<typeof ChapterSchema>;

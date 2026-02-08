@@ -20,6 +20,7 @@ const DEFECT_CATEGORIES = [
   { name: 'worldbuilding_error', description: '世界観設定との矛盾、用語の誤用' },
   { name: 'emotional_flatness', description: '感情表現の平板化、心理描写の浅さ' },
   { name: 'forbidden_pattern', description: '禁止語彙・禁止比喩の使用' },
+  { name: 'agency_absence', description: '主人公の能動的行動・選択・介入の欠如。受動的ループの検出' },
 ];
 
 /**

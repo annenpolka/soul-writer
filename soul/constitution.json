@@ -78,16 +78,9 @@
   },
   "protagonist_specific": {
     "sentence_structure": {
-      "rhythm_pattern": "短-短-長(内省)-短(断定)",
       "taigendome": {
         "usage": "場面転換・視点固定・余韻を残す場面",
-        "frequency": "1段落に0-2回",
         "forbidden_context": ["対話の途中", "感情の頂点"]
-      },
-      "typical_lengths": {
-        "short": "〜20字",
-        "long": "40〜80字",
-        "forbidden": "100字超の一文"
       }
     },
     "narrative": {
@@ -98,7 +91,6 @@
       },
       "default_tense": "過去形",
       "tense_shift_allowed": "内省が深まると現在形への滑り込み許可",
-      "dialogue_ratio": "低（地の文7：対話3以下）",
       "dialogue_style_by_character": {
         "御鐘透心": "短い、防御的、皮肉",
         "愛原つるぎ": "饒舌、挑発的、古い言葉を使う、SF作品の引用"
@@ -126,7 +118,7 @@
         "大げさな感情の直後に「…なんてお節介は馬鹿馬鹿しい」と切り捨てる",
         "社会制度への冷笑（「思いやりなんて、ゆるやかな相互監視の産物」）"
       ],
-      "frequency": "1章に2-3回。過剰にならない程度に"
+      "frequency": "過剰にならない程度に"
     }
   }
 }

@@ -496,7 +496,7 @@ export interface Synthesizer {
  */
 export interface ImprovementAction {
   section: string;
-  type: 'expression_upgrade' | 'pacing_adjustment' | 'scene_reorder' | 'motif_fix' | 'voice_refinement' | 'imagery_injection' | 'tension_enhancement';
+  type: 'expression_upgrade' | 'pacing_adjustment' | 'scene_reorder' | 'motif_fix' | 'voice_refinement' | 'imagery_injection' | 'tension_enhancement' | 'agency_boost';
   description: string;
   source: string;
   priority: 'high' | 'medium' | 'low';

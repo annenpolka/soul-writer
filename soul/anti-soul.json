@@ -179,6 +179,29 @@
         "added_at": "2026-02-08T00:00:00Z"
       }
     ],
+    "passive_narrative": [
+      {
+        "id": "anti-passive-001",
+        "text": "窓の外を眺めていた。雲が流れている。あの日のことを思い出す。胸の奥が疼いた。しかし何もできないまま、時間だけが過ぎていった。",
+        "reason": "「見る→感じる→考える→何もしない」の受動的ループ。観察は行動への助走であるべき。観察だけで終わるシーンは禁止。",
+        "source": "pattern_analysis",
+        "added_at": "2026-02-08T00:00:00Z"
+      },
+      {
+        "id": "anti-passive-002",
+        "text": "教室で彼女の横顔を見つめていた。何か言いたかったが、言葉が出てこなかった。結局、いつも通りの日常が続いた。",
+        "reason": "主人公が選択を回避し続ける構造。「言いたかったが言えなかった」は一度なら許容されるが、物語全体を通じて選択回避が続くのは禁止。",
+        "source": "pattern_analysis",
+        "added_at": "2026-02-08T00:00:00Z"
+      },
+      {
+        "id": "anti-passive-003",
+        "text": "全員がただ静かにそこにいた。誰も何も言わず、何も動かず、時間だけが流れていた。それでも、何かが確かに共有されていた気がした。",
+        "reason": "全キャラクターが受動的な状態で「空気の共有」だけで物語が進む構造の禁止。少なくとも一人は能動的に世界に介入すること。",
+        "source": "pattern_analysis",
+        "added_at": "2026-02-08T00:00:00Z"
+      }
+    ],
     "symbolic_explanation": [
       {
         "id": "anti-symbolic-001",
@@ -211,6 +234,7 @@
     ]
   },
   "violation_mapping": {
+    "passive_narrative": "passive_narrative",
     "symbolic_explanation": "symbolic_explanation",
     "theme_violation": "theme_violation",
     "forbidden_word": "cliche_simile",
