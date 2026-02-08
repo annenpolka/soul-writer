@@ -28,9 +28,11 @@ export const SUBMIT_JUDGEMENT_TOOL: ToolDefinition = {
                 compliance: { type: 'number' },
                 overall: { type: 'number' },
                 voice_accuracy: { type: 'number' },
-                originality_fidelity: { type: 'number' },
-                narrative_quality: { type: 'number' },
-                novelty: { type: 'number' },
+                originality: { type: 'number' },
+                structure: { type: 'number' },
+                amplitude: { type: 'number' },
+                agency: { type: 'number' },
+                stakes: { type: 'number' },
               },
               required: ['style', 'compliance', 'overall'],
               additionalProperties: false,
@@ -42,9 +44,11 @@ export const SUBMIT_JUDGEMENT_TOOL: ToolDefinition = {
                 compliance: { type: 'number' },
                 overall: { type: 'number' },
                 voice_accuracy: { type: 'number' },
-                originality_fidelity: { type: 'number' },
-                narrative_quality: { type: 'number' },
-                novelty: { type: 'number' },
+                originality: { type: 'number' },
+                structure: { type: 'number' },
+                amplitude: { type: 'number' },
+                agency: { type: 'number' },
+                stakes: { type: 'number' },
               },
               required: ['style', 'compliance', 'overall'],
               additionalProperties: false,
@@ -70,7 +74,7 @@ export const SUBMIT_JUDGEMENT_TOOL: ToolDefinition = {
               items: {
                 type: 'object',
                 properties: {
-                  category: { type: 'string', enum: ['style', 'voice', 'pacing', 'imagery', 'motif', 'worldbuilding'] },
+                  category: { type: 'string', enum: ['style', 'voice', 'pacing', 'imagery', 'motif', 'worldbuilding', 'agency', 'stakes'] },
                   description: { type: 'string' },
                   suggestedFix: { type: 'string' },
                   severity: { type: 'string', enum: ['critical', 'major', 'minor'] },
@@ -84,7 +88,7 @@ export const SUBMIT_JUDGEMENT_TOOL: ToolDefinition = {
               items: {
                 type: 'object',
                 properties: {
-                  category: { type: 'string', enum: ['style', 'voice', 'pacing', 'imagery', 'motif', 'worldbuilding'] },
+                  category: { type: 'string', enum: ['style', 'voice', 'pacing', 'imagery', 'motif', 'worldbuilding', 'agency', 'stakes'] },
                   description: { type: 'string' },
                   suggestedFix: { type: 'string' },
                   severity: { type: 'string', enum: ['critical', 'major', 'minor'] },
@@ -102,7 +106,7 @@ export const SUBMIT_JUDGEMENT_TOOL: ToolDefinition = {
           items: {
             type: 'object',
             properties: {
-              axis: { type: 'string', enum: ['style', 'voice_accuracy', 'originality_fidelity', 'narrative_quality', 'novelty', 'compliance'] },
+              axis: { type: 'string', enum: ['style', 'voice_accuracy', 'originality', 'structure', 'amplitude', 'agency', 'stakes', 'compliance'] },
               commentA: { type: 'string' },
               commentB: { type: 'string' },
               exampleA: { type: 'string' },

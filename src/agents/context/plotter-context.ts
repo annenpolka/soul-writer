@@ -82,6 +82,11 @@ export function buildPlotterContext(input: PlotterContextInput): Record<string, 
     }));
   }
 
+  // Motif avoidance list
+  if (config.motifAvoidanceList && config.motifAvoidanceList.length > 0) {
+    ctx.motifAvoidanceList = config.motifAvoidanceList;
+  }
+
   ctx.chapterInstruction = `${config.chapterCount}章構成の物語を設計してください。\n総文字数の目安: ${config.targetTotalLength}字`;
 
   return ctx;

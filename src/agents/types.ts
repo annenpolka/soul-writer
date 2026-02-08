@@ -33,19 +33,23 @@ export interface ScoreBreakdown {
   overall: number;
   /** Accuracy of character voice reproduction */
   voice_accuracy?: number;
-  /** Fidelity to original work's setting and plot */
-  originality_fidelity?: number;
-  /** Narrative quality: immersion, emotional weight, structural strength */
-  narrative_quality?: number;
-  /** Novelty: unexpected developments, fresh expressions, new character facets */
-  novelty?: number;
+  /** Originality: unique approach that expands the original's spirit (merged from originality_fidelity + novelty) */
+  originality?: number;
+  /** Structure: composition, pacing, scene arrangement (renamed from narrative_quality) */
+  structure?: number;
+  /** Amplitude: emotional curve peak-bottom difference */
+  amplitude?: number;
+  /** Agency: whether characters actively choose and act */
+  agency?: number;
+  /** Stakes: clarity of what is at risk in the story */
+  stakes?: number;
 }
 
 /**
  * A weakness found in a text by the judge
  */
 export interface TextWeakness {
-  category: 'style' | 'voice' | 'pacing' | 'imagery' | 'motif' | 'worldbuilding';
+  category: 'style' | 'voice' | 'pacing' | 'imagery' | 'motif' | 'worldbuilding' | 'agency' | 'stakes';
   description: string;
   suggestedFix: string;
   severity: 'critical' | 'major' | 'minor';
@@ -55,7 +59,7 @@ export interface TextWeakness {
  * Per-axis commentary comparing two texts
  */
 export interface AxisComment {
-  axis: 'style' | 'voice_accuracy' | 'originality_fidelity' | 'narrative_quality' | 'novelty' | 'compliance';
+  axis: 'style' | 'voice_accuracy' | 'originality' | 'structure' | 'amplitude' | 'agency' | 'stakes' | 'compliance';
   commentA: string;
   commentB: string;
   exampleA?: string;
@@ -119,6 +123,8 @@ export interface PlotterConfig {
   /** MacGuffins for plot mystery injection */
   plotMacGuffins?: import('../schemas/macguffin.js').PlotMacGuffin[];
   characterMacGuffins?: import('../schemas/macguffin.js').CharacterMacGuffin[];
+  /** Motif avoidance list from past works analysis */
+  motifAvoidanceList?: string[];
 }
 
 /**
@@ -311,6 +317,8 @@ export interface FullPipelineConfig {
   /** MacGuffins for mystery injection into writers */
   characterMacGuffins?: import('../schemas/macguffin.js').CharacterMacGuffin[];
   plotMacGuffins?: import('../schemas/macguffin.js').PlotMacGuffin[];
+  /** Motif avoidance list from past works analysis */
+  motifAvoidanceList?: string[];
   verbose?: boolean;
   mode?: 'tournament' | 'collaboration';
   collaborationConfig?: import('../collaboration/types.js').CollaborationConfig;

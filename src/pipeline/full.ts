@@ -132,6 +132,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       characterMacGuffins: config.characterMacGuffins,
       plotMacGuffins: config.plotMacGuffins,
       previousChapterAnalysis,
+      motifAvoidanceList: config.motifAvoidanceList,
     });
 
     const writerPersonas = soulManager.getWriterPersonas();
@@ -324,6 +325,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
         theme: config.theme,
         plotMacGuffins: config.plotMacGuffins,
         characterMacGuffins: config.characterMacGuffins,
+        motifAvoidanceList: config.motifAvoidanceList,
       },
     });
     const tokensBefore = llmClient.getTotalTokens();

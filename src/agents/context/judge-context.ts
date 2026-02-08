@@ -25,15 +25,17 @@ export function buildJudgeContext(input: JudgeContextInput): Record<string, unkn
   const criteriaEntries: Array<{ text: string }> = [];
   if (isDefaultProtagonist && pov === 'first-person') {
     criteriaEntries.push({ text: '1. **語り声の再現** (voice_accuracy): 一人称「わたし」、冷徹で乾いた語り口、短文リズム' });
-    criteriaEntries.push({ text: '2. **世界観忠実度** (originality_fidelity): 世界観の雰囲気・質感を損なわない設定・キャラクターを使用しているか。新規キャラクターの登場は減点対象ではない' });
+    criteriaEntries.push({ text: '2. **独自性** (originality): 原作の精神を独自のアプローチで拡張しているか。安全だが平凡より挑戦的で荒削りを好む' });
   } else {
     criteriaEntries.push({ text: `1. **語り声の一貫性** (voice_accuracy): ${narrativeRules.povDescription}。冷徹で乾いた語り口、短文リズム` });
-    criteriaEntries.push({ text: '2. **世界観忠実度** (originality_fidelity): この世界観に存在し得る設定・キャラクターを使用しているか' });
+    criteriaEntries.push({ text: '2. **独自性** (originality): 原作の精神を独自のアプローチで拡張しているか' });
   }
-  criteriaEntries.push({ text: '3. **新奇さ** (novelty): 予想外の展開、新鮮な表現・比喩、キャラクターの未知の側面。原作の精神を継ぎつつ超える力。【重視】多様なスタイルの作家が競うため、独自の切り口を高く評価すること' });
-  criteriaEntries.push({ text: '4. **文体の一貫性** (style): 短-短-長(内省)-短(断定)のリズム、体言止め、比喩密度low' });
-  criteriaEntries.push({ text: '5. **禁止パターンの回避** (compliance): 禁止語彙、禁止比喩、「×」の正しい用法' });
-  criteriaEntries.push({ text: '6. **物語性** (narrative_quality): 読者を引き込む没入感、感情の重み、構成力。形式ルール遵守だけでは高得点にならない' });
+  criteriaEntries.push({ text: '3. **文体の一貫性** (style): 短-短-長(内省)-短(断定)のリズム、体言止め、比喩密度low' });
+  criteriaEntries.push({ text: '4. **構成** (structure): シーン配置、ペーシング、構造的な強度' });
+  criteriaEntries.push({ text: '5. **感情振幅** (amplitude): 感情曲線にピークとボトムがあるか。全編フラットは低評価' });
+  criteriaEntries.push({ text: '6. **行動性** (agency): キャラクターが実際に選択し行動しているか。受動的な観察だけのパターンは低評価' });
+  criteriaEntries.push({ text: '7. **賭け金** (stakes): 物語に何が賭けられているか明確か。失敗の代償が具体的に描かれているか' });
+  criteriaEntries.push({ text: '8. **禁止パターンの回避** (compliance): 禁止語彙、禁止比喩、「×」の正しい用法' });
 
   // Penalty items
   const penaltyEntries: Array<{ text: string }> = [];

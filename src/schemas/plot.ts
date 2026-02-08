@@ -55,6 +55,16 @@ export const PlotSchema = z.object({
   title: z.string().min(1),
   theme: z.string().min(1),
   chapters: z.array(ChapterSchema).min(1),
+  /** Drama blueprint type (descent, confrontation, revelation, erosion, escalation) */
+  drama_blueprint: z.string().optional(),
+  /** Story turning point description */
+  turning_point: z.string().optional(),
+  /** What is at stake in the story */
+  stakes_description: z.string().optional(),
+  /** The choice the protagonist is forced to make */
+  protagonist_choice: z.string().optional(),
+  /** The point of no return */
+  point_of_no_return: z.string().optional(),
 });
 
 /**
@@ -77,6 +87,11 @@ export const PlotSkeletonSchema = z.object({
   title: z.string().min(1),
   theme: z.string().min(1),
   chapters: z.array(ChapterSkeletonSchema).min(1),
+  drama_blueprint: z.string().optional(),
+  turning_point: z.string().optional(),
+  stakes_description: z.string().optional(),
+  protagonist_choice: z.string().optional(),
+  point_of_no_return: z.string().optional(),
 });
 
 /**

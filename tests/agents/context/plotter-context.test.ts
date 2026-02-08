@@ -203,4 +203,32 @@ describe('buildPlotterContext', () => {
       expect(ctx).not.toHaveProperty('characterMacGuffins');
     });
   });
+
+  describe('motifAvoidanceList', () => {
+    it('should include motifAvoidanceList when provided', () => {
+      const config = {
+        ...DEFAULT_PLOTTER_CONFIG,
+        motifAvoidanceList: ['鏡', '月光', '廃墟'],
+      };
+      const ctx = buildPlotterContext(makeInput({ config }));
+
+      expect(ctx.motifAvoidanceList).toEqual(['鏡', '月光', '廃墟']);
+    });
+
+    it('should not include motifAvoidanceList when empty array', () => {
+      const config = {
+        ...DEFAULT_PLOTTER_CONFIG,
+        motifAvoidanceList: [],
+      };
+      const ctx = buildPlotterContext(makeInput({ config }));
+
+      expect(ctx).not.toHaveProperty('motifAvoidanceList');
+    });
+
+    it('should not include motifAvoidanceList when undefined', () => {
+      const ctx = buildPlotterContext(makeInput());
+
+      expect(ctx).not.toHaveProperty('motifAvoidanceList');
+    });
+  });
 });

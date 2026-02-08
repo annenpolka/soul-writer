@@ -112,7 +112,7 @@ describe('Prompt Snapshots', () => {
         soulName: 'テストソウル',
         criteriaEntries: [
           { text: '1. **語り声の再現** (voice_accuracy): 一人称「わたし」' },
-          { text: '2. **原作忠実度** (originality_fidelity): 忠実に再現' },
+          { text: '2. **独自性** (originality): 独自のアプローチで原作を拡張' },
           { text: '3. **文体の一貫性** (style): 短文リズム' },
         ],
         penaltyEntries: [

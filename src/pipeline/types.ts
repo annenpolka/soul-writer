@@ -32,6 +32,7 @@ export interface PipelineDeps {
   themeContext?: ThemeContext;
   macGuffinContext?: MacGuffinContext;
   developedCharacters?: DevelopedCharacter[];
+  motifAvoidanceList?: string[];
   logger?: LoggerFn;
 }
 

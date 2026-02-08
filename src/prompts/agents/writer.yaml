@@ -80,6 +80,17 @@ system:
 
     - type: condition
       if:
+        has: motifAvoidanceList
+      then:
+        - type: heading
+          heading: 回避すべきモチーフ（過去作品で頻出のため使用禁止）
+        - type: each
+          each: motifAvoidanceList
+          as: motif
+          template: "- {{ motif }}"
+
+    - type: condition
+      if:
         has: rawSoultext
       then:
         - type: heading

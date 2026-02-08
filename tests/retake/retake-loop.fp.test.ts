@@ -9,9 +9,11 @@ function makeScores(overrides?: Partial<ScoreBreakdown>): ScoreBreakdown {
     compliance: 0.9,
     overall: 0.85,
     voice_accuracy: 0.8,
-    originality_fidelity: 0.8,
-    narrative_quality: 0.8,
-    novelty: 0.7,
+    originality: 0.8,
+    structure: 0.8,
+    amplitude: 0.7,
+    agency: 0.6,
+    stakes: 0.7,
     ...overrides,
   };
 }

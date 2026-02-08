@@ -87,13 +87,17 @@ export function normalizeScore(score: Partial<ScoreBreakdown> | undefined): Scor
     const val = v ?? 0.5;
     return Math.min(0.95, Math.max(0.05, val));
   };
+  // Backward-compatible: read from old field names if new ones are missing
+  const legacy = score as Record<string, unknown> | undefined;
   return {
     style: clamp(score?.style),
     compliance: clamp(score?.compliance),
     voice_accuracy: clamp(score?.voice_accuracy),
-    originality_fidelity: clamp(score?.originality_fidelity),
-    narrative_quality: clamp(score?.narrative_quality),
-    novelty: clamp(score?.novelty),
+    originality: clamp(score?.originality ?? (legacy?.originality_fidelity as number | undefined)),
+    structure: clamp(score?.structure ?? (legacy?.narrative_quality as number | undefined)),
+    amplitude: clamp(score?.amplitude),
+    agency: clamp(score?.agency),
+    stakes: clamp(score?.stakes),
     overall: clamp(score?.overall),
   };
 }
@@ -106,8 +110,8 @@ export function createFallbackResult(): JudgeResult {
     winner: 'A',
     reasoning: 'Fallback: tool call parsing failed',
     scores: {
-      A: { style: 0.5, compliance: 0.5, voice_accuracy: 0.5, originality_fidelity: 0.5, narrative_quality: 0.5, novelty: 0.5, overall: 0.5 },
-      B: { style: 0.5, compliance: 0.5, voice_accuracy: 0.5, originality_fidelity: 0.5, narrative_quality: 0.5, novelty: 0.5, overall: 0.5 },
+      A: { style: 0.5, compliance: 0.5, voice_accuracy: 0.5, originality: 0.5, structure: 0.5, amplitude: 0.5, agency: 0.5, stakes: 0.5, overall: 0.5 },
+      B: { style: 0.5, compliance: 0.5, voice_accuracy: 0.5, originality: 0.5, structure: 0.5, amplitude: 0.5, agency: 0.5, stakes: 0.5, overall: 0.5 },
     },
   };
 }

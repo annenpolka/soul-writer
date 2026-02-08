@@ -13,8 +13,8 @@ function createMockJudgeDeps(overrides?: {
       winner: 'A',
       reasoning: 'A is stronger overall',
       scores: {
-        A: { style: 0.8, compliance: 0.9, overall: 0.85, voice_accuracy: 0.8, originality_fidelity: 0.7, narrative_quality: 0.8, novelty: 0.7 },
-        B: { style: 0.6, compliance: 0.7, overall: 0.65, voice_accuracy: 0.6, originality_fidelity: 0.5, narrative_quality: 0.6, novelty: 0.5 },
+        A: { style: 0.8, compliance: 0.9, overall: 0.85, voice_accuracy: 0.8, originality: 0.7, structure: 0.8, amplitude: 0.7, agency: 0.6, stakes: 0.7 },
+        B: { style: 0.6, compliance: 0.7, overall: 0.65, voice_accuracy: 0.6, originality: 0.5, structure: 0.6, amplitude: 0.5, agency: 0.4, stakes: 0.5 },
       },
       praised_excerpts: { A: ['good A'], B: ['good B'] },
       weaknesses: {
@@ -110,8 +110,8 @@ describe('createJudge evaluate() with enhanced fields', () => {
           winner: 'B',
           reasoning: 'B wins',
           scores: {
-            A: { style: 0.5, compliance: 0.5, overall: 0.5, voice_accuracy: 0.5, originality_fidelity: 0.5, narrative_quality: 0.5, novelty: 0.5 },
-            B: { style: 0.8, compliance: 0.8, overall: 0.8, voice_accuracy: 0.8, originality_fidelity: 0.8, narrative_quality: 0.8, novelty: 0.8 },
+            A: { style: 0.5, compliance: 0.5, overall: 0.5, voice_accuracy: 0.5, originality: 0.5, structure: 0.5, amplitude: 0.5, agency: 0.5, stakes: 0.5 },
+            B: { style: 0.8, compliance: 0.8, overall: 0.8, voice_accuracy: 0.8, originality: 0.8, structure: 0.8, amplitude: 0.8, agency: 0.8, stakes: 0.8 },
           },
           praised_excerpts: { A: [], B: [] },
         },

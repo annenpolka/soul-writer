@@ -13,6 +13,8 @@ export interface ChapterPromptInput {
   characterMacGuffins?: CharacterMacGuffin[];
   plotMacGuffins?: PlotMacGuffin[];
   previousChapterAnalysis?: PreviousChapterAnalysis;
+  /** Motif avoidance list from past works analysis */
+  motifAvoidanceList?: string[];
 }
 
 /**
@@ -87,6 +89,26 @@ export function buildChapterPrompt(input: ChapterPromptInput): string {
     parts.push(`- リズム: ${pca.avoidanceDirective.rhythmProfile}`);
     parts.push(`- 構造: ${pca.avoidanceDirective.structuralPattern}`);
     parts.push('上記と異なるアプローチで執筆すること。');
+    parts.push('');
+  }
+
+  // Drama blueprint context
+  if (plot.drama_blueprint) {
+    parts.push('### ドラマブループリント');
+    parts.push(`- 構造型: ${plot.drama_blueprint}`);
+    if (plot.turning_point) parts.push(`- 転機: ${plot.turning_point}`);
+    if (plot.stakes_description) parts.push(`- 賭け金: ${plot.stakes_description}`);
+    if (plot.protagonist_choice) parts.push(`- 主人公の選択: ${plot.protagonist_choice}`);
+    if (plot.point_of_no_return) parts.push(`- 引き返せないポイント: ${plot.point_of_no_return}`);
+    parts.push('');
+  }
+
+  // Motif avoidance
+  if (input.motifAvoidanceList && input.motifAvoidanceList.length > 0) {
+    parts.push('### 回避すべきモチーフ（過去作品で頻出のため使用禁止）');
+    for (const motif of input.motifAvoidanceList) {
+      parts.push(`- ${motif}`);
+    }
     parts.push('');
   }
 
