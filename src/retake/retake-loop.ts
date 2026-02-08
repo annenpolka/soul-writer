@@ -48,8 +48,8 @@ function buildFeedback(scores: import('../agents/types.js').ScoreBreakdown, minV
   if ((scores.style ?? 0.5) < 0.6) {
     feedbackParts.push('文体のリズムが原作と異なる。短-短-長-短のリズムを意識すること。');
   }
-  if ((scores.originality_fidelity ?? 0.5) < 0.6) {
-    feedbackParts.push('原作の設定やキャラクターから逸脱している。捏造を排除すること。');
+  if ((scores.originality ?? 0.5) < 0.6) {
+    feedbackParts.push('原作の精神を独自に拡張するアプローチが不足している。');
   }
   if ((scores.compliance ?? 0.5) < 0.6) {
     feedbackParts.push('禁止語彙・禁止比喩が含まれている。');

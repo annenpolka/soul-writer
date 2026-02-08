@@ -21,8 +21,8 @@ const baseArgs = {
   winner: 'A',
   reasoning: 'A is better',
   scores: {
-    A: { style: 0.8, compliance: 0.9, overall: 0.85, voice_accuracy: 0.8, originality_fidelity: 0.7, narrative_quality: 0.8, novelty: 0.7 },
-    B: { style: 0.6, compliance: 0.7, overall: 0.65, voice_accuracy: 0.6, originality_fidelity: 0.5, narrative_quality: 0.6, novelty: 0.5 },
+    A: { style: 0.8, compliance: 0.9, overall: 0.85, voice_accuracy: 0.8, originality: 0.7, structure: 0.8, amplitude: 0.7, agency: 0.6, stakes: 0.7 },
+    B: { style: 0.6, compliance: 0.7, overall: 0.65, voice_accuracy: 0.6, originality: 0.5, structure: 0.6, amplitude: 0.5, agency: 0.4, stakes: 0.5 },
   },
   praised_excerpts: { A: ['excerpt'], B: ['excerpt'] },
 };
@@ -55,7 +55,7 @@ describe('parseJudgeResponse - enhanced fields', () => {
       ...baseArgs,
       axis_comments: [
         { axis: 'style', commentA: 'Good rhythm', commentB: 'Lacks flow', exampleA: 'excerpt A', exampleB: 'excerpt B' },
-        { axis: 'novelty', commentA: 'Fresh', commentB: 'Predictable' },
+        { axis: 'originality', commentA: 'Fresh', commentB: 'Predictable' },
       ],
     });
     const result = parseJudgeResponse(response);

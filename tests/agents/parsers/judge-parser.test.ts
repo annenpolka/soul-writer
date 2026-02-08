@@ -185,9 +185,11 @@ describe('normalizeScore', () => {
     expect(result.compliance).toBe(0.5);
     expect(result.overall).toBe(0.5);
     expect(result.voice_accuracy).toBe(0.5);
-    expect(result.originality_fidelity).toBe(0.5);
-    expect(result.narrative_quality).toBe(0.5);
-    expect(result.novelty).toBe(0.5);
+    expect(result.originality).toBe(0.5);
+    expect(result.structure).toBe(0.5);
+    expect(result.amplitude).toBe(0.5);
+    expect(result.agency).toBe(0.5);
+    expect(result.stakes).toBe(0.5);
   });
 
   it('should handle partial scores', () => {
@@ -198,7 +200,11 @@ describe('normalizeScore', () => {
     expect(result.overall).toBe(0.85);
     // Missing optional fields default to 0.5
     expect(result.voice_accuracy).toBe(0.5);
-    expect(result.novelty).toBe(0.5);
+    expect(result.originality).toBe(0.5);
+    expect(result.structure).toBe(0.5);
+    expect(result.amplitude).toBe(0.5);
+    expect(result.agency).toBe(0.5);
+    expect(result.stakes).toBe(0.5);
   });
 });
 

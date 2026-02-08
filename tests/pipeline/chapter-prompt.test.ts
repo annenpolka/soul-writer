@@ -324,4 +324,81 @@ describe('buildChapterPrompt', () => {
     expect(result).not.toContain('### 前章の概要');
     expect(result).not.toContain('この章で避けるべきパターン');
   });
+
+  describe('drama_blueprint', () => {
+    it('should include drama blueprint section when plot has drama_blueprint', () => {
+      const plotWithBlueprint: Plot = {
+        ...mockPlot,
+        drama_blueprint: 'descent',
+        turning_point: 'the moment she crosses the line',
+        stakes_description: 'her humanity',
+        protagonist_choice: 'keep going or stop',
+        point_of_no_return: 'the murder',
+      };
+      const input: ChapterPromptInput = { chapter: mockChapter, plot: plotWithBlueprint };
+      const result = buildChapterPrompt(input);
+
+      expect(result).toContain('### ドラマブループリント');
+      expect(result).toContain('- 構造型: descent');
+      expect(result).toContain('- 転機: the moment she crosses the line');
+      expect(result).toContain('- 賭け金: her humanity');
+      expect(result).toContain('- 主人公の選択: keep going or stop');
+      expect(result).toContain('- 引き返せないポイント: the murder');
+    });
+
+    it('should include only blueprint type when optional fields are missing', () => {
+      const plotWithBlueprintOnly: Plot = {
+        ...mockPlot,
+        drama_blueprint: 'confrontation',
+      };
+      const input: ChapterPromptInput = { chapter: mockChapter, plot: plotWithBlueprintOnly };
+      const result = buildChapterPrompt(input);
+
+      expect(result).toContain('### ドラマブループリント');
+      expect(result).toContain('- 構造型: confrontation');
+      expect(result).not.toContain('- 転機:');
+      expect(result).not.toContain('- 賭け金:');
+    });
+
+    it('should not include drama blueprint section when plot has no drama_blueprint', () => {
+      const input: ChapterPromptInput = { chapter: mockChapter, plot: mockPlot };
+      const result = buildChapterPrompt(input);
+
+      expect(result).not.toContain('### ドラマブループリント');
+    });
+  });
+
+  describe('motifAvoidanceList', () => {
+    it('should include motif avoidance section when list is provided', () => {
+      const input: ChapterPromptInput = {
+        chapter: mockChapter,
+        plot: mockPlot,
+        motifAvoidanceList: ['鏡', '月光', '廃墟'],
+      };
+      const result = buildChapterPrompt(input);
+
+      expect(result).toContain('### 回避すべきモチーフ（過去作品で頻出のため使用禁止）');
+      expect(result).toContain('- 鏡');
+      expect(result).toContain('- 月光');
+      expect(result).toContain('- 廃墟');
+    });
+
+    it('should not include motif avoidance section when list is empty', () => {
+      const input: ChapterPromptInput = {
+        chapter: mockChapter,
+        plot: mockPlot,
+        motifAvoidanceList: [],
+      };
+      const result = buildChapterPrompt(input);
+
+      expect(result).not.toContain('回避すべきモチーフ');
+    });
+
+    it('should not include motif avoidance section when undefined', () => {
+      const input: ChapterPromptInput = { chapter: mockChapter, plot: mockPlot };
+      const result = buildChapterPrompt(input);
+
+      expect(result).not.toContain('回避すべきモチーフ');
+    });
+  });
 });

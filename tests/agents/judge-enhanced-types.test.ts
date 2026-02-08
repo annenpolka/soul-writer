@@ -22,7 +22,7 @@ describe('TextWeakness interface', () => {
 
   it('should accept all valid categories', () => {
     const categories: TextWeakness['category'][] = [
-      'style', 'voice', 'pacing', 'imagery', 'motif', 'worldbuilding',
+      'style', 'voice', 'pacing', 'imagery', 'motif', 'worldbuilding', 'agency', 'stakes',
     ];
     for (const category of categories) {
       const w: TextWeakness = {
@@ -67,7 +67,7 @@ describe('AxisComment interface', () => {
 
   it('should work without optional examples', () => {
     const comment: AxisComment = {
-      axis: 'novelty',
+      axis: 'originality',
       commentA: 'A is novel',
       commentB: 'B is conventional',
     };
@@ -77,8 +77,8 @@ describe('AxisComment interface', () => {
 
   it('should accept all valid axes', () => {
     const axes: AxisComment['axis'][] = [
-      'style', 'voice_accuracy', 'originality_fidelity',
-      'narrative_quality', 'novelty', 'compliance',
+      'style', 'voice_accuracy', 'originality',
+      'structure', 'amplitude', 'agency', 'stakes', 'compliance',
     ];
     for (const axis of axes) {
       const c: AxisComment = { axis, commentA: 'a', commentB: 'b' };
@@ -146,7 +146,7 @@ describe('JudgeResult enhanced fields', () => {
       },
       axis_comments: [
         { axis: 'style', commentA: 'Good style', commentB: 'Decent style' },
-        { axis: 'novelty', commentA: 'Fresh', commentB: 'Conventional', exampleA: 'excerpt' },
+        { axis: 'originality', commentA: 'Fresh', commentB: 'Conventional', exampleA: 'excerpt' },
       ],
     };
     expect(result.axis_comments).toHaveLength(2);

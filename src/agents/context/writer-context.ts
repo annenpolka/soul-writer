@@ -15,6 +15,8 @@ export interface WriterContextInput {
   developedCharacters?: DevelopedCharacter[];
   themeContext?: ThemeContext;
   macGuffinContext?: MacGuffinContext;
+  /** Motif avoidance list from past works analysis */
+  motifAvoidanceList?: string[];
 }
 
 /**
@@ -82,6 +84,11 @@ export function buildWriterContext(input: WriterContextInput): Record<string, un
   // MacGuffin context for character secrets and plot mysteries
   if (macGuffinContext) {
     ctx.macGuffinContext = macGuffinContext;
+  }
+
+  // Motif avoidance list from past works analysis
+  if (input.motifAvoidanceList && input.motifAvoidanceList.length > 0) {
+    ctx.motifAvoidanceList = input.motifAvoidanceList;
   }
 
   ctx.prompt = prompt;
@@ -186,8 +193,8 @@ export function buildAntiSoulEntries(soulText: SoulText): Array<{ category: stri
     if (entries.length > 0) {
       result.push({
         category,
-        examples: entries.slice(0, 2).map(e => ({
-          text: e.text.slice(0, 150),
+        examples: entries.slice(0, 3).map(e => ({
+          text: e.text.slice(0, 250),
           reason: e.reason,
         })),
       });

@@ -36,11 +36,11 @@ describe('buildJudgeContext', () => {
   });
 
   describe('criteriaEntries', () => {
-    it('should include 6 criteria entries', () => {
+    it('should include 8 criteria entries', () => {
       const ctx = buildJudgeContext(makeInput());
       const entries = ctx.criteriaEntries as Array<{ text: string }>;
 
-      expect(entries).toHaveLength(6);
+      expect(entries).toHaveLength(8);
     });
 
     it('should use default protagonist criteria when isDefaultProtagonist and first-person', () => {
@@ -50,8 +50,8 @@ describe('buildJudgeContext', () => {
 
       expect(entries[0].text).toContain('語り声の再現');
       expect(entries[0].text).toContain('一人称「わたし」');
-      expect(entries[1].text).toContain('世界観忠実度');
-      expect(entries[1].text).toContain('新規キャラクターの登場は減点対象ではない');
+      expect(entries[1].text).toContain('独自性');
+      expect(entries[1].text).toContain('originality');
     });
 
     it('should use generic criteria when not default protagonist', () => {
@@ -60,7 +60,7 @@ describe('buildJudgeContext', () => {
       const entries = ctx.criteriaEntries as Array<{ text: string }>;
 
       expect(entries[0].text).toContain('語り声の一貫性');
-      expect(entries[1].text).toContain('世界観忠実度');
+      expect(entries[1].text).toContain('独自性');
     });
   });
 

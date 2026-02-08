@@ -150,6 +150,7 @@ async function runFullMode(
     let generatedTheme: import('../schemas/generated-theme.js').GeneratedTheme | undefined;
     let characterMacGuffins: import('../schemas/macguffin.js').CharacterMacGuffin[] | undefined;
     let plotMacGuffins: import('../schemas/macguffin.js').PlotMacGuffin[] | undefined;
+    let dbMotifAvoidance: string[] = [];
 
     if (opts.autoTheme) {
       // Auto-theme mode: generate theme → MacGuffins → develop characters → plot MacGuffins
@@ -158,7 +159,6 @@ async function runFullMode(
       const themeGenerator = createThemeGenerator(llmClient, soulManager.getSoulText());
 
       // Motif avoidance: analyze recent works from DB
-      let dbMotifAvoidance: string[] = [];
       const soulId = soulManager.getConstitution().meta.soul_id;
       const recentWorks = await workRepo.findRecentBySoulId(soulId, 20);
       if (recentWorks.length > 0) {
@@ -217,6 +217,7 @@ async function runFullMode(
         theme: generatedTheme,
         characterMacGuffins,
         plotMacGuffins,
+        motifAvoidanceList: dbMotifAvoidance.length > 0 ? dbMotifAvoidance : undefined,
         mode: opts.mode,
       },
       logger,

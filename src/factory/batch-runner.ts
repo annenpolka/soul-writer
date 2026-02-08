@@ -142,6 +142,7 @@ export function createBatchRunner(
           theme,
           characterMacGuffins: charMG,
           plotMacGuffins: plotMG,
+          motifAvoidanceList: dbMotifAvoidance.length > 0 ? dbMotifAvoidance : undefined,
           mode: config.mode === 'collaboration' ? 'collaboration' : undefined,
         },
         logger,

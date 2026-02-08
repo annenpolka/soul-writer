@@ -143,6 +143,29 @@ describe('buildWriterContext', () => {
 
     expect(ctx.personaDirective).toBe('あなたは冷徹な語り手です');
   });
+
+  it('should include motifAvoidanceList when provided and non-empty', () => {
+    const input = makeInput({
+      motifAvoidanceList: ['ARレンダリング剥離', '身体的痛み＝存在証明'],
+    });
+    const ctx = buildWriterContext(input);
+
+    expect(ctx.motifAvoidanceList).toEqual(['ARレンダリング剥離', '身体的痛み＝存在証明']);
+  });
+
+  it('should not include motifAvoidanceList when empty array', () => {
+    const input = makeInput({ motifAvoidanceList: [] });
+    const ctx = buildWriterContext(input);
+
+    expect(ctx).not.toHaveProperty('motifAvoidanceList');
+  });
+
+  it('should not include motifAvoidanceList when undefined', () => {
+    const input = makeInput();
+    const ctx = buildWriterContext(input);
+
+    expect(ctx).not.toHaveProperty('motifAvoidanceList');
+  });
 });
 
 describe('buildCriticalRules', () => {
@@ -343,7 +366,7 @@ describe('buildAntiSoulEntries', () => {
     expect(result).toEqual([]);
   });
 
-  it('should limit to 2 examples per category', () => {
+  it('should limit to 3 examples per category', () => {
     const soulText = createMockSoulText({
       deep: {
         antiSoul: {
@@ -352,6 +375,7 @@ describe('buildAntiSoulEntries', () => {
               { text: 'example1', reason: 'reason1' },
               { text: 'example2', reason: 'reason2' },
               { text: 'example3', reason: 'reason3' },
+              { text: 'example4', reason: 'reason4' },
             ],
           },
         },
@@ -360,11 +384,11 @@ describe('buildAntiSoulEntries', () => {
     const result = buildAntiSoulEntries(soulText);
 
     expect(result).toHaveLength(1);
-    expect(result[0].examples).toHaveLength(2);
+    expect(result[0].examples).toHaveLength(3);
   });
 
-  it('should truncate text at 150 characters', () => {
-    const longText = 'あ'.repeat(200);
+  it('should truncate text at 250 characters', () => {
+    const longText = 'あ'.repeat(300);
     const soulText = createMockSoulText({
       deep: {
         antiSoul: {
@@ -378,7 +402,7 @@ describe('buildAntiSoulEntries', () => {
     });
     const result = buildAntiSoulEntries(soulText);
 
-    expect(result[0].examples[0].text).toHaveLength(150);
+    expect(result[0].examples[0].text).toHaveLength(250);
   });
 
   it('should skip empty categories', () => {

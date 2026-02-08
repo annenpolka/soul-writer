@@ -63,10 +63,20 @@ system:
 
     - type: text
       text: |
-        - 新奇さ(novelty)は特に重要です。4人の作家はそれぞれ異なるスタイルで執筆しています。
-          独自のアプローチで原作の精神を拡張している作品を積極的に評価してください。
-          「安全だが平凡」より「挑戦的で荒削り」を好むこと。
-        - 各テキストを独立に絶対評価してください。相手との相対比較でスコアを歪めないこと
+        8つの評価軸で各テキストを独立に絶対評価してください。相手との相対比較でスコアを歪めないこと。
+        - style（文体）: 原作の文体を正確に再現しつつ、自然な流れを保っているか。
+        - voice_accuracy（声の正確さ）: キャラクター固有の口調・語彙が正しく再現されているか。
+        - originality（独自性）: 原作の精神を独自のアプローチで拡張しているか。
+          安全だが平凡な選択より、挑戦的で荒削りなアプローチを好むこと。
+        - structure（構成）: シーン配置、ペーシング、構造的な強度を評価。
+        - amplitude（感情振幅）: 感情曲線にピークとボトムがあるか。全編フラットな「静かな緊張」
+          はこの軸で低評価。読者が息を呑む瞬間、あるいは突き放される瞬間があるかを重視。
+        - agency（行動性）: 主人公やキーキャラクターが実際に選択し行動しているか。
+          受動的に観察しているだけ、秘密の繋がりを確認するだけのパターンは低評価。
+        - stakes（賭け金）: 物語に何が賭けられているか明確か。失敗した場合の具体的な
+          代償があるか。「何となく息苦しい」ではなく「これを失う」が描かれているかを評価。
+        - compliance（準拠）: 憲法ルール・禁止語彙等の形式的な遵守度。
+        注意:
         - 0.9以上は例外的に優れた場合のみ。1.0は付けないでください
         - 形式ルール遵守だけでは高得点になりません。物語として読者を引き込むかが重要です
         - 0.3-0.7が標準的な範囲です。0.5は「可もなく不可もなく」
@@ -77,7 +87,7 @@ system:
     - type: text
       text: |
         各テキストの弱点を分析してください。弱点ごとに以下を記述します:
-        - category: style / voice / pacing / imagery / motif / worldbuilding
+        - category: style / voice / pacing / imagery / motif / worldbuilding / agency / stakes
         - description: 弱点の具体的な説明
         - suggestedFix: 改善のための具体的な提案
         - severity: critical（致命的）/ major（重大）/ minor（軽微）
@@ -87,9 +97,9 @@ system:
 
     - type: text
       text: |
-        6つの評価軸それぞれについて、テキストA・Bへの具体的コメントを記述してください。
+        8つの評価軸それぞれについて、テキストA・Bへの具体的コメントを記述してください。
         可能であればテキストから引用（exampleA, exampleB）を添えてください。
-        軸: style, voice_accuracy, originality_fidelity, narrative_quality, novelty, compliance
+        軸: style, voice_accuracy, originality, structure, amplitude, agency, stakes, compliance
 
     - type: heading
       heading: セクション分析
@@ -108,8 +118,8 @@ system:
           "winner": "A" または "B",
           "reasoning": "選択理由（具体的にどの点が優れていたか）",
           "scores": {
-            "A": { "style": 0-1, "compliance": 0-1, "voice_accuracy": 0-1, "originality_fidelity": 0-1, "narrative_quality": 0-1, "novelty": 0-1, "overall": 0-1 },
-            "B": { "style": 0-1, "compliance": 0-1, "voice_accuracy": 0-1, "originality_fidelity": 0-1, "narrative_quality": 0-1, "novelty": 0-1, "overall": 0-1 }
+            "A": { "style": 0-1, "compliance": 0-1, "voice_accuracy": 0-1, "originality": 0-1, "structure": 0-1, "amplitude": 0-1, "agency": 0-1, "stakes": 0-1, "overall": 0-1 },
+            "B": { "style": 0-1, "compliance": 0-1, "voice_accuracy": 0-1, "originality": 0-1, "structure": 0-1, "amplitude": 0-1, "agency": 0-1, "stakes": 0-1, "overall": 0-1 }
           },
           "praised_excerpts": {
             "A": ["テキストAで特に優れていた表現・描写の引用（原文ママ、各50字以内、最大3つ）"],

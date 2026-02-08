@@ -56,6 +56,19 @@ system:
           as: t
           template: "- {{ t.name }}: {{ t.description }}"
 
+    - type: condition
+      if:
+        has: motifAvoidanceList
+      then:
+        - type: heading
+          heading: 回避すべきモチーフ（過去作品で頻出のため使用禁止）
+        - type: each
+          each: motifAvoidanceList
+          as: motif
+          template: "- {{ motif }}"
+        - type: text
+          text: "上記モチーフは過去作品で多用されたため、本作品では使用を避けてください。代替となるオリジナルのモチーフを考案すること。"
+
     - type: heading
       heading: オリジナリティ要求
 
