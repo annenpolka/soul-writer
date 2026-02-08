@@ -8,6 +8,7 @@ import { createPovConsistencyRule } from './rules/pov-consistency.js';
 import { createRhythmCheckRule } from './rules/rhythm-check.js';
 import { createMarkdownContaminationRule } from './rules/markdown-contamination.js';
 import { createQuoteOriginalityRule } from './rules/quote-originality.js';
+import { createChineseContaminationRule } from './rules/chinese-contamination.js';
 import { createSelfRepetitionRule } from './rules/self-repetition.js';
 import { createChapterVariationRule } from './rules/chapter-variation.js';
 import type { SoulText } from '../soul/manager.js';
@@ -65,6 +66,7 @@ function buildRulesFromSoulText(
   }
 
   rules.push(createMarkdownContaminationRule());
+  rules.push(createChineseContaminationRule());
   rules.push(createQuoteOriginalityRule(soulText.fragments));
 
   const asyncRules: AsyncComplianceRule[] = [];

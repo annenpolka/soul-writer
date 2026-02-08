@@ -50,7 +50,8 @@ describe('buildJudgeContext', () => {
 
       expect(entries[0].text).toContain('語り声の再現');
       expect(entries[0].text).toContain('一人称「わたし」');
-      expect(entries[1].text).toContain('原作忠実度');
+      expect(entries[1].text).toContain('世界観忠実度');
+      expect(entries[1].text).toContain('新規キャラクターの登場は減点対象ではない');
     });
 
     it('should use generic criteria when not default protagonist', () => {
@@ -69,7 +70,8 @@ describe('buildJudgeContext', () => {
       const entries = ctx.penaltyEntries as Array<{ text: string }>;
 
       expect(entries.some(e => e.text.includes('「私」表記'))).toBe(true);
-      expect(entries.some(e => e.text.includes('捏造'))).toBe(true);
+      // 「原作にない設定やキャラクターの捏造」ペナルティは削除済み
+      expect(entries.some(e => e.text.includes('原作にない設定やキャラクターの捏造'))).toBe(false);
     });
 
     it('should include generic penalties when not default protagonist', () => {

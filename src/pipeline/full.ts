@@ -9,7 +9,6 @@ import {
   type FullPipelineResult,
   type ChapterPipelineResult,
   type ComplianceResult,
-  type ReaderJuryResult,
   type ThemeContext,
   type MacGuffinContext,
   type ChapterContext,
@@ -22,21 +21,21 @@ import { selectTournamentWriters, DEFAULT_TEMPERATURE_SLOTS, type TemperatureSlo
 import { createCheckerFromSoulText } from '../compliance/checker.js';
 import { createCorrector } from '../agents/corrector.js';
 import { createCorrectionLoop } from '../correction/loop.js';
-import { createReaderJury } from '../agents/reader-jury.js';
+import { createDefectDetector } from '../agents/defect-detector.js';
 import { createLearningPipeline } from '../learning/learning-pipeline.js';
 import { createFragmentExtractor } from '../learning/fragment-extractor.js';
 import { createSoulExpander } from '../learning/soul-expander.js';
 import { createAntiSoulCollector } from '../learning/anti-soul-collector.js';
 import { createRetakeAgent } from '../retake/retake-agent.js';
-import { createRetakeLoop, DEFAULT_RETAKE_CONFIG } from '../retake/retake-loop.js';
 import { createJudge } from '../agents/judge.js';
 import { createWriter } from '../agents/writer.js';
-import { createSynthesisAgent } from '../synthesis/synthesis-agent.js';
+import { createSynthesisV2 } from '../synthesis/synthesis-v2.js';
 import { createCollaborationSession } from '../collaboration/session.js';
 import { toTournamentResult } from '../collaboration/adapter.js';
 import { resolveNarrativeRules } from '../factory/narrative-rules.js';
 import { buildChapterPrompt } from './chapter-prompt.js';
 import { analyzePreviousChapter, type PreviousChapterAnalysis } from './chapter-summary.js';
+import { defectResultToReaderJuryResult } from './adapters/defect-to-reader.js';
 import type { LoggerFn } from '../logger.js';
 
 // =====================
@@ -192,22 +191,30 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       finalText = tournamentResult.championText;
 
       if (tournamentResult.allGenerations.length > 1) {
-        logger?.section('Synthesis');
+        logger?.section('Synthesis V2');
         const beforeLength = finalText.length;
         try {
-          const synthesizer = createSynthesisAgent({ llmClient, soulText: soulManager.getSoulText(), narrativeRules, themeContext });
-          const synthesisResult = await synthesizer.synthesize(
-            tournamentResult.championText,
-            tournamentResult.champion,
-            tournamentResult.allGenerations,
-            tournamentResult.rounds,
-          );
+          const synthesizer = createSynthesisV2({
+            llmClient,
+            soulText: soulManager.getSoulText(),
+            narrativeRules,
+            themeContext,
+            macGuffinContext,
+          });
+          const synthesisResult = await synthesizer.synthesize({
+            championText: tournamentResult.championText,
+            championId: tournamentResult.champion,
+            allGenerations: tournamentResult.allGenerations,
+            rounds: tournamentResult.rounds,
+            plotContext: { chapter, plot },
+            chapterContext: chapterCtx,
+          });
           finalText = synthesisResult.synthesizedText;
           synthesized = true;
-          logger?.debug('Synthesis result', { synthesized: true, beforeLength, afterLength: finalText.length });
+          logger?.debug('Synthesis V2 result', { synthesized: true, beforeLength, afterLength: finalText.length });
         } catch (err) {
-          console.warn(`Chapter ${chapter.index}: Synthesis failed, using champion text as-is.`, err);
-          logger?.debug('Synthesis failed', { error: String(err) });
+          console.warn(`Chapter ${chapter.index}: Synthesis V2 failed, using champion text as-is.`, err);
+          logger?.debug('Synthesis V2 failed', { error: String(err) });
         }
       }
     }
@@ -241,58 +248,23 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       }
     }
 
-    // Retake loop (post-tournament, pre-reader-jury)
-    logger?.section('Retake Loop');
-    const retakeAgent = createRetakeAgent({ llmClient, soulText: soulManager.getSoulText(), narrativeRules, themeContext });
-    const judgeAgent = createJudge({ llmClient, soulText: soulManager.getSoulText(), narrativeRules, themeContext });
-    const retakeLoop = createRetakeLoop({ retaker: retakeAgent, judge: judgeAgent, config: DEFAULT_RETAKE_CONFIG });
-    const retakeResult = await retakeLoop.run(finalText);
-    logger?.debug('Retake result', { improved: retakeResult.improved, retakeCount: retakeResult.retakeCount });
-    if (retakeResult.improved) {
-      finalText = retakeResult.finalText;
+    // DefectDetector evaluation (with retake on failure, max 1 retry)
+    logger?.section('DefectDetector Evaluation');
+    const detector = createDefectDetector({ llmClient, soulText: soulManager.getSoulText() });
+    let defectResult = await detector.detect(finalText);
+    logger?.debug('DefectDetector result', defectResult);
+
+    if (!defectResult.passed) {
+      logger?.section('DefectDetector Retake');
+      const retakeAgent = createRetakeAgent({ llmClient, soulText: soulManager.getSoulText(), narrativeRules, themeContext });
+      const retakeResult = await retakeAgent.retake(finalText, defectResult.feedback);
+      finalText = retakeResult.retakenText;
       complianceResult = checker.check(finalText);
+      defectResult = await detector.detect(finalText);
+      logger?.debug('DefectDetector Retake result', defectResult);
     }
 
-    // Reader jury evaluation (with retake loop on failure, max 2 retakes)
-    logger?.section('Reader Jury Evaluation');
-    const readerJury = createReaderJury({ llmClient, soulText: soulManager.getSoulText() });
-    let readerJuryResult: ReaderJuryResult = await readerJury.evaluate(finalText);
-    logger?.debug('Reader Jury result', readerJuryResult);
-
-    const MAX_READER_RETAKES = 2;
-    const feedbackHistory: string[] = [];
-    for (let readerRetake = 0; readerRetake < MAX_READER_RETAKES && !readerJuryResult.passed; readerRetake++) {
-      logger?.section(`Reader Jury Retake ${readerRetake + 1}/${MAX_READER_RETAKES}`);
-      const prevScore = readerJuryResult.aggregatedScore;
-      const prevText = finalText;
-      const prevResult = readerJuryResult;
-
-      const currentFeedback = readerJuryResult.evaluations
-        .map((e) => `${e.personaName}:\n  [良] ${e.feedback.strengths}\n  [課題] ${e.feedback.weaknesses}\n  [提案] ${e.feedback.suggestion}`)
-        .join('\n');
-      feedbackHistory.push(currentFeedback);
-
-      const feedbackMessage = feedbackHistory.length === 1
-        ? `読者陪審員から以下のフィードバックを受けました。改善してください:\n${currentFeedback}`
-        : `読者陪審員から複数回のフィードバックを受けています。前回の改善点も踏まえて修正してください:\n\n` +
-          feedbackHistory.map((fb, idx) => `【第${idx + 1}回レビュー】\n${fb}`).join('\n\n');
-
-      const readerRetakeAgent = createRetakeAgent({ llmClient, soulText: soulManager.getSoulText(), narrativeRules, themeContext });
-      const retakeResult2 = await readerRetakeAgent.retake(finalText, feedbackMessage);
-      finalText = retakeResult2.retakenText;
-
-      complianceResult = checker.check(finalText);
-      readerJuryResult = await readerJury.evaluate(finalText, readerJuryResult);
-      logger?.debug(`Reader Jury Retake ${readerRetake + 1} result`, readerJuryResult);
-
-      if (readerJuryResult.aggregatedScore <= prevScore) {
-        logger?.debug(`Reader Jury Retake aborted: score degraded (${prevScore.toFixed(3)} → ${readerJuryResult.aggregatedScore.toFixed(3)})`);
-        finalText = prevText;
-        readerJuryResult = prevResult;
-        complianceResult = checker.check(finalText);
-        break;
-      }
-    }
+    const readerJuryResult = defectResultToReaderJuryResult(defectResult);
 
     logger?.debug(`Chapter text (${finalText.length}文字)`, finalText);
 

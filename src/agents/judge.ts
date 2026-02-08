@@ -8,7 +8,7 @@ import { parseJudgeResponse } from './parsers/judge-parser.js';
 
 export type { JudgeResult };
 
-const SUBMIT_JUDGEMENT_TOOL: ToolDefinition = {
+export const SUBMIT_JUDGEMENT_TOOL: ToolDefinition = {
   type: 'function',
   function: {
     name: 'submit_judgement',
@@ -61,6 +61,71 @@ const SUBMIT_JUDGEMENT_TOOL: ToolDefinition = {
           },
           required: ['A', 'B'],
           additionalProperties: false,
+        },
+        weaknesses: {
+          type: 'object',
+          properties: {
+            A: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  category: { type: 'string', enum: ['style', 'voice', 'pacing', 'imagery', 'motif', 'worldbuilding'] },
+                  description: { type: 'string' },
+                  suggestedFix: { type: 'string' },
+                  severity: { type: 'string', enum: ['critical', 'major', 'minor'] },
+                },
+                required: ['category', 'description', 'suggestedFix', 'severity'],
+                additionalProperties: false,
+              },
+            },
+            B: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  category: { type: 'string', enum: ['style', 'voice', 'pacing', 'imagery', 'motif', 'worldbuilding'] },
+                  description: { type: 'string' },
+                  suggestedFix: { type: 'string' },
+                  severity: { type: 'string', enum: ['critical', 'major', 'minor'] },
+                },
+                required: ['category', 'description', 'suggestedFix', 'severity'],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ['A', 'B'],
+          additionalProperties: false,
+        },
+        axis_comments: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              axis: { type: 'string', enum: ['style', 'voice_accuracy', 'originality_fidelity', 'narrative_quality', 'novelty', 'compliance'] },
+              commentA: { type: 'string' },
+              commentB: { type: 'string' },
+              exampleA: { type: 'string' },
+              exampleB: { type: 'string' },
+            },
+            required: ['axis', 'commentA', 'commentB', 'exampleA', 'exampleB'],
+            additionalProperties: false,
+          },
+        },
+        section_analysis: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              section: { type: 'string' },
+              ratingA: { type: 'string', enum: ['excellent', 'good', 'adequate', 'weak'] },
+              ratingB: { type: 'string', enum: ['excellent', 'good', 'adequate', 'weak'] },
+              commentA: { type: 'string' },
+              commentB: { type: 'string' },
+            },
+            required: ['section', 'ratingA', 'ratingB', 'commentA', 'commentB'],
+            additionalProperties: false,
+          },
         },
       },
       required: ['winner', 'reasoning', 'scores'],

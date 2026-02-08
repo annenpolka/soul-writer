@@ -42,6 +42,38 @@ export interface ScoreBreakdown {
 }
 
 /**
+ * A weakness found in a text by the judge
+ */
+export interface TextWeakness {
+  category: 'style' | 'voice' | 'pacing' | 'imagery' | 'motif' | 'worldbuilding';
+  description: string;
+  suggestedFix: string;
+  severity: 'critical' | 'major' | 'minor';
+}
+
+/**
+ * Per-axis commentary comparing two texts
+ */
+export interface AxisComment {
+  axis: 'style' | 'voice_accuracy' | 'originality_fidelity' | 'narrative_quality' | 'novelty' | 'compliance';
+  commentA: string;
+  commentB: string;
+  exampleA?: string;
+  exampleB?: string;
+}
+
+/**
+ * Section-level analysis comparing two texts
+ */
+export interface SectionAnalysis {
+  section: string;
+  ratingA: 'excellent' | 'good' | 'adequate' | 'weak';
+  ratingB: 'excellent' | 'good' | 'adequate' | 'weak';
+  commentA: string;
+  commentB: string;
+}
+
+/**
  * Result of judge evaluation
  */
 export interface JudgeResult {
@@ -56,6 +88,12 @@ export interface JudgeResult {
     A: string[];
     B: string[];
   };
+  /** Weaknesses identified in each text */
+  weaknesses?: { A: TextWeakness[]; B: TextWeakness[] };
+  /** Per-axis commentary */
+  axis_comments?: AxisComment[];
+  /** Section-level analysis */
+  section_analysis?: SectionAnalysis[];
 }
 
 /**
@@ -117,7 +155,8 @@ export type ViolationType =
   | 'markdown_contamination'
   | 'quote_direct_copy'
   | 'self_repetition'
-  | 'chapter_variation';
+  | 'chapter_variation'
+  | 'chinese_contamination';
 
 /**
  * A single violation found in text
@@ -440,6 +479,91 @@ export interface Synthesizer {
   synthesize: (championText: string, championId: string, allGenerations: GenerationResult[], rounds: import('../tournament/arena.js').MatchResult[]) => Promise<import('../synthesis/synthesis-agent.js').SynthesisResult>;
 }
 
+// =====================
+// Synthesis V2 Types
+// =====================
+
+/**
+ * A single improvement action in the synthesis plan
+ */
+export interface ImprovementAction {
+  section: string;
+  type: 'expression_upgrade' | 'pacing_adjustment' | 'scene_reorder' | 'motif_fix' | 'voice_refinement' | 'imagery_injection' | 'tension_enhancement';
+  description: string;
+  source: string;
+  priority: 'high' | 'medium' | 'low';
+}
+
+/**
+ * Structured improvement plan output from the Synthesis Analyzer
+ */
+export interface ImprovementPlan {
+  championAssessment: string;
+  preserveElements: string[];
+  actions: ImprovementAction[];
+  structuralChanges?: string[];
+  expressionSources: Array<{ writerId: string; expressions: string[]; context: string }>;
+}
+
+/**
+ * Input for the Synthesis Analyzer
+ */
+export interface SynthesisAnalyzerInput {
+  championText: string;
+  championId: string;
+  allGenerations: GenerationResult[];
+  rounds: import('../tournament/arena.js').MatchResult[];
+  plotContext?: { chapter?: import('../schemas/plot.js').Chapter; plot?: import('../schemas/plot.js').Plot };
+  chapterContext?: ChapterContext;
+}
+
+/**
+ * Synthesis Analyzer agent dependencies
+ */
+export interface SynthesisAnalyzerDeps extends AgentDeps {
+  narrativeRules?: NarrativeRules;
+  themeContext?: ThemeContext;
+  macGuffinContext?: MacGuffinContext;
+}
+
+/**
+ * FP Synthesis Analyzer interface — returned by createSynthesisAnalyzer()
+ */
+export interface SynthesisAnalyzer {
+  analyze: (input: SynthesisAnalyzerInput) => Promise<{ plan: ImprovementPlan; tokensUsed: number }>;
+}
+
+/**
+ * Synthesis Executor agent dependencies
+ */
+export interface SynthesisExecutorDeps extends AgentDeps {
+  narrativeRules?: NarrativeRules;
+  themeContext?: ThemeContext;
+}
+
+/**
+ * FP Synthesis Executor interface — returned by createSynthesisExecutor()
+ */
+export interface SynthesisExecutorFn {
+  execute: (championText: string, plan: ImprovementPlan) => Promise<{ synthesizedText: string; tokensUsed: number }>;
+}
+
+/**
+ * FP Synthesis V2 orchestrator interface — returned by createSynthesisV2()
+ */
+export interface SynthesizerV2 {
+  synthesize: (input: SynthesisAnalyzerInput) => Promise<SynthesisV2Result>;
+}
+
+/**
+ * Result of Synthesis V2 (2-pass: analyze + execute)
+ */
+export interface SynthesisV2Result {
+  synthesizedText: string;
+  plan: ImprovementPlan | null;
+  totalTokensUsed: number;
+}
+
 /**
  * Retake agent dependencies
  */
@@ -453,4 +577,50 @@ export interface RetakeDeps extends AgentDeps {
  */
 export interface Retaker {
   retake: (originalText: string, feedback: string) => Promise<import('../retake/retake-agent.js').RetakeResult>;
+}
+
+// =====================
+// DefectDetector Types
+// =====================
+
+/**
+ * Severity level of a detected defect
+ */
+export type DefectSeverity = 'critical' | 'major' | 'minor';
+
+/**
+ * A single defect found in the text
+ */
+export interface Defect {
+  severity: DefectSeverity;
+  category: string;
+  description: string;
+  location?: string;
+}
+
+/**
+ * Result of defect detection
+ */
+export interface DefectDetectorResult {
+  defects: Defect[];
+  criticalCount: number;
+  majorCount: number;
+  minorCount: number;
+  passed: boolean;
+  feedback: string;
+}
+
+/**
+ * DefectDetector agent dependencies
+ */
+export interface DefectDetectorDeps extends AgentDeps {
+  maxCriticalDefects?: number;
+  maxMajorDefects?: number;
+}
+
+/**
+ * FP DefectDetector interface — returned by createDefectDetector()
+ */
+export interface DefectDetectorFn {
+  detect: (text: string) => Promise<DefectDetectorResult>;
 }

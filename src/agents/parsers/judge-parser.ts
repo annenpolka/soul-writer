@@ -1,5 +1,5 @@
 import type { ToolCallResponse } from '../../llm/types.js';
-import type { JudgeResult, ScoreBreakdown } from '../types.js';
+import type { JudgeResult, ScoreBreakdown, TextWeakness, AxisComment, SectionAnalysis } from '../types.js';
 import { parseToolArguments } from '../../llm/tooling.js';
 
 /**
@@ -20,8 +20,11 @@ export function parseJudgeResponse(response: ToolCallResponse): JudgeResult {
       reasoning?: string;
       scores?: { A?: Partial<ScoreBreakdown>; B?: Partial<ScoreBreakdown> };
       praised_excerpts?: { A?: unknown; B?: unknown };
+      weaknesses?: unknown;
+      axis_comments?: unknown;
+      section_analysis?: unknown;
     };
-    return {
+    const result: JudgeResult = {
       winner: candidate.winner === 'B' ? 'B' : 'A',
       reasoning: candidate.reasoning || 'No reasoning provided',
       scores: {
@@ -33,10 +36,47 @@ export function parseJudgeResponse(response: ToolCallResponse): JudgeResult {
         B: Array.isArray(candidate.praised_excerpts?.B) ? candidate.praised_excerpts?.B as string[] : [],
       },
     };
+
+    const weaknesses = parseWeaknesses(candidate.weaknesses);
+    if (weaknesses) result.weaknesses = weaknesses;
+
+    const axisComments = parseAxisComments(candidate.axis_comments);
+    if (axisComments) result.axis_comments = axisComments;
+
+    const sectionAnalysis = parseSectionAnalysis(candidate.section_analysis);
+    if (sectionAnalysis) result.section_analysis = sectionAnalysis;
+
+    return result;
   } catch (e) {
     console.warn('[judge-parser] Response structure parsing failed, using fallback result:', e instanceof Error ? e.message : e);
     return createFallbackResult();
   }
+}
+
+/**
+ * Parse weaknesses field (pure function).
+ */
+function parseWeaknesses(raw: unknown): { A: TextWeakness[]; B: TextWeakness[] } | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const obj = raw as { A?: unknown; B?: unknown };
+  if (!Array.isArray(obj.A) || !Array.isArray(obj.B)) return undefined;
+  return { A: obj.A as TextWeakness[], B: obj.B as TextWeakness[] };
+}
+
+/**
+ * Parse axis_comments field (pure function).
+ */
+function parseAxisComments(raw: unknown): AxisComment[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  return raw as AxisComment[];
+}
+
+/**
+ * Parse section_analysis field (pure function).
+ */
+function parseSectionAnalysis(raw: unknown): SectionAnalysis[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  return raw as SectionAnalysis[];
 }
 
 /**
