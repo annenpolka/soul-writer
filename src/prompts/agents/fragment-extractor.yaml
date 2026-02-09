@@ -33,6 +33,7 @@ system:
         - action: アクション描写
         - worldbuilding: 世界観の描写
         - character: キャラクター描写
+        - generated_dialogue: 生成キャラクターの台詞（キャラクター名をreasonに含めること）
 
     - type: heading
       heading: 出力形式

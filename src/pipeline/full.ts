@@ -33,6 +33,8 @@ import { createSynthesisV2 } from '../synthesis/synthesis-v2.js';
 import { createCollaborationSession } from '../collaboration/session.js';
 import { toTournamentResult } from '../collaboration/adapter.js';
 import { resolveNarrativeRules } from '../factory/narrative-rules.js';
+import { createCharacterEnricher } from '../factory/character-enricher.js';
+import type { EnrichedCharacter } from '../factory/character-enricher.js';
 import { buildChapterPrompt } from './chapter-prompt.js';
 import { analyzePreviousChapter, extractEstablishedInsights, type PreviousChapterAnalysis, type EstablishedInsight } from './chapter-summary.js';
 import { defectResultToReaderJuryResult } from './adapters/defect-to-reader.js';
@@ -115,6 +117,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
     plot: Plot,
     chapterCtx?: ChapterContext,
     establishedInsights?: EstablishedInsight[],
+    enrichedCharacters?: EnrichedCharacter[],
   ): Promise<ChapterPipelineResult> {
     const tokensStart = llmClient.getTotalTokens();
 
@@ -130,6 +133,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       narrativeType: config.narrativeType,
       narrativeRules,
       developedCharacters: config.developedCharacters,
+      enrichedCharacters,
       characterMacGuffins: config.characterMacGuffins,
       plotMacGuffins: config.plotMacGuffins,
       previousChapterAnalysis,
@@ -160,6 +164,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
         config: config.collaborationConfig,
         themeContext,
         macGuffinContext,
+        enrichedCharacters: enrichedCharacters as EnrichedCharacter[] | undefined,
         logger,
       });
       const collabResult = await session.run(chapterPromptText);
@@ -174,6 +179,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
           config: wc,
           narrativeRules,
           developedCharacters: config.developedCharacters,
+          enrichedCharacters,
           themeContext,
           macGuffinContext,
         }),
@@ -211,6 +217,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
             rounds: tournamentResult.rounds,
             plotContext: { chapter, plot },
             chapterContext: chapterCtx,
+            enrichedCharacters: enrichedCharacters as EnrichedCharacter[] | undefined,
           });
           finalText = synthesisResult.synthesizedText;
           synthesized = true;
@@ -253,7 +260,11 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
 
     // DefectDetector evaluation (with retake on failure, max 2 retries)
     logger?.section('DefectDetector Evaluation');
-    const detector = createDefectDetector({ llmClient, soulText: soulManager.getSoulText() });
+    const detector = createDefectDetector({
+      llmClient,
+      soulText: soulManager.getSoulText(),
+      enrichedCharacters: enrichedCharacters as EnrichedCharacter[] | undefined,
+    });
     let defectResult = await detector.detect(finalText);
     logger?.debug('DefectDetector result', defectResult);
 
@@ -372,6 +383,25 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       { completedChapters: 0, totalChapters: plot.chapters.length }
     );
 
+    // Phase2 character enrichment: add dialogue samples using plot context
+    let enrichedCharacters = config.enrichedCharacters as EnrichedCharacter[] | undefined;
+    if (config.enrichedCharacters && config.enrichedCharacters.length > 0) {
+      const needsPhase2 = config.enrichedCharacters.some(c => !('dialogueSamples' in c));
+      if (needsPhase2) {
+        logger?.section('Character Enrichment Phase2');
+        const enricher = createCharacterEnricher(llmClient, soulManager.getSoulText());
+        const phase1Chars = config.enrichedCharacters.map(c => ({
+          name: c.name, isNew: c.isNew, role: c.role,
+          description: c.description, voice: c.voice,
+          physicalHabits: c.physicalHabits, stance: c.stance,
+        }));
+        const phase2Result = await enricher.enrichPhase2(phase1Chars, plot, config.theme!);
+        enrichedCharacters = phase2Result.characters;
+        totalTokensUsed += phase2Result.tokensUsed;
+        logger?.debug('Characters enriched (Phase2)', enrichedCharacters);
+      }
+    }
+
     // Generate each chapter
     const chapterResults: ChapterPipelineResult[] = [];
     let learningCandidates = 0;
@@ -381,7 +411,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
 
     for (const ch of plot.chapters) {
       logger?.section(`Chapter ${ch.index}: ${ch.title}`);
-      const chapterResult = await generateChapter(ch, plot, chapterCtx, established);
+      const chapterResult = await generateChapter(ch, plot, chapterCtx, established, enrichedCharacters);
       chapterResults.push(chapterResult);
       chapterCtx.previousChapterTexts.push(chapterResult.text);
       totalTokensUsed += chapterResult.tokensUsed;
@@ -466,8 +496,25 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
     };
     const established: EstablishedInsight[] = [];
 
+    // Phase2 character enrichment for resume
+    let enrichedCharacters = config.enrichedCharacters as EnrichedCharacter[] | undefined;
+    if (config.enrichedCharacters && config.enrichedCharacters.length > 0) {
+      const needsPhase2 = config.enrichedCharacters.some(c => !('dialogueSamples' in c));
+      if (needsPhase2) {
+        const enricher = createCharacterEnricher(llmClient, soulManager.getSoulText());
+        const phase1Chars = config.enrichedCharacters.map(c => ({
+          name: c.name, isNew: c.isNew, role: c.role,
+          description: c.description, voice: c.voice,
+          physicalHabits: c.physicalHabits, stance: c.stance,
+        }));
+        const phase2Result = await enricher.enrichPhase2(phase1Chars, plot, config.theme!);
+        enrichedCharacters = phase2Result.characters;
+        totalTokensUsed += phase2Result.tokensUsed;
+      }
+    }
+
     for (const ch of remainingChapters) {
-      const chapterResult = await generateChapter(ch, plot, chapterCtx, established);
+      const chapterResult = await generateChapter(ch, plot, chapterCtx, established, enrichedCharacters);
       chapterResults.push(chapterResult);
       chapterCtx.previousChapterTexts.push(chapterResult.text);
       totalTokensUsed += chapterResult.tokensUsed;

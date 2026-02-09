@@ -23,6 +23,7 @@ export function createCollaborationStage(config: CollaborationStageConfig): Pipe
       config: config.collaborationConfig,
       themeContext: ctx.deps.themeContext,
       macGuffinContext: ctx.deps.macGuffinContext,
+      enrichedCharacters: ctx.deps.enrichedCharacters,
       logger: ctx.deps.logger,
     });
 

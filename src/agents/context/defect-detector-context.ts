@@ -1,4 +1,5 @@
 import type { SoulText } from '../../soul/manager.js';
+import type { EnrichedCharacter } from '../../factory/character-enricher.js';
 
 /**
  * Input for buildDefectDetectorContext
@@ -6,6 +7,7 @@ import type { SoulText } from '../../soul/manager.js';
 export interface DefectDetectorContextInput {
   soulText: SoulText;
   text: string;
+  enrichedCharacters?: EnrichedCharacter[];
 }
 
 /**
@@ -21,6 +23,7 @@ const DEFECT_CATEGORIES = [
   { name: 'emotional_flatness', description: '感情表現の平板化、心理描写の浅さ' },
   { name: 'forbidden_pattern', description: '禁止語彙・禁止比喩の使用' },
   { name: 'agency_absence', description: '主人公の能動的行動・選択・介入の欠如。受動的ループの検出' },
+  { name: 'character_flatness', description: '生成キャラクターの人格の平板化。プロット奉仕100%、身体的ディテール欠如、口調同質化' },
 ];
 
 /**
@@ -56,11 +59,21 @@ export function buildDefectDetectorContext(input: DefectDetectorContextInput): R
     characters.push({ name, role: char.role });
   }
 
+  // Enriched character details for character_flatness detection
+  const enrichedCharacters = input.enrichedCharacters?.map(c => ({
+    name: c.name,
+    stanceType: c.stance.type,
+    stanceManifestation: c.stance.manifestation,
+    blindSpot: c.stance.blindSpot,
+    habits: c.physicalHabits.map(h => `${h.habit}（${h.trigger}、${h.sensoryDetail}）`).join('\n  '),
+  }));
+
   return {
     text,
     constitutionRules,
     antiSoulPatterns,
     defectCategories: DEFECT_CATEGORIES,
     characters,
+    ...(enrichedCharacters && enrichedCharacters.length > 0 ? { enrichedCharacters } : {}),
   };
 }

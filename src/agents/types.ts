@@ -120,6 +120,8 @@ export interface PlotterConfig {
   theme?: import('../schemas/generated-theme.js').GeneratedTheme;
   /** Developed characters from CharacterDeveloper - overrides world-bible characters in prompt */
   developedCharacters?: import('../factory/character-developer.js').DevelopedCharacter[];
+  /** Enriched characters with physical habits, stance, and dialogue samples */
+  enrichedCharacters?: EnrichedCharacterPhase1[];
   /** MacGuffins for plot mystery injection */
   plotMacGuffins?: import('../schemas/macguffin.js').PlotMacGuffin[];
   characterMacGuffins?: import('../schemas/macguffin.js').CharacterMacGuffin[];
@@ -310,6 +312,10 @@ export interface FullPipelineConfig {
   dbPath: string;
   narrativeType?: string;
   developedCharacters?: import('../factory/character-developer.js').DevelopedCharacter[];
+  /** Enriched characters with physical habits, stance, and optionally dialogue samples.
+   *  Accepts Phase1 (habits+stance) or full (habits+stance+dialogueSamples).
+   *  Phase2 enrichment (dialogue samples) is performed inside the pipeline if missing. */
+  enrichedCharacters?: EnrichedCharacterPhase1[] | EnrichedCharacter[];
   /** Theme from ThemeGenerator - passed to Plotter for emotion/timeline/scene_types context */
   theme?: import('../schemas/generated-theme.js').GeneratedTheme;
   /** Theme context for consistent propagation across all agents */
@@ -371,6 +377,7 @@ import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import type { NarrativeRules } from '../factory/narrative-rules.js';
 import type { DevelopedCharacter } from '../factory/character-developer.js';
+import type { EnrichedCharacter, EnrichedCharacterPhase1 } from '../factory/character-enricher.js';
 
 /**
  * FP Agent Dependencies — shared base for all agents
@@ -394,6 +401,7 @@ export interface WriterDeps extends AgentDeps {
   config: WriterConfig;
   narrativeRules?: NarrativeRules;
   developedCharacters?: DevelopedCharacter[];
+  enrichedCharacters?: EnrichedCharacter[];
   themeContext?: ThemeContext;
   macGuffinContext?: MacGuffinContext;
 }
@@ -523,6 +531,7 @@ export interface SynthesisAnalyzerInput {
   rounds: import('../tournament/arena.js').MatchResult[];
   plotContext?: { chapter?: import('../schemas/plot.js').Chapter; plot?: import('../schemas/plot.js').Plot };
   chapterContext?: ChapterContext;
+  enrichedCharacters?: EnrichedCharacter[];
 }
 
 /**
@@ -628,6 +637,7 @@ export interface DefectDetectorResult {
 export interface DefectDetectorDeps extends AgentDeps {
   maxCriticalDefects?: number;
   maxMajorDefects?: number;
+  enrichedCharacters?: EnrichedCharacter[];
 }
 
 /**

@@ -1,0 +1,88 @@
+meta:
+  agent: character-enricher-phase2
+  version: 1
+
+system:
+  sections:
+    - type: text
+      text: |
+        あなたは台詞の専門家です。
+        キャラクターの声と態度を踏まえ、そのキャラクターらしい台詞サンプルを生成してください。
+
+    - type: heading
+      heading: 台詞サンプル生成ルール
+
+    - type: text
+      text: |
+        各キャラクターに2-5個の台詞サンプルを生成する。
+
+        **重要な制約**:
+        - 5個中2個はテーマと無関係な日常的発言にすること
+        - 台詞はプロットの説明であってはならない（「実は私が犯人で…」等はNG）
+        - キャラクターのvoice（口調）を忠実に反映すること
+        - stanceが台詞の温度に反映されていること
+          - oblique → 話題のすり替え、ユーモア
+          - hostile → 拒絶、攻撃的な言い回し
+          - indifferent → 投げやり、関心の薄さ
+          - direct → 正面からの言及
+
+        各台詞には:
+        - line: 台詞本文（「」なしで記載）
+        - situation: この台詞が発せられる状況
+        - voiceNote: この台詞が示すキャラクターの声の特徴メモ
+
+    - type: condition
+      if:
+        has: dialogueFragments
+      then:
+        - type: heading
+          heading: 品質参考：原作の台詞の質感
+        - type: text
+          text: "以下の台詞をコピーするのではなく、声の温度・リズムを参考にすること。"
+        - type: each
+          each: dialogueFragments
+          as: df
+          template: "---\n{{ df.text }}\n---"
+
+    - type: heading
+      heading: 出力形式
+
+    - type: text
+      text: |
+        submit_dialogue_samplesツールを使って以下の形式で提出してください。
+
+user:
+  sections:
+    - type: heading
+      heading: テーマ
+
+    - type: text
+      text: |
+        - 感情: {{ themeEmotion }}
+        - 前提: {{ themePremise }}
+
+    - type: heading
+      heading: プロット概要
+
+    - type: text
+      text: "{{ plotSummary }}"
+
+    - type: heading
+      heading: 対象キャラクター
+
+    - type: each
+      each: characters
+      as: c
+      sections:
+        - type: text
+          text: |
+            ### {{ c.name }}（{{ c.role }}）
+            - 声: {{ c.voice }}
+            - テーマへの態度: {{ c.stanceType }}（{{ c.stanceManifestation }}）
+            - 盲点: {{ c.stanceBlindSpot }}
+            - 身体の癖: {{ c.habits }}
+
+    - type: text
+      text: |
+        上記の各キャラクターについて台詞サンプル（2-5個）を生成してください。
+        うち2個はテーマと無関係な日常的発言にしてください。

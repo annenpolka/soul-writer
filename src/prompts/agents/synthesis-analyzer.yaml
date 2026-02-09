@@ -78,6 +78,23 @@ system:
         - type: text
           text: "作中のマクガフィン要素を考慮して、それらが適切に機能しているか分析してください。"
 
+    - type: condition
+      if:
+        has: enrichedCharacterExpectations
+      then:
+        - type: heading
+          heading: キャラクター身体性チェック
+        - type: text
+          text: |
+            以下のキャラクターには固有の身体癖とテーマへの態度(stance)が設定されています。
+            本文中にこれらが適切に反映されているか確認し、不足があればvoice_refinementまたは
+            imagery_injectionアクションとして改善計画に含めてください。
+        - type: each
+          each: enrichedCharacterExpectations
+          as: charExp
+          template: |
+            - **{{ charExp.name }}**: 態度={{ charExp.expectedStance }}, 身体癖={{ charExp.expectedHabits }}
+
     - type: heading
       heading: 改善アクションの種別
 

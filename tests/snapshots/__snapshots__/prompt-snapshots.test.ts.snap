@@ -110,6 +110,7 @@ exports[`Prompt Snapshots > fragment-extractor > should match snapshot 1`] = `
 - action: アクション描写
 - worldbuilding: 世界観の描写
 - character: キャラクター描写
+- generated_dialogue: 生成キャラクターの台詞（キャラクター名をreasonに含めること）
 
 ## 出力形式
 JSON形式で出力してください：

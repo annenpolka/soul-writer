@@ -5,6 +5,7 @@ import type { TournamentResult } from '../tournament/arena.js';
 import type { ComplianceResult, ReaderJuryResult, ThemeContext, MacGuffinContext, ChapterContext, ImprovementPlan, DefectDetectorResult } from '../agents/types.js';
 import type { AntiPattern } from '../learning/anti-soul-collector.js';
 import type { DevelopedCharacter } from '../factory/character-developer.js';
+import type { EnrichedCharacter } from '../factory/character-enricher.js';
 import type { LoggerFn } from '../logger.js';
 
 export interface PipelineContext {
@@ -32,6 +33,7 @@ export interface PipelineDeps {
   themeContext?: ThemeContext;
   macGuffinContext?: MacGuffinContext;
   developedCharacters?: DevelopedCharacter[];
+  enrichedCharacters?: EnrichedCharacter[];
   motifAvoidanceList?: string[];
   logger?: LoggerFn;
 }

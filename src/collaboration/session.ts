@@ -1,6 +1,7 @@
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import type { WriterConfig, ThemeContext, MacGuffinContext } from '../agents/types.js';
+import type { EnrichedCharacter } from '../factory/character-enricher.js';
 import { createCollaborativeWriter, type CollaborativeWriterFn } from './collaborative-writer.js';
 import { createModerator, type ModeratorFn } from './moderator.js';
 import type {
@@ -26,6 +27,7 @@ export interface CollaborationSessionDeps {
   config?: Partial<CollaborationConfig>;
   themeContext?: ThemeContext;
   macGuffinContext?: MacGuffinContext;
+  enrichedCharacters?: EnrichedCharacter[];
   logger?: LoggerFn;
 }
 
@@ -47,11 +49,11 @@ function summarizeAction(action: CollaborationAction): string {
 // --- Factory function ---
 
 export function createCollaborationSession(deps: CollaborationSessionDeps): CollaborationSessionFn {
-  const { llmClient, soulText, writerConfigs, themeContext, macGuffinContext, logger } = deps;
+  const { llmClient, soulText, writerConfigs, themeContext, macGuffinContext, enrichedCharacters, logger } = deps;
   const config: CollaborationConfig = { ...DEFAULT_COLLABORATION_CONFIG, ...deps.config };
 
   const writers: CollaborativeWriterFn[] = writerConfigs.map((wc) =>
-    createCollaborativeWriter({ llmClient, soulText, config: wc, themeContext, macGuffinContext }),
+    createCollaborativeWriter({ llmClient, soulText, config: wc, themeContext, macGuffinContext, enrichedCharacters }),
   );
   const moderator: ModeratorFn = createModerator({ llmClient, soulText });
 

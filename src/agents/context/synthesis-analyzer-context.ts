@@ -95,5 +95,14 @@ export function buildSynthesisAnalyzerContext(input: SynthesisAnalyzerContextInp
     ctx.themeContext = themeContext;
   }
 
+  // Enriched character expectations for verifying physical habits / stance reflection
+  if (analyzerInput.enrichedCharacters && analyzerInput.enrichedCharacters.length > 0) {
+    ctx.enrichedCharacterExpectations = analyzerInput.enrichedCharacters.map(c => ({
+      name: c.name,
+      expectedHabits: c.physicalHabits.map(h => h.habit),
+      expectedStance: c.stance.type,
+    }));
+  }
+
   return ctx;
 }

@@ -14,6 +14,8 @@ import { createPlotMacGuffinAgent } from './plot-macguffin.js';
 import type { CharacterMacGuffin, PlotMacGuffin } from '../schemas/macguffin.js';
 import { createFullPipeline } from '../pipeline/full.js';
 import { createMotifAnalyzer } from './motif-analyzer.js';
+import { createCharacterEnricher } from './character-enricher.js';
+import type { EnrichedCharacterPhase1 } from './character-enricher.js';
 import { createFileWriter } from './file-writer.js';
 import { createLogger } from '../logger.js';
 import type { LoggerFn } from '../logger.js';
@@ -76,7 +78,7 @@ export interface StoryFileWriter {
 export interface BatchRunnerOptions {
   themeGenerator?: ThemeGenerator;
   characterDeveloper?: CharacterDeveloper;
-  pipelineFactory?: (theme: GeneratedTheme, developed?: DevelopedCharacters, logger?: LoggerFn, charMacGuffins?: CharacterMacGuffin[], plotMacGuffins?: PlotMacGuffin[]) => PipelineInstance;
+  pipelineFactory?: (theme: GeneratedTheme, developed?: DevelopedCharacters, logger?: LoggerFn, charMacGuffins?: CharacterMacGuffin[], plotMacGuffins?: PlotMacGuffin[], enrichedChars?: EnrichedCharacterPhase1[]) => PipelineInstance;
   fileWriter?: StoryFileWriter;
   verbose?: boolean;
 }
@@ -111,7 +113,7 @@ export function createBatchRunner(
     const fileWriter = options.fileWriter ??
       createFileWriter(config.outputDir);
 
-    const createPipeline = options.pipelineFactory ?? ((theme: GeneratedTheme, developed?: DevelopedCharacters, logger?: LoggerFn, charMG?: CharacterMacGuffin[], plotMG?: PlotMacGuffin[]) => {
+    const createPipeline = options.pipelineFactory ?? ((theme: GeneratedTheme, developed?: DevelopedCharacters, logger?: LoggerFn, charMG?: CharacterMacGuffin[], plotMG?: PlotMacGuffin[], enrichedChars?: EnrichedCharacterPhase1[]) => {
       const mockSoulManager = {
         getSoulText: () => deps.soulText,
         getConstitution: () => deps.soulText.constitution,
@@ -139,6 +141,7 @@ export function createBatchRunner(
           chapterCount: config.chaptersPerStory,
           narrativeType: theme.narrative_type,
           developedCharacters: developed?.characters,
+          enrichedCharacters: enrichedChars,
           theme,
           characterMacGuffins: charMG,
           plotMacGuffins: plotMG,
@@ -194,6 +197,11 @@ export function createBatchRunner(
         const charResult = await characterDeveloper.develop(themeResult.theme, charMacGuffins);
         logger?.debug('Characters developed', charResult.developed);
 
+        // Enrich characters with physical habits and stance (Phase1)
+        const enricher = createCharacterEnricher(deps.llmClient, deps.soulText);
+        const phase1Result = await enricher.enrichPhase1(charResult.developed.characters, themeResult.theme);
+        logger?.debug('Characters enriched (Phase1)', phase1Result.characters);
+
         // Generate plot MacGuffins
         const plotMacGuffinAgent = createPlotMacGuffinAgent(deps.llmClient, deps.soulText);
         const plotMacGuffinResult = await plotMacGuffinAgent.generate(themeResult.theme, charMacGuffins);
@@ -201,7 +209,7 @@ export function createBatchRunner(
         logger?.debug('Plot MacGuffins generated', plotMacGuffins);
 
         // Create pipeline and generate story
-        const pipeline = createPipeline(themeResult.theme, charResult.developed, logger, charMacGuffins, plotMacGuffins);
+        const pipeline = createPipeline(themeResult.theme, charResult.developed, logger, charMacGuffins, plotMacGuffins, phase1Result.characters);
         const storyResult = await pipeline.generateStory(themeResult.theme.premise);
 
         // Write to file
@@ -217,7 +225,7 @@ export function createBatchRunner(
           taskId: storyResult.taskId,
           themeId,
           status: 'completed',
-          tokensUsed: themeResult.tokensUsed + charResult.tokensUsed + storyResult.totalTokensUsed,
+          tokensUsed: themeResult.tokensUsed + charResult.tokensUsed + phase1Result.tokensUsed + storyResult.totalTokensUsed,
           complianceScore: storyResult.avgComplianceScore,
           readerScore: storyResult.avgReaderScore,
           emotion: themeResult.theme.emotion,
