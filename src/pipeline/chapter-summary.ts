@@ -80,3 +80,85 @@ function ensureStringArray(value: unknown): string[] {
   if (typeof value === 'string') return value.split(/[、,，]/).map(s => s.trim()).filter(Boolean);
   return [];
 }
+
+// =====================
+// WS4: Established Insights Extraction
+// =====================
+
+export interface EstablishedInsight {
+  chapter: number;
+  insight: string;
+  rule: string;
+}
+
+const EXTRACT_INSIGHTS_TOOL: ToolDefinition = {
+  type: 'function',
+  function: {
+    name: 'report_established_insights',
+    description: 'この章で確立された認識・発見・関係変化を報告する',
+    parameters: {
+      type: 'object',
+      properties: {
+        insights: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              insight: { type: 'string', description: '確立された認識・発見・関係変化（例: "語り手はARの歪みに気づいている"）' },
+              rule: { type: 'string', description: '次章以降への制約（例: "再度「発見」させないこと"）' },
+            },
+            required: ['insight', 'rule'],
+            additionalProperties: false,
+          },
+          description: '確立された認識リスト（3〜5個）',
+        },
+      },
+      required: ['insights'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+};
+
+/**
+ * Extract established insights from a completed chapter.
+ * These insights represent things the narrative has "arrived at" and should not be re-discovered.
+ */
+export async function extractEstablishedInsights(
+  llmClient: LLMClient,
+  chapterText: string,
+  chapterIndex: number,
+): Promise<EstablishedInsight[]> {
+  assertToolCallingClient(llmClient);
+
+  const systemPrompt = `あなたは小説の章を分析する専門家です。この章のテキストを読み、物語が到達した「既知の認識」を3〜5個抽出してください。
+
+抽出すべきもの:
+- キャラクターが気づいた事実・認識
+- キャラクター間で確立された関係性の変化
+- 明らかになった世界の仕組みや真実
+- キャラクターの態度・姿勢の変化
+
+各認識には「次章以降への制約（rule）」を付けてください。
+rule例: "再度「発見」させないこと", "恐怖に戻さないこと", "再度「出会い」を演出しないこと"`;
+
+  const response = await llmClient.completeWithTools(
+    systemPrompt,
+    chapterText,
+    [EXTRACT_INSIGHTS_TOOL],
+    {
+      toolChoice: { type: 'function', function: { name: 'report_established_insights' } },
+      temperature: 0.3,
+    },
+  );
+
+  const parsed = parseToolArguments<{
+    insights: Array<{ insight: string; rule: string }>;
+  }>(response, 'report_established_insights');
+
+  return (parsed.insights ?? []).map(i => ({
+    chapter: chapterIndex,
+    insight: i.insight,
+    rule: i.rule,
+  }));
+}

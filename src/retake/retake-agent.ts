@@ -1,4 +1,4 @@
-import type { RetakeDeps, Retaker } from '../agents/types.js';
+import type { RetakeDeps, Retaker, Defect } from '../agents/types.js';
 import { resolveNarrativeRules } from '../factory/narrative-rules.js';
 import { buildRetakeSystemPrompt, buildRetakeUserPrompt } from '../agents/context/retake-context.js';
 
@@ -15,10 +15,25 @@ export function createRetakeAgent(deps: RetakeDeps): Retaker {
   const narrativeRules = deps.narrativeRules ?? resolveNarrativeRules();
 
   return {
-    retake: async (originalText: string, feedback: string): Promise<RetakeResult> => {
+    retake: async (originalText: string, feedback: string, defects?: Defect[]): Promise<RetakeResult> => {
       const tokensBefore = llmClient.getTotalTokens();
-      const systemPrompt = buildRetakeSystemPrompt({ soulText, narrativeRules, themeContext });
-      const userPrompt = buildRetakeUserPrompt(originalText, feedback);
+
+      const defectCategories = defects
+        ? [...new Set(defects.map(d => d.category))]
+        : undefined;
+
+      const systemPrompt = buildRetakeSystemPrompt({
+        soulText,
+        narrativeRules,
+        themeContext,
+        defectCategories,
+      });
+
+      const userPrompt = buildRetakeUserPrompt({
+        originalText,
+        feedback,
+        plotChapter: deps.plotChapter,
+      });
 
       const retakenText = await llmClient.complete(systemPrompt, userPrompt, {
         temperature: 0.6,
@@ -31,4 +46,3 @@ export function createRetakeAgent(deps: RetakeDeps): Retaker {
     },
   };
 }
-

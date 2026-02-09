@@ -12,7 +12,7 @@ export const MetaSchema = z.object({
 // Sentence structure rules (protagonist-specific)
 export const TaigendomeSchema = z.object({
   usage: z.string(),
-  frequency: z.string(),
+  frequency: z.string().optional(),
   forbidden_context: z.array(z.string()),
 });
 
@@ -23,9 +23,9 @@ export const TypicalLengthsSchema = z.object({
 });
 
 export const SentenceStructureSchema = z.object({
-  rhythm_pattern: z.string(),
+  rhythm_pattern: z.string().optional(),
   taigendome: TaigendomeSchema,
-  typical_lengths: TypicalLengthsSchema,
+  typical_lengths: TypicalLengthsSchema.optional(),
 });
 
 // Vocabulary rules (universal)
@@ -62,8 +62,9 @@ export const NarrativeSchema = z.object({
   pov_by_character: z.record(z.string(), z.string()),
   default_tense: z.string(),
   tense_shift_allowed: z.string(),
-  dialogue_ratio: z.string(),
+  dialogue_ratio: z.string().optional(),
   dialogue_style_by_character: z.record(z.string(), z.string()),
+  quotation_rule: z.string().optional(),
 });
 
 // Thematic constraints (universal)

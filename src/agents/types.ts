@@ -496,7 +496,7 @@ export interface Synthesizer {
  */
 export interface ImprovementAction {
   section: string;
-  type: 'expression_upgrade' | 'pacing_adjustment' | 'scene_reorder' | 'motif_fix' | 'voice_refinement' | 'imagery_injection' | 'tension_enhancement';
+  type: 'expression_upgrade' | 'pacing_adjustment' | 'scene_reorder' | 'motif_fix' | 'voice_refinement' | 'imagery_injection' | 'tension_enhancement' | 'agency_boost' | 'chapter_variation' | 'repetition_elimination';
   description: string;
   source: string;
   priority: 'high' | 'medium' | 'low';
@@ -578,13 +578,15 @@ export interface SynthesisV2Result {
 export interface RetakeDeps extends AgentDeps {
   narrativeRules?: NarrativeRules;
   themeContext?: ThemeContext;
+  chapterContext?: ChapterContext;
+  plotChapter?: { summary: string; keyEvents: string[]; decisionPoint?: { action: string; stakes: string; irreversibility: string } };
 }
 
 /**
  * FP Retake interface — returned by createRetakeAgent()
  */
 export interface Retaker {
-  retake: (originalText: string, feedback: string) => Promise<import('../retake/retake-agent.js').RetakeResult>;
+  retake: (originalText: string, feedback: string, defects?: Defect[]) => Promise<import('../retake/retake-agent.js').RetakeResult>;
 }
 
 // =====================
@@ -604,6 +606,8 @@ export interface Defect {
   category: string;
   description: string;
   location?: string;
+  quotedText?: string;
+  suggestedFix?: string;
 }
 
 /**
