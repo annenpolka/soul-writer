@@ -4,6 +4,7 @@ import type { NarrativeRules } from '../../factory/narrative-rules.js';
 import { buildPovRules } from '../../factory/narrative-rules.js';
 import type { DevelopedCharacter } from '../../factory/character-developer.js';
 import type { EnrichedCharacter } from '../../factory/character-enricher.js';
+import { TONE_CATALOG, pickRandom } from '../../factory/diversity-catalog.js';
 
 /**
  * Input for buildWriterContext — everything a WriterAgent.buildContext() needs
@@ -28,7 +29,14 @@ export function buildWriterContext(input: WriterContextInput): Record<string, un
   const { prompt, soulText, config, narrativeRules, developedCharacters, themeContext, macGuffinContext } = input;
   const ctx: Record<string, unknown> = {};
 
-  ctx.criticalRules = buildCriticalRules(soulText, narrativeRules);
+  // Resolve tone: themeContext > prompt-config > random from catalog
+  const resolvedTone = input.themeContext?.tone
+    ?? pickRandom(soulText.promptConfig?.tone_catalog ?? TONE_CATALOG).directive;
+
+  ctx.criticalRules = buildCriticalRules(soulText, narrativeRules, resolvedTone);
+
+  // Expose tone for template display
+  ctx.toneDirective = resolvedTone;
   ctx.constitution = buildConstitutionData(soulText, narrativeRules.isDefaultProtagonist);
   ctx.narrativeRules = narrativeRules;
 
@@ -124,13 +132,15 @@ export function buildWriterContext(input: WriterContextInput): Record<string, un
 /**
  * Build the critical rules string (pure function).
  */
-export function buildCriticalRules(soulText: SoulText, narrativeRules: NarrativeRules): string {
+export function buildCriticalRules(soulText: SoulText, narrativeRules: NarrativeRules, toneDirective?: string): string {
   const parts: string[] = [];
   parts.push('【最重要ルール】');
   for (const rule of buildPovRules(narrativeRules)) {
     parts.push(rule);
   }
-  parts.push('- 文体は冷徹・簡潔・乾いた語り。装飾過多や感傷的表現を避ける');
+  if (toneDirective) {
+    parts.push(`- 文体トーン: ${toneDirective}`);
+  }
   if (narrativeRules.isDefaultProtagonist) {
     parts.push('- 原作にない設定やキャラクターを捏造しない');
     parts.push('- 「ライオン」は透心固有の内面シンボル。内面の比喩としてのみ使用可。可視的な獣・データ獣としての登場禁止');

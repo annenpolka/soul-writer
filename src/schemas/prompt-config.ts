@@ -38,6 +38,12 @@ export const TournamentConfigSchema = z.object({
   temperature_slots: z.array(TemperatureSlotSchema).optional(),
 });
 
+// Tone directive for structured tone catalog
+export const ToneDirectiveSchema = z.object({
+  label: z.string().min(1),
+  directive: z.string().min(1),
+});
+
 // Full prompt config
 export const PromptConfigSchema = z.object({
   defaults: PromptConfigDefaultsSchema,
@@ -47,6 +53,7 @@ export const PromptConfigSchema = z.object({
   timeline_catalog: z.array(z.string()).optional(),
   ideation_strategies: z.array(z.string()).optional(),
   tone_directives: z.array(z.string()).optional(),
+  tone_catalog: z.array(ToneDirectiveSchema).optional(),
   pov_rules: PovRulesSchema.optional(),
   tournament: TournamentConfigSchema.optional(),
   agents: z.record(z.string(), AgentPromptConfigSchema).optional(),

@@ -181,6 +181,14 @@ user:
               text: "- ナラティブ型: {{ themeInfo.narrative_type }}"
         - type: condition
           if:
+            has: themeInfo.tone
+          then:
+            - type: text
+              text: |
+                - 文体トーン: {{ themeInfo.tone }}
+                このトーンに合ったプロット構造を設計すること。
+        - type: condition
+          if:
             has: themeInfo.characters
           then:
             - type: text

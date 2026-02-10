@@ -8,6 +8,7 @@ export interface DefectDetectorContextInput {
   soulText: SoulText;
   text: string;
   enrichedCharacters?: EnrichedCharacter[];
+  toneDirective?: string;
 }
 
 /**
@@ -24,6 +25,7 @@ const DEFECT_CATEGORIES = [
   { name: 'forbidden_pattern', description: '禁止語彙・禁止比喩の使用' },
   { name: 'agency_absence', description: '主人公の能動的行動・選択・介入の欠如。受動的ループの検出' },
   { name: 'character_flatness', description: '生成キャラクターの人格の平板化。プロット奉仕100%、身体的ディテール欠如、口調同質化' },
+  { name: 'tone_drift', description: '指定されたトーンからの逸脱' },
 ];
 
 /**
@@ -75,5 +77,6 @@ export function buildDefectDetectorContext(input: DefectDetectorContextInput): R
     defectCategories: DEFECT_CATEGORIES,
     characters,
     ...(enrichedCharacters && enrichedCharacters.length > 0 ? { enrichedCharacters } : {}),
+    ...(input.toneDirective ? { toneDirective: input.toneDirective } : {}),
   };
 }

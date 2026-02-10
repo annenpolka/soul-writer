@@ -118,6 +118,23 @@ describe('buildDefectDetectorContext', () => {
     expect(names).toContain('style_deviation');
   });
 
+  it('should include tone_drift in defect categories', () => {
+    const ctx = buildDefectDetectorContext(makeInput());
+    const categories = ctx.defectCategories as Array<{ name: string; description: string }>;
+    const names = categories.map(c => c.name);
+    expect(names).toContain('tone_drift');
+  });
+
+  it('should include toneDirective when provided', () => {
+    const ctx = buildDefectDetectorContext(makeInput({ toneDirective: 'ドライユーモアのトーン' }));
+    expect(ctx.toneDirective).toBe('ドライユーモアのトーン');
+  });
+
+  it('should not include toneDirective when not provided', () => {
+    const ctx = buildDefectDetectorContext(makeInput());
+    expect(ctx).not.toHaveProperty('toneDirective');
+  });
+
   it('should include character names from world bible', () => {
     const soulText = createMockSoulText({
       characters: {

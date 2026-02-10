@@ -168,6 +168,52 @@ describe('buildWriterContext', () => {
   });
 });
 
+describe('buildWriterContext tone resolution', () => {
+  it('should use themeContext.tone when provided', () => {
+    const themeContext = createMockThemeContext({ tone: '好奇心と発見のトーン' });
+    const input = makeInput({ themeContext });
+    const ctx = buildWriterContext(input);
+
+    expect(ctx.toneDirective).toBe('好奇心と発見のトーン');
+    expect(ctx.criticalRules).toContain('好奇心と発見のトーン');
+  });
+
+  it('should fallback to catalog tone when themeContext.tone is undefined', () => {
+    const input = makeInput();
+    const ctx = buildWriterContext(input);
+
+    // toneDirective should be a non-empty string from the catalog
+    expect(ctx.toneDirective).toBeDefined();
+    expect(typeof ctx.toneDirective).toBe('string');
+    expect((ctx.toneDirective as string).length).toBeGreaterThan(0);
+  });
+
+  it('should not contain hardcoded 冷徹・簡潔・乾いた語り', () => {
+    const input = makeInput();
+    const ctx = buildWriterContext(input);
+
+    expect(ctx.criticalRules).not.toContain('冷徹・簡潔・乾いた語り');
+  });
+
+  it('should use tone_catalog from promptConfig when available', () => {
+    const soulText = createMockSoulText({
+      deep: {
+        promptConfig: {
+          defaults: { protagonist_short: '透心', pronoun: 'わたし' },
+          tone_catalog: [
+            { label: 'カスタムトーン', directive: 'カスタムの文体指示' },
+          ],
+        },
+      },
+    });
+    const input = makeInput({ soulText });
+    const ctx = buildWriterContext(input);
+
+    // With only 1 entry in catalog, it must select that one
+    expect(ctx.toneDirective).toBe('カスタムの文体指示');
+  });
+});
+
 describe('buildCriticalRules', () => {
   it('should start with 最重要ルール header', () => {
     const input = makeInput();
@@ -212,6 +258,18 @@ describe('buildCriticalRules', () => {
 
     expect(rules).toContain('マークダウン記法は一切使用禁止');
     expect(rules).toContain('**太字**');
+  });
+
+  it('should include toneDirective when provided', () => {
+    const rules = buildCriticalRules(createMockSoulText(), resolveNarrativeRules(), '暴力的衝動のトーン');
+
+    expect(rules).toContain('- 文体トーン: 暴力的衝動のトーン');
+  });
+
+  it('should not include tone line when toneDirective is undefined', () => {
+    const rules = buildCriticalRules(createMockSoulText(), resolveNarrativeRules());
+
+    expect(rules).not.toContain('文体トーン');
   });
 });
 

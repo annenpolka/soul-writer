@@ -59,6 +59,14 @@ system:
             - 感情: {{ themeContext.emotion }}
             - 時間軸: {{ themeContext.timeline }}
             - 前提: {{ themeContext.premise }}
+        - type: condition
+          if:
+            has: themeContext.tone
+          then:
+            - type: text
+              text: |
+                - 文体トーン: {{ themeContext.tone }}
+                勝者テキストがこのトーンを維持しているか検証すること。
 
     - type: condition
       if:
