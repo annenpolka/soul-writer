@@ -113,17 +113,12 @@ exports[`Prompt Snapshots > fragment-extractor > should match snapshot 1`] = `
 - generated_dialogue: 生成キャラクターの台詞（キャラクター名をreasonに含めること）
 
 ## 出力形式
-JSON形式で出力してください：
-{
-  "fragments": [
-    {
-      "text": "抽出した文章",
-      "category": "カテゴリ名",
-      "score": 0.0-1.0の品質スコア,
-      "reason": "選出理由"
-    }
-  ]
-}
+submit_fragments ツールを使って結果を提出してください。
+各断片には以下を含めます：
+- text: 抽出した文章
+- category: カテゴリ名
+- score: 0.0-1.0の品質スコア
+- reason: 選出理由
 "
 `;
 

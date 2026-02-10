@@ -40,17 +40,12 @@ system:
 
     - type: text
       text: |
-        JSON形式で出力してください：
-        {
-          "fragments": [
-            {
-              "text": "抽出した文章",
-              "category": "カテゴリ名",
-              "score": 0.0-1.0の品質スコア,
-              "reason": "選出理由"
-            }
-          ]
-        }
+        submit_fragments ツールを使って結果を提出してください。
+        各断片には以下を含めます：
+        - text: 抽出した文章
+        - category: カテゴリ名
+        - score: 0.0-1.0の品質スコア
+        - reason: 選出理由
 
 user:
   sections:
