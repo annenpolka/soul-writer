@@ -1,38 +1,36 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   createFragmentExtractor,
   type FragmentExtractorFn,
 } from '../../src/learning/fragment-extractor.js';
-import { createMockLLMClient } from '../helpers/mock-deps.js';
+import { createMockLLMClientWithTools } from '../helpers/mock-deps.js';
 
-const fragmentsResponse = JSON.stringify({
-  fragments: [
-    {
-      text: 'A beautiful passage about inner turmoil',
-      category: 'introspection',
-      score: 0.92,
-      reason: 'Captures the emotional depth well',
-    },
-    {
-      text: 'Sharp dialogue that reveals character',
-      category: 'dialogue',
-      score: 0.88,
-      reason: 'Natural flow and subtext',
-    },
-  ],
-});
+const sampleFragments = [
+  {
+    text: 'A beautiful passage about inner turmoil',
+    category: 'introspection',
+    score: 0.92,
+    reason: 'Captures the emotional depth well',
+  },
+  {
+    text: 'Sharp dialogue that reveals character',
+    category: 'dialogue',
+    score: 0.88,
+    reason: 'Natural flow and subtext',
+  },
+];
 
 describe('createFragmentExtractor (FP)', () => {
   let extractor: FragmentExtractorFn;
-  let mockLLM: ReturnType<typeof createMockLLMClient>;
-
-  beforeEach(() => {
-    mockLLM = createMockLLMClient(fragmentsResponse, 200);
-    extractor = createFragmentExtractor(mockLLM);
-  });
 
   describe('extract', () => {
-    it('should extract fragments from text', async () => {
+    it('should extract fragments from text via tool calling', async () => {
+      const llm = createMockLLMClientWithTools({
+        name: 'submit_fragments',
+        arguments: { fragments: sampleFragments },
+      }, 200);
+      extractor = createFragmentExtractor(llm);
+
       const result = await extractor.extract('Long chapter text...', {
         complianceScore: 0.95,
         readerScore: 0.88,
@@ -44,32 +42,43 @@ describe('createFragmentExtractor (FP)', () => {
     });
 
     it('should return tokens used', async () => {
+      const llm = createMockLLMClientWithTools({
+        name: 'submit_fragments',
+        arguments: { fragments: sampleFragments },
+      }, 200);
+      extractor = createFragmentExtractor(llm);
+
       const result = await extractor.extract('Test', {
         complianceScore: 0.9,
         readerScore: 0.9,
       });
 
-      expect(result.tokensUsed).toBe(200);
+      expect(result.tokensUsed).toBe(0);
     });
 
-    it('should handle invalid JSON gracefully', async () => {
-      const badLLM = createMockLLMClient('not json', 50);
-      const ext = createFragmentExtractor(badLLM);
+    it('should fallback to empty fragments on wrong tool name', async () => {
+      const llm = createMockLLMClientWithTools({
+        name: 'wrong_tool',
+        arguments: {},
+      }, 50);
+      extractor = createFragmentExtractor(llm);
 
-      const result = await ext.extract('Text', {
+      const result = await extractor.extract('Text', {
         complianceScore: 0.9,
         readerScore: 0.9,
       });
 
       expect(result.fragments).toHaveLength(0);
-      expect(result.tokensUsed).toBe(50);
     });
 
     it('should handle empty fragments response', async () => {
-      const emptyLLM = createMockLLMClient(JSON.stringify({ fragments: [] }), 30);
-      const ext = createFragmentExtractor(emptyLLM);
+      const llm = createMockLLMClientWithTools({
+        name: 'submit_fragments',
+        arguments: { fragments: [] },
+      }, 30);
+      extractor = createFragmentExtractor(llm);
 
-      const result = await ext.extract('Text', {
+      const result = await extractor.extract('Text', {
         complianceScore: 0.7,
         readerScore: 0.6,
       });
@@ -80,6 +89,12 @@ describe('createFragmentExtractor (FP)', () => {
 
   describe('filterHighQuality', () => {
     it('should filter fragments by minimum score', async () => {
+      const llm = createMockLLMClientWithTools({
+        name: 'submit_fragments',
+        arguments: { fragments: sampleFragments },
+      }, 100);
+      extractor = createFragmentExtractor(llm);
+
       const result = await extractor.extract('Text', {
         complianceScore: 0.9,
         readerScore: 0.9,

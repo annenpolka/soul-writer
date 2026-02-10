@@ -47,6 +47,19 @@ system:
 
     - type: condition
       if:
+        has: enrichedCharacterStances
+      then:
+        - type: heading
+          heading: キャラクターのテーマへの態度
+        - type: each
+          each: enrichedCharacterStances
+          as: s
+          template: "- {{ s.name }}: {{ s.stanceType }}（{{ s.stanceManifestation }}） 盲点: {{ s.stanceBlindSpot }}"
+        - type: text
+          text: "各キャラクターの態度の違いを物語構造に活かすこと。"
+
+    - type: condition
+      if:
         has: technologyEntries
       then:
         - type: heading

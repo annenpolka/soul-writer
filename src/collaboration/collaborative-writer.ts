@@ -1,6 +1,7 @@
 import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import type { WriterConfig, ThemeContext, MacGuffinContext } from '../agents/types.js';
+import type { EnrichedCharacter } from '../factory/character-enricher.js';
 import { COLLABORATION_TOOLS, parseToolCallToAction } from './tools.js';
 import type { CollaborationAction, CollaborationState } from './types.js';
 
@@ -19,6 +20,7 @@ export interface CollaborativeWriterDeps {
   config: WriterConfig;
   themeContext?: ThemeContext;
   macGuffinContext?: MacGuffinContext;
+  enrichedCharacters?: EnrichedCharacter[];
 }
 
 // --- Internal helpers ---
@@ -81,6 +83,24 @@ function buildSystemPrompt(deps: CollaborativeWriterDeps, writerName: string, st
     lines.push('\n## 物語の謎（解決不要、雰囲気として漂わせること）');
     for (const m of deps.macGuffinContext.plotMacGuffins) {
       lines.push(`- ${m.name}: ${m.tensionQuestions.join('、')}`);
+    }
+  }
+
+  // Enriched characters: physical habits, stance, dialogue samples (top 2)
+  if (deps.enrichedCharacters?.length) {
+    lines.push('\n## キャラクター身体性・態度（描写に織り込むこと）');
+    for (const c of deps.enrichedCharacters) {
+      lines.push(`### ${c.name}`);
+      lines.push(`- 態度(stance): ${c.stance.type} — ${c.stance.manifestation}`);
+      for (const h of c.physicalHabits) {
+        lines.push(`- 身体癖: ${h.habit}（トリガー: ${h.trigger}）— ${h.sensoryDetail}`);
+      }
+      if (c.dialogueSamples?.length) {
+        const topSamples = c.dialogueSamples.slice(0, 2);
+        for (const s of topSamples) {
+          lines.push(`- 台詞例: 「${s.line}」（${s.situation}）— ${s.voiceNote}`);
+        }
+      }
     }
   }
 

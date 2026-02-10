@@ -103,6 +103,41 @@ system:
         - 対話が存在するが、対話の結果何も変わらない: minor
 
     - type: heading
+      heading: キャラクター平板化（character_flatness）の検出基準
+
+    - type: text
+      text: |
+        character_flatness（キャラクター平板化）の検出基準:
+        - 全キャラクターの口調が同質化（話し方に個別差がない）: major
+        - 身体的ディテールが完全に欠如（身体の癖、仕草、身体感覚の描写がゼロ）: major
+        - キャラクターがプロット奉仕100%（自身の欲望・矛盾・盲点がない）: critical
+        - 台詞がすべて説明的・機能的（キャラクターの体温が感じられない）: major
+        - 2人以上のキャラクターが同じ語彙・同じリズムで話す: minor
+
+    - type: condition
+      if:
+        has: enrichedCharacters
+      then:
+        - type: heading
+          heading: 期待されるキャラクター身体性（enrichedCharactersからの参照）
+
+        - type: text
+          text: |
+            以下のキャラクターには期待される身体の癖・テーマへの態度が設定されている。
+            これらが生成テキストに反映されていない場合、character_flatness として検出すること。
+
+        - type: loop
+          over: enrichedCharacters
+          as: ec
+          body:
+            - type: text
+              text: |
+                **{{ ec.name }}**:
+                - 態度タイプ: {{ ec.stanceType }}（{{ ec.stanceManifestation }}）
+                - 盲点: {{ ec.blindSpot }}
+                - 身体の癖: {{ ec.habits }}
+
+    - type: heading
       heading: 指示
 
     - type: text

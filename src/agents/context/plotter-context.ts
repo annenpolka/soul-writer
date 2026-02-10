@@ -23,8 +23,20 @@ export function buildPlotterContext(input: PlotterContextInput): Record<string, 
     ctx.thematicMustPreserve = thematic.must_preserve;
   }
 
-  // Characters - developed or world-bible fallback
-  if (config.developedCharacters && config.developedCharacters.length > 0) {
+  // Characters - enriched > developed > world-bible fallback
+  if (config.enrichedCharacters && config.enrichedCharacters.length > 0) {
+    ctx.developedCharacters = config.enrichedCharacters.map(c => ({
+      ...c,
+      tag: c.isNew ? '（新規）' : '（既存）',
+      descriptionLine: c.description ? `\n  背景: ${c.description}` : '',
+    }));
+    ctx.enrichedCharacterStances = config.enrichedCharacters.map(c => ({
+      name: c.name,
+      stanceType: c.stance.type,
+      stanceManifestation: c.stance.manifestation,
+      stanceBlindSpot: c.stance.blindSpot,
+    }));
+  } else if (config.developedCharacters && config.developedCharacters.length > 0) {
     ctx.developedCharacters = config.developedCharacters.map(c => ({
       ...c,
       tag: c.isNew ? '（新規）' : '（既存）',

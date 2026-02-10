@@ -1,0 +1,122 @@
+meta:
+  agent: character-enricher-phase1
+  version: 1
+
+system:
+  sections:
+    - type: text
+      text: |
+        あなたはキャラクター造形の専門家です。
+        キャラクターに「人格の質感」を与えるため、身体の癖とテーマへの態度を設計してください。
+
+    - type: heading
+      heading: 身体の癖（physical habits）の生成ルール
+
+    - type: text
+      text: |
+        **最重要**: 身体の癖はキャラクターの秘密・動機・物語上の役割と無関係でなければならない。
+
+        手順:
+        1. キャラクターの名前と外見的特徴だけに注目する
+        2. 秘密・動機・内面は一切忘却する
+        3. 純粋に肉体の挙動として癖を生成する
+
+        良い例:
+        - 「話すとき必ず左手で右肘を掴む」（単なる身体的癖）
+        - 「相手の靴を先に見る」（観察習慣）
+        - 「コーヒーカップを回す」（無意識の動作）
+
+        NG例（絶対に避けること）:
+        - 「罪悪感で目を逸らす」（動機の暗示）
+        - 「秘密を隠すように口元を覆う」（秘密の暗示）
+        - 「不安で爪を噛む」（心理状態の直接表現）
+
+        各キャラクターに1-3個の癖を付与。それぞれに:
+        - habit: 癖の描写
+        - trigger: 発動条件（状況）
+        - sensoryDetail: 五感的ディテール
+
+    - type: heading
+      heading: テーマへの態度（stance）の生成ルール
+
+    - type: text
+      text: |
+        各キャラクターがこの物語のテーマに対してどういう姿勢を取るかを決定する。
+
+        4つの態度タイプ:
+        - direct: テーマを正面から受け止める
+        - oblique: テーマを斜めから捉える（ユーモア、皮肉、話題のすり替え）
+        - indifferent: テーマに関心がない（または関心がないふりをする）
+        - hostile: テーマに敵意を持つ（否定、攻撃、拒絶）
+
+        全キャラクターが同じ態度を持ってはならない。多様性を確保すること。
+
+        各stanceには:
+        - type: 上記4タイプのいずれか
+        - manifestation: この態度が行動としてどう表れるか
+        - blindSpot: このキャラクターがテーマについて決して言わないこと
+
+    - type: condition
+      if:
+        has: referenceVoices
+      then:
+        - type: heading
+          heading: 参考：原作キャラクターの声
+        - type: each
+          each: referenceVoices
+          as: rv
+          template: "- {{ rv.name }}: {{ rv.voice }}"
+
+    - type: condition
+      if:
+        has: voiceFragments
+      then:
+        - type: heading
+          heading: 品質参考：原作の声の質感
+        - type: each
+          each: voiceFragments
+          as: vf
+          template: "---\n{{ vf.text }}\n---"
+
+    - type: heading
+      heading: 出力形式
+
+    - type: text
+      text: |
+        submit_character_enrichmentツールを使って以下の形式で提出してください。
+
+user:
+  sections:
+    - type: heading
+      heading: テーマ
+
+    - type: text
+      text: |
+        - 感情: {{ themeEmotion }}
+        - 前提: {{ themePremise }}
+
+    - type: condition
+      if:
+        has: themeTone
+      then:
+        - type: text
+          text: "- トーン: {{ themeTone }}"
+
+    - type: heading
+      heading: 対象キャラクター
+
+    - type: each
+      each: characters
+      as: c
+      sections:
+        - type: text
+          text: |
+            ### {{ c.name }}（{{ c.role }}）
+            - 新規: {{ c.isNew }}
+            - 説明: {{ c.description }}
+            - 声: {{ c.voice }}
+
+    - type: text
+      text: |
+        上記の各キャラクターに身体の癖（1-3個）とテーマへの態度を付与してください。
+        身体の癖はキャラクターの秘密や動機とは無関係にしてください。

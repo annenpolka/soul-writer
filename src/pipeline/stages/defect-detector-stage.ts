@@ -7,6 +7,7 @@ export function createDefectDetectorStage(): PipelineStage {
     const detector = createDefectDetector({
       llmClient: ctx.deps.llmClient,
       soulText: ctx.deps.soulText,
+      enrichedCharacters: ctx.deps.enrichedCharacters,
     });
 
     let defectResult = await detector.detect(ctx.text);

@@ -19,6 +19,7 @@ export function createSynthesisV2Stage(): PipelineStage {
       allGenerations: ctx.tournamentResult.allGenerations,
       rounds: ctx.tournamentResult.rounds,
       chapterContext: ctx.chapterContext,
+      enrichedCharacters: ctx.deps.enrichedCharacters,
     });
 
     const logger = ctx.deps.logger;

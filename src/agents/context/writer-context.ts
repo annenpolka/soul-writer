@@ -3,6 +3,7 @@ import type { WriterConfig, ThemeContext, MacGuffinContext } from '../types.js';
 import type { NarrativeRules } from '../../factory/narrative-rules.js';
 import { buildPovRules } from '../../factory/narrative-rules.js';
 import type { DevelopedCharacter } from '../../factory/character-developer.js';
+import type { EnrichedCharacter } from '../../factory/character-enricher.js';
 
 /**
  * Input for buildWriterContext — everything a WriterAgent.buildContext() needs
@@ -13,6 +14,7 @@ export interface WriterContextInput {
   config: WriterConfig;
   narrativeRules: NarrativeRules;
   developedCharacters?: DevelopedCharacter[];
+  enrichedCharacters?: EnrichedCharacter[];
   themeContext?: ThemeContext;
   macGuffinContext?: MacGuffinContext;
   /** Motif avoidance list from past works analysis */
@@ -31,7 +33,30 @@ export function buildWriterContext(input: WriterContextInput): Record<string, un
   ctx.narrativeRules = narrativeRules;
 
   // Characters (structured data for include)
-  if (developedCharacters && developedCharacters.length > 0) {
+  if (input.enrichedCharacters && input.enrichedCharacters.length > 0) {
+    ctx.developedCharacters = input.enrichedCharacters.map(c => ({
+      ...c,
+      displayName: `${c.name}${c.isNew ? '（新規）' : '（既存）'}`,
+    }));
+    // Inject dialogue samples as pseudo-fragments for Writer
+    ctx.characterDialogueSamples = input.enrichedCharacters
+      .filter(c => c.dialogueSamples && c.dialogueSamples.length > 0)
+      .map(c => ({
+        characterName: c.name,
+        samples: c.dialogueSamples.map(s => ({
+          line: s.line,
+          situation: s.situation,
+          voiceNote: s.voiceNote,
+        })),
+      }));
+    // Inject enriched character details (habits, stance)
+    ctx.enrichedCharacterDetails = input.enrichedCharacters.map(c => ({
+      name: c.name,
+      habits: c.physicalHabits.map(h => `${h.habit}（${h.trigger}、${h.sensoryDetail}）`).join('\n  '),
+      stanceType: c.stance.type,
+      stanceManifestation: c.stance.manifestation,
+    }));
+  } else if (developedCharacters && developedCharacters.length > 0) {
     ctx.developedCharacters = developedCharacters.map(c => ({
       ...c,
       displayName: `${c.name}${c.isNew ? '（新規）' : '（既存）'}`,

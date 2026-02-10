@@ -5,6 +5,7 @@ import { selectTournamentWriters, DEFAULT_TEMPERATURE_SLOTS } from '../tournamen
 import type { ComplianceResult, ReaderJuryResult, ThemeContext, MacGuffinContext, WriterConfig } from '../agents/types.js';
 import { type NarrativeRules, resolveNarrativeRules } from '../factory/narrative-rules.js';
 import type { DevelopedCharacter } from '../factory/character-developer.js';
+import type { EnrichedCharacter } from '../factory/character-enricher.js';
 import type { CollaborationConfig } from '../collaboration/types.js';
 import type { LoggerFn } from '../logger.js';
 import { pipe, when, tryStage } from './compose.js';
@@ -38,6 +39,7 @@ export interface SimplePipelineOptions {
   collaborationConfig?: Partial<CollaborationConfig>;
   narrativeRules?: NarrativeRules;
   developedCharacters?: DevelopedCharacter[];
+  enrichedCharacters?: EnrichedCharacter[];
   themeContext?: ThemeContext;
   macGuffinContext?: MacGuffinContext;
   verbose?: boolean;
@@ -126,6 +128,7 @@ export async function generateSimple(
     narrativeRules,
     themeContext: options.themeContext,
     macGuffinContext: options.macGuffinContext,
+    enrichedCharacters: options.enrichedCharacters,
     logger,
   };
 

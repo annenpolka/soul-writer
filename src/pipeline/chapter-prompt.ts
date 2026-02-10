@@ -1,6 +1,7 @@
 import type { Chapter, Plot } from '../schemas/plot.js';
 import type { NarrativeRules } from '../factory/narrative-rules.js';
 import type { DevelopedCharacter } from '../factory/character-developer.js';
+import type { EnrichedCharacter } from '../factory/character-enricher.js';
 import type { CharacterMacGuffin, PlotMacGuffin } from '../schemas/macguffin.js';
 import type { PreviousChapterAnalysis, EstablishedInsight } from './chapter-summary.js';
 
@@ -10,6 +11,7 @@ export interface ChapterPromptInput {
   narrativeType?: string;
   narrativeRules?: NarrativeRules;
   developedCharacters?: DevelopedCharacter[];
+  enrichedCharacters?: EnrichedCharacter[];
   characterMacGuffins?: CharacterMacGuffin[];
   plotMacGuffins?: PlotMacGuffin[];
   previousChapterAnalysis?: PreviousChapterAnalysis;
@@ -47,6 +49,27 @@ export function buildChapterPrompt(input: ChapterPromptInput): string {
       parts.push(`- ${c.name}${tag}: ${c.role}`);
       if (c.description) parts.push(`  背景: ${c.description}`);
       if (c.voice) parts.push(`  口調: ${c.voice}`);
+    }
+    parts.push('');
+  }
+
+  // Inject enriched character physicality and stance
+  if (input.enrichedCharacters && input.enrichedCharacters.length > 0) {
+    parts.push('## キャラクターの身体性と態度');
+    for (const c of input.enrichedCharacters) {
+      parts.push(`### ${c.name}`);
+      parts.push('身体の癖:');
+      for (const h of c.physicalHabits) {
+        parts.push(`  - ${h.habit}（${h.trigger}、${h.sensoryDetail}）`);
+      }
+      parts.push(`テーマへの態度: ${c.stance.type}（${c.stance.manifestation}）`);
+      parts.push(`盲点: ${c.stance.blindSpot}`);
+      if ('dialogueSamples' in c && c.dialogueSamples && c.dialogueSamples.length > 0) {
+        parts.push('台詞サンプル（コピー禁止、声の質感を吸収すること）:');
+        for (const s of c.dialogueSamples) {
+          parts.push(`  - 「${s.line}」（${s.situation}）— ${s.voiceNote}`);
+        }
+      }
     }
     parts.push('');
   }

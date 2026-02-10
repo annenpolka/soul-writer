@@ -107,6 +107,44 @@ system:
 
     - type: condition
       if:
+        has: characterDialogueSamples
+      then:
+        - type: heading
+          heading: キャラクター台詞サンプル（声の質感を吸収せよ）
+        - type: text
+          text: |
+            以下の台詞をコピーするのではなく、声の温度・リズムを吸収して
+            新しい状況で独自の台詞を書くこと。
+        - type: each
+          each: characterDialogueSamples
+          as: charSamples
+          sections:
+            - type: heading
+              heading: "{{ charSamples.characterName }}"
+              level: 3
+            - type: each
+              each: charSamples.samples
+              as: s
+              template: "- 「{{ s.line }}」（{{ s.situation }}）— {{ s.voiceNote }}"
+
+    - type: condition
+      if:
+        has: enrichedCharacterDetails
+      then:
+        - type: heading
+          heading: キャラクターの身体性と態度
+        - type: each
+          each: enrichedCharacterDetails
+          as: cd
+          sections:
+            - type: text
+              text: |
+                **{{ cd.name }}** [態度: {{ cd.stanceType }}（{{ cd.stanceManifestation }}）]
+                身体の癖:
+                  {{ cd.habits }}
+
+    - type: condition
+      if:
         has: rawSoultext
       then:
         - type: heading

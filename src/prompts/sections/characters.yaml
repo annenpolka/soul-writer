@@ -31,6 +31,17 @@ system:
               then:
                 - type: text
                   text: "- 口調: {{ char.voice }}"
+        - type: condition
+          if:
+            has: enrichedCharacterDetails
+          then:
+            - type: heading
+              heading: 身体の癖とテーマへの態度
+              level: 3
+            - type: each
+              each: enrichedCharacterDetails
+              as: cd
+              template: "- {{ cd.name }}: {{ cd.habits }} [態度: {{ cd.stanceType }}（{{ cd.stanceManifestation }}）]"
         - type: text
           text: "上記の人物を参考にしつつ、必要に応じて新しい人物を自由に追加してよい。既存人物の登場は必須ではない。ただし既存人物を使う場合はその性格・口調を尊重すること。"
       else:

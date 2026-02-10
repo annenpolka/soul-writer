@@ -10,6 +10,7 @@ export const FragmentCategory = z.enum([
   'character_voice',
   'symbolism',
   'action',
+  'generated_dialogue',
 ]);
 
 // Single fragment
