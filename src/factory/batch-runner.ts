@@ -47,6 +47,7 @@ export interface ProgressInfo {
   total: number;
   status: 'completed' | 'failed';
   themeId: string;
+  message?: string;
 }
 
 export interface BatchDependencies {
@@ -248,10 +249,18 @@ export function createBatchRunner(
 
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+    // Global consecutive failure tracking for emergency stop
+    let globalConsecutiveFailures = 0;
+    let emergencyStopped = false;
+    const maxConsecutiveFailures = config.maxConsecutiveFailures ?? 20;
+
     // Worker slot function - pulls from queue until empty
     const runSlot = async (): Promise<void> => {
       let isFirst = true;
+      let consecutiveSlotFailures = 0;
       while (true) {
+        if (emergencyStopped) break;
+
         const taskIndex = queue.shift();
         if (taskIndex === undefined) break;
 
@@ -268,8 +277,38 @@ export function createBatchRunner(
         if (result.status === 'completed') {
           completed++;
           totalTokensUsed += result.tokensUsed ?? 0;
+          consecutiveSlotFailures = 0;
+          globalConsecutiveFailures = 0;
         } else {
           failed++;
+          consecutiveSlotFailures++;
+          globalConsecutiveFailures++;
+
+          // Per-slot cooldown on consecutive failures
+          if (consecutiveSlotFailures >= 3) {
+            const cooldownMs = Math.min(30_000 * consecutiveSlotFailures, 300_000);
+            onProgress?.({
+              current: progressCount,
+              total: config.count,
+              status: 'failed',
+              themeId: result.themeId,
+              message: `Slot cooldown: ${Math.ceil(cooldownMs / 1000)}s after ${consecutiveSlotFailures} consecutive failures`,
+            });
+            await delay(cooldownMs);
+          }
+
+          // Global emergency stop
+          if (maxConsecutiveFailures > 0 && globalConsecutiveFailures >= maxConsecutiveFailures) {
+            emergencyStopped = true;
+            onProgress?.({
+              current: progressCount,
+              total: config.count,
+              status: 'failed',
+              themeId: result.themeId,
+              message: `Emergency stop: ${globalConsecutiveFailures} consecutive failures`,
+            });
+            break;
+          }
         }
 
         progressCount++;

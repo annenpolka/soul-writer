@@ -82,7 +82,7 @@ export interface ToolCallOptions extends CompletionOptions {
 export interface CerebrasConfig {
   apiKey: string;
   model: string;
-  /** Maximum retries for empty responses or HTTP errors (default: 5) */
+  /** Maximum app-level retries for empty responses or transient errors (default: 5). SDK handles its own retries separately. */
   maxRetries?: number;
   /** Initial retry delay in ms (default: 1000) */
   initialRetryDelayMs?: number;

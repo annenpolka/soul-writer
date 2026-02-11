@@ -122,9 +122,19 @@ describe('CerebrasClient', () => {
     });
 
     await expect(client.complete('System', 'User')).rejects.toThrow(
-      'LLM request failed after 3 retries'
+      /LLM request failed after 3 retries: Empty response from LLM/
     );
     expect(mockCreate).toHaveBeenCalledTimes(3);
+  });
+
+  it('should include error details in failure message', async () => {
+    const error503 = new Error('503 Service Unavailable');
+    (error503 as any).status = 503;
+    mockCreate.mockRejectedValue(error503);
+
+    await expect(client.complete('System', 'User')).rejects.toThrow(
+      /LLM request failed after 3 retries: 503 Service Unavailable/
+    );
   });
 
   it('should retry on 503 HTTP error', async () => {
@@ -185,7 +195,7 @@ describe('CerebrasClient', () => {
     mockCreate.mockRejectedValue(error503);
 
     await expect(client.complete('System', 'User')).rejects.toThrow(
-      'LLM request failed after 3 retries'
+      /LLM request failed after 3 retries: 503 Service Unavailable/
     );
     expect(mockCreate).toHaveBeenCalledTimes(3);
   });
