@@ -210,4 +210,54 @@ describe('createPlotter (FP) — 2-phase generation', () => {
     const plotter = createPlotter(deps);
     await expect(plotter.generatePlot()).rejects.toThrow();
   });
+
+  it('should preserve variation_axis from skeleton response', async () => {
+    const skeletonWithAxis = {
+      name: 'submit_plot_skeleton',
+      arguments: {
+        title: 'テストの物語',
+        theme: '孤独と出会い',
+        chapters: [
+          {
+            index: 1,
+            title: '始まり',
+            summary: '物語の始まり',
+            key_events: ['出会い'],
+            target_length: 4000,
+            variation_axis: {
+              curve_type: 'escalation',
+              intensity_target: 3,
+              differentiation_technique: '内省から外界接触へ',
+            },
+          },
+          {
+            index: 2,
+            title: '展開',
+            summary: '物語の展開',
+            key_events: ['対立'],
+            target_length: 4000,
+            variation_axis: {
+              curve_type: 'descent_plateau',
+              intensity_target: 4,
+              differentiation_technique: '前章の上昇から一転して停滞',
+              internal_beats: ['衝撃', '受容', '静寂'],
+            },
+          },
+        ],
+      },
+    };
+    const deps = createMockPlotterDeps({ skeletonResponse: skeletonWithAxis });
+    const plotter = createPlotter(deps);
+    const plot = await plotter.generatePlot();
+
+    expect(plot.chapters[0].variation_axis).toBeDefined();
+    expect(plot.chapters[0].variation_axis!.curve_type).toBe('escalation');
+    expect(plot.chapters[0].variation_axis!.intensity_target).toBe(3);
+    expect(plot.chapters[0].variation_axis!.differentiation_technique).toBe('内省から外界接触へ');
+    expect(plot.chapters[0].variation_axis!.internal_beats).toBeUndefined();
+
+    expect(plot.chapters[1].variation_axis).toBeDefined();
+    expect(plot.chapters[1].variation_axis!.curve_type).toBe('descent_plateau');
+    expect(plot.chapters[1].variation_axis!.internal_beats).toEqual(['衝撃', '受容', '静寂']);
+  });
 });

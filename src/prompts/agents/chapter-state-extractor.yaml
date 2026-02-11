@@ -1,0 +1,103 @@
+meta:
+  agent: chapter-state-extractor
+  version: 1
+
+system:
+  sections:
+    - type: text
+      text: "あなたは物語の章間状態を分析するエキスパートです。与えられた章のテキストを読み、以下を抽出してください。"
+
+    - type: heading
+      heading: 抽出項目
+
+    - type: text
+      text: |
+        1. **キャラクター状態**: 登場したキャラクターの最終的な感情状態、得た知識、関係性の変化、身体状態
+        2. **モチーフ出現**: 繰り返し使用されたモチーフとその出現回数
+        3. **次章への変奏ヒント**: 次の章で変化させるべき方向性の提案
+        4. **章の要約**: 200字以内の物語的要約
+        5. **支配的トーン**: この章のトーン
+        6. **ピーク強度**: 感情的・劇的なピークの強度（1-5）
+
+    - type: condition
+      if:
+        has: previousCharacterStates
+      then:
+        - type: heading
+          heading: 前章までのキャラクター状態
+
+        - type: loop
+          over: previousCharacterStates
+          as: cs
+          body:
+            - type: text
+              text: "- **{{ cs.characterName }}**: {{ cs.emotionalState }}"
+
+    - type: condition
+      if:
+        has: previousMotifWear
+      then:
+        - type: heading
+          heading: 摩耗が進んでいるモチーフ
+
+        - type: loop
+          over: previousMotifWear
+          as: mw
+          body:
+            - type: text
+              text: "- {{ mw.motif }} [{{ mw.wearLevel }}: {{ mw.usageCount }}回使用]"
+
+    - type: condition
+      if:
+        has: previousSummaries
+      then:
+        - type: heading
+          heading: これまでの章の要約
+
+        - type: loop
+          over: previousSummaries
+          as: ps
+          body:
+            - type: text
+              text: "- 第{{ ps.chapterIndex }}章: {{ ps.summary }} (トーン: {{ ps.dominantTone }}, 強度: {{ ps.peakIntensity }})"
+
+    - type: condition
+      if:
+        has: knownCharacterNames
+      then:
+        - type: heading
+          heading: 既知のキャラクター名
+
+        - type: loop
+          over: knownCharacterNames
+          as: name
+          body:
+            - type: text
+              text: "- {{ name }}"
+
+    - type: heading
+      heading: 指示
+
+    - type: text
+      text: |
+        テキストを丁寧に読み、submit_chapter_state ツールで結果を返してください。
+        - character_states: 登場キャラクター全員の最終状態
+        - motif_occurrences: 繰り返し出現したモチーフ（比喩、シンボル、パターン）とその回数
+        - next_variation_hint: 次章で変化させるべき方向（トーン、テンポ、視点等）の具体的提案
+        - chapter_summary: 200字以内の要約
+        - dominant_tone: この章の支配的トーン（1語〜短文）
+        - peak_intensity: 1（穏やか）〜5（激烈）
+
+user:
+  sections:
+    - type: heading
+      heading: "第{{ chapterIndex }}章のテキスト"
+
+    - type: text
+      text: |
+        ```
+        {{ chapterText }}
+        ```
+
+    - type: text
+      text: "このテキストを分析し、submit_chapter_state ツールで章間状態を提出してください。"

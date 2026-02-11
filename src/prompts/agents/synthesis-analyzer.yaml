@@ -103,6 +103,58 @@ system:
           template: |
             - **{{ charExp.name }}**: 態度={{ charExp.expectedStance }}, 身体癖={{ charExp.expectedHabits }}
 
+    - type: condition
+      if:
+        has: crossChapterContext
+      then:
+        - type: heading
+          heading: 章間状態（cross-chapter awareness）
+
+        - type: text
+          text: |
+            この章は複数章構成の一部です。以下の章間情報を踏まえて改善計画を策定してください。
+
+        - type: condition
+          if:
+            has: crossChapterContext.characterStates
+          then:
+            - type: text
+              text: |
+                **キャラクター状態の継続**: 以下のキャラクターは前章で確立された状態を持っています。
+                勝者テキスト内でこれらのキャラクターが初見紹介のように再描写されている場合、
+                voice_refinementアクションで修正を指示してください。
+            - type: loop
+              over: crossChapterContext.characterStates
+              as: cs
+              body:
+                - type: text
+                  text: "- {{ cs.name }}: 感情「{{ cs.emotionalState }}」{{ cs.physicalState }}"
+
+        - type: condition
+          if:
+            has: crossChapterContext.wornMotifs
+          then:
+            - type: text
+              text: |
+                **モチーフ摩耗**: 以下のモチーフは使い古されています。
+                勝者テキスト内でこれらがそのまま再利用されている場合、
+                motif_fixアクションで変奏または記号化を指示してください。
+            - type: loop
+              over: crossChapterContext.wornMotifs
+              as: wm
+              body:
+                - type: text
+                  text: "- {{ wm.motif }} [{{ wm.wearLevel }}: {{ wm.usageCount }}回]"
+
+        - type: condition
+          if:
+            has: crossChapterContext.variationHint
+          then:
+            - type: text
+              text: |
+                **変奏ヒント**: {{ crossChapterContext.variationHint }}
+                この方向に変化が反映されているか確認し、不足していればchapter_variationアクションに含めてください。
+
     - type: heading
       heading: 改善アクションの種別
 

@@ -41,11 +41,11 @@ const SUBMIT_DEFECTS_TOOL: ToolDefinition = {
  * Create a functional DefectDetector from dependencies
  */
 export function createDefectDetector(deps: DefectDetectorDeps): DefectDetectorFn {
-  const { llmClient, soulText, enrichedCharacters, toneDirective } = deps;
+  const { llmClient, soulText, enrichedCharacters, toneDirective, crossChapterState } = deps;
 
   return {
     detect: async (text: string) => {
-      const context = buildDefectDetectorContext({ soulText, text, enrichedCharacters, toneDirective });
+      const context = buildDefectDetectorContext({ soulText, text, enrichedCharacters, toneDirective, crossChapterState });
       const { system: systemPrompt, user: userPrompt } = buildPrompt('defect-detector', context);
 
       assertToolCallingClient(llmClient);

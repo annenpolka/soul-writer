@@ -104,5 +104,41 @@ export function buildSynthesisAnalyzerContext(input: SynthesisAnalyzerContextInp
     }));
   }
 
+  // Cross-chapter state for multi-chapter synthesis awareness
+  if (analyzerInput.crossChapterState) {
+    const state = analyzerInput.crossChapterState;
+    const crossChapterContext: Record<string, unknown> = {};
+
+    if (state.characterStates.length > 0) {
+      crossChapterContext.characterStates = state.characterStates.map(cs => ({
+        name: cs.characterName,
+        emotionalState: cs.emotionalState,
+        physicalState: cs.physicalState,
+        relationshipChanges: cs.relationshipChanges,
+      }));
+    }
+
+    const wornMotifs = state.motifWear.filter(m => m.wearLevel === 'worn' || m.wearLevel === 'exhausted');
+    if (wornMotifs.length > 0) {
+      crossChapterContext.wornMotifs = wornMotifs.map(m => ({
+        motif: m.motif,
+        wearLevel: m.wearLevel,
+        usageCount: m.usageCount,
+      }));
+    }
+
+    if (state.chapterSummaries.length > 0) {
+      crossChapterContext.previousChapterSummaries = state.chapterSummaries;
+    }
+
+    if (state.variationHint) {
+      crossChapterContext.variationHint = state.variationHint;
+    }
+
+    if (Object.keys(crossChapterContext).length > 0) {
+      ctx.crossChapterContext = crossChapterContext;
+    }
+  }
+
   return ctx;
 }

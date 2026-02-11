@@ -152,6 +152,68 @@ system:
             - テキスト全体が指定トーンと明らかに異なるトーンで書かれている: major
             - 特定のセクションだけが指定トーンから逸脱している: minor
 
+    - type: condition
+      if:
+        has: crossChapterContext
+      then:
+        - type: heading
+          heading: 章間品質チェック（cross-chapter）
+
+        - type: text
+          text: |
+            この章は複数章構成の一部です。以下の章間欠陥カテゴリに特に注意して検査してください。
+
+        - type: condition
+          if:
+            has: crossChapterContext.previousCharacterStates
+          then:
+            - type: heading
+              heading: 前章のキャラクター状態（退行チェック用）
+            - type: text
+              text: |
+                以下のキャラクターは前章で既に登場しています。
+                この章で初見紹介のように外見を再描写している場合、character_state_regression として検出してください。
+            - type: loop
+              over: crossChapterContext.previousCharacterStates
+              as: cs
+              body:
+                - type: text
+                  text: "- **{{ cs.name }}**: 感情「{{ cs.lastEmotionalState }}」{{ cs.physicalState }}"
+
+        - type: condition
+          if:
+            has: crossChapterContext.wornMotifs
+          then:
+            - type: heading
+              heading: 摩耗モチーフ（疲労チェック用）
+            - type: text
+              text: |
+                以下のモチーフは既に使い古されています。
+                変奏や記号化なくそのまま再利用されている場合、motif_exhaustion として検出してください。
+            - type: loop
+              over: crossChapterContext.wornMotifs
+              as: wm
+              body:
+                - type: text
+                  text: "- {{ wm.motif }} [{{ wm.wearLevel }}: {{ wm.usageCount }}回使用]"
+
+        - type: condition
+          if:
+            has: crossChapterContext.previousChapterSummaries
+          then:
+            - type: heading
+              heading: 前章の概要（反復チェック用）
+            - type: text
+              text: |
+                前章との間で同一の台詞・描写・感情パターンがコピペされている場合、
+                cross_chapter_repetition として検出してください。
+            - type: loop
+              over: crossChapterContext.previousChapterSummaries
+              as: ps
+              body:
+                - type: text
+                  text: "- Ch{{ ps.chapterIndex }}: {{ ps.summary }} (トーン: {{ ps.dominantTone }}, 強度: {{ ps.peakIntensity }})"
+
     - type: heading
       heading: 指示
 

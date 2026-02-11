@@ -34,6 +34,20 @@ export const EpistemicConstraintSchema = z.object({
 });
 
 /**
+ * Variation axis - defines what semantically changes in this chapter relative to others
+ */
+export const VariationAxisSchema = z.object({
+  /** Primary dramatic curve for this chapter (e.g., "escalation", "descent_plateau", "oscillation") */
+  curve_type: z.string().min(1),
+  /** Intensity level 1-5 indicating dramatic amplitude target */
+  intensity_target: z.number().int().min(1).max(5),
+  /** Specific technique to differentiate from adjacent chapters */
+  differentiation_technique: z.string().min(1),
+  /** Optional within-chapter variation points for single-chapter use */
+  internal_beats: z.array(z.string()).min(1).optional(),
+});
+
+/**
  * Chapter schema - represents a single chapter in a plot
  */
 /**
@@ -69,6 +83,8 @@ export const ChapterSchema = z.object({
   emotion_surface: z.string().optional(),
   /** Subtext emotion — implied through action, not described directly */
   emotion_subtext: z.string().optional(),
+  /** Variation axis - semantic direction of change for this chapter */
+  variation_axis: VariationAxisSchema.optional(),
 });
 
 /**
@@ -109,6 +125,8 @@ export const ChapterSkeletonSchema = z.object({
   emotion_surface: z.string().optional(),
   /** Subtext emotion — implied through action, not described directly */
   emotion_subtext: z.string().optional(),
+  /** Variation axis - semantic direction of change for this chapter */
+  variation_axis: VariationAxisSchema.optional(),
 });
 
 /**
@@ -135,6 +153,7 @@ export const ChapterConstraintsSchema = z.object({
 
 export type DecisionPoint = z.infer<typeof DecisionPointSchema>;
 export type VariationConstraints = z.infer<typeof VariationConstraintsSchema>;
+export type VariationAxis = z.infer<typeof VariationAxisSchema>;
 export type EpistemicConstraint = z.infer<typeof EpistemicConstraintSchema>;
 export type Chapter = z.infer<typeof ChapterSchema>;
 export type ChapterSkeleton = z.infer<typeof ChapterSkeletonSchema>;

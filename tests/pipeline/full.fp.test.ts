@@ -214,6 +214,27 @@ const createMockLLMClient = (): LLMClient => {
           content: null, tokensUsed: 50,
         });
       }
+      if (toolName === 'submit_chapter_state') {
+        return Promise.resolve({
+          toolCalls: [{
+            id: 'tc-1', type: 'function',
+            function: {
+              name: 'submit_chapter_state',
+              arguments: JSON.stringify({
+                character_states: [
+                  { character_name: '透心', emotional_state: '不安', knowledge_gained: [], relationship_changes: [] },
+                ],
+                motif_occurrences: [{ motif: 'ARタグ', count: 2 }],
+                next_variation_hint: '次章では対立を深める',
+                chapter_summary: 'テスト章の要約',
+                dominant_tone: '冷徹',
+                peak_intensity: 3,
+              }),
+            },
+          }],
+          content: null, tokensUsed: 50,
+        });
+      }
       return Promise.resolve({ toolCalls: [], content: null, tokensUsed: 0 });
     }),
     getTotalTokens: vi.fn().mockReturnValue(100),

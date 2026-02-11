@@ -231,4 +231,116 @@ describe('buildPlotterContext', () => {
       expect(ctx).not.toHaveProperty('motifAvoidanceList');
     });
   });
+
+  describe('narrative_prerequisites', () => {
+    it('should include narrative_prerequisites when narrative_type matches prompt-config', () => {
+      const soulText = createMockSoulText();
+      soulText.promptConfig = {
+        ...soulText.promptConfig,
+        narrative_prerequisites: {
+          '一人称内面独白': {
+            recommended_intensity_profile: [2, 3, 4, 3, 5],
+            forbidden_adjacent_curves: ['flat_tension', 'flat_tension'],
+          },
+        },
+      };
+      const theme: GeneratedTheme = {
+        emotion: '孤独',
+        timeline: '出会い前',
+        characters: [{ name: '透心', isNew: false }],
+        premise: '前提',
+        scene_types: ['内面描写'],
+        narrative_type: '一人称内面独白',
+        tone: '冷徹',
+      };
+      const config = { ...DEFAULT_PLOTTER_CONFIG, theme };
+      const ctx = buildPlotterContext(makeInput({ soulText, config }));
+
+      const prereqs = ctx.narrative_prerequisites as { narrative_type: string; requirements: Array<{ key: string; value: string }> };
+      expect(prereqs).toBeDefined();
+      expect(prereqs.narrative_type).toBe('一人称内面独白');
+      expect(prereqs.requirements).toEqual(expect.arrayContaining([
+        expect.objectContaining({ key: 'recommended_intensity_profile' }),
+        expect.objectContaining({ key: 'forbidden_adjacent_curves' }),
+      ]));
+    });
+
+    it('should not include narrative_prerequisites when narrative_type has no matching config', () => {
+      const soulText = createMockSoulText();
+      soulText.promptConfig = {
+        ...soulText.promptConfig,
+        narrative_prerequisites: {
+          '一人称内面独白': {
+            recommended_intensity_profile: [2, 3, 4, 3, 5],
+          },
+        },
+      };
+      const theme: GeneratedTheme = {
+        emotion: '孤独',
+        timeline: '出会い前',
+        characters: [{ name: '透心', isNew: false }],
+        premise: '前提',
+        scene_types: ['内面描写'],
+        narrative_type: '群像劇',
+        tone: '冷徹',
+      };
+      const config = { ...DEFAULT_PLOTTER_CONFIG, theme };
+      const ctx = buildPlotterContext(makeInput({ soulText, config }));
+
+      expect(ctx).not.toHaveProperty('narrative_prerequisites');
+    });
+
+    it('should not include narrative_prerequisites when no theme', () => {
+      const ctx = buildPlotterContext(makeInput());
+
+      expect(ctx).not.toHaveProperty('narrative_prerequisites');
+    });
+
+    it('should not include narrative_prerequisites when prompt-config has none', () => {
+      const theme: GeneratedTheme = {
+        emotion: '孤独',
+        timeline: '出会い前',
+        characters: [{ name: '透心', isNew: false }],
+        premise: '前提',
+        scene_types: ['内面描写'],
+        narrative_type: '一人称内面独白',
+        tone: '冷徹',
+      };
+      const config = { ...DEFAULT_PLOTTER_CONFIG, theme };
+      const ctx = buildPlotterContext(makeInput({ config }));
+
+      expect(ctx).not.toHaveProperty('narrative_prerequisites');
+    });
+
+    it('should convert array values to comma-separated strings', () => {
+      const soulText = createMockSoulText();
+      soulText.promptConfig = {
+        ...soulText.promptConfig,
+        narrative_prerequisites: {
+          '群像劇（複数視点の交差）': {
+            required_chapter_count: 3,
+            required_structure_types: ['parallel_montage'],
+          },
+        },
+      };
+      const theme: GeneratedTheme = {
+        emotion: '孤独',
+        timeline: '出会い前',
+        characters: [{ name: '透心', isNew: false }],
+        premise: '前提',
+        scene_types: ['内面描写'],
+        narrative_type: '群像劇（複数視点の交差）',
+        tone: '冷徹',
+      };
+      const config = { ...DEFAULT_PLOTTER_CONFIG, theme };
+      const ctx = buildPlotterContext(makeInput({ soulText, config }));
+
+      const prereqs = ctx.narrative_prerequisites as { requirements: Array<{ key: string; value: string }> };
+      const structTypes = prereqs.requirements.find(r => r.key === 'required_structure_types');
+      expect(structTypes!.value).toBe('parallel_montage');
+
+      const chapterCount = prereqs.requirements.find(r => r.key === 'required_chapter_count');
+      expect(chapterCount!.value).toBe('3');
+    });
+  });
 });
