@@ -528,6 +528,9 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       return dist;
     }, {} as Record<VerdictLevel, number>);
 
+    // Determine primary verdict level
+    const primaryVerdict = Object.entries(verdictDistribution).sort((a, b) => b[1] - a[1])[0]?.[0];
+
     // Archive work to database
     const work = await workRepo.create({
       soulId: soulManager.getConstitution().meta.soul_id,
@@ -537,6 +540,8 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       totalTokens: totalTokensUsed,
       complianceScore: compliancePassRate,
       readerScore: 0,
+      compliancePass: compliancePassRate >= 1.0,
+      verdictLevel: primaryVerdict,
     });
 
     // Run learning pipeline
@@ -677,6 +682,8 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       return dist;
     }, {} as Record<VerdictLevel, number>);
 
+    const primaryVerdictResume = Object.entries(verdictDistribution).sort((a, b) => b[1] - a[1])[0]?.[0];
+
     const work = await workRepo.create({
       soulId: soulManager.getConstitution().meta.soul_id,
       title: plot.title,
@@ -685,6 +692,8 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       totalTokens: totalTokensUsed,
       complianceScore: compliancePassRate,
       readerScore: 0,
+      compliancePass: compliancePassRate >= 1.0,
+      verdictLevel: primaryVerdictResume,
     });
 
     learningCandidates += await runLearningPipeline(chapterResults, work.id, progress.completedChapters);

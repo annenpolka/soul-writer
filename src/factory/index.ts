@@ -11,7 +11,6 @@ export { createFileWriter } from './file-writer.js';
 export {
   calculateAnalytics,
   type BatchAnalytics,
-  type ScoreDistribution,
   type GroupStats,
 } from './analytics.js';
 export { generateCliReport, generateJsonReport, type JsonReport } from './report-generator.js';

@@ -35,8 +35,8 @@ export interface TaskResult {
   status: 'completed' | 'failed' | 'skipped';
   error?: string;
   tokensUsed?: number;
-  complianceScore?: number;
-  readerScore?: number;
+  compliancePass?: boolean;
+  verdictLevel?: string;
   emotion?: string;
   timeline?: string;
   tone?: string;
@@ -222,13 +222,18 @@ export function createBatchRunner(
           recentThemes.shift();
         }
 
+        // Determine primary verdict level from distribution
+        const primaryVerdict = storyResult.verdictDistribution
+          ? Object.entries(storyResult.verdictDistribution).sort((a, b) => b[1] - a[1])[0]?.[0]
+          : undefined;
+
         return {
           taskId: storyResult.taskId,
           themeId,
           status: 'completed',
           tokensUsed: themeResult.tokensUsed + charResult.tokensUsed + phase1Result.tokensUsed + storyResult.totalTokensUsed,
-          complianceScore: storyResult.avgComplianceScore,
-          readerScore: storyResult.avgReaderScore,
+          compliancePass: storyResult.compliancePassRate >= 1.0,
+          verdictLevel: primaryVerdict,
           emotion: themeResult.theme.emotion,
           timeline: themeResult.theme.timeline,
           tone: themeResult.theme.tone,

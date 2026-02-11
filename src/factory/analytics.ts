@@ -1,48 +1,19 @@
 import type { BatchResult, TaskResult } from './batch-runner.js';
 
-export interface ScoreDistribution {
-  min: number;
-  max: number;
-  median: number;
-}
-
 export interface GroupStats {
   count: number;
   successRate: number;
-  avgComplianceScore: number;
-  avgReaderScore: number;
+  compliancePassRate: number;
+  verdictDistribution: Record<string, number>;
 }
 
 export interface BatchAnalytics {
   successRate: number;
-  avgComplianceScore: number;
-  avgReaderScore: number;
-  complianceDistribution: ScoreDistribution;
-  readerDistribution: ScoreDistribution;
+  compliancePassRate: number;
+  verdictDistribution: Record<string, number>;
   byEmotion: Map<string, GroupStats>;
   byTimeline: Map<string, GroupStats>;
   totalTokensUsed: number;
-}
-
-function calculateMedian(sorted: number[]): number {
-  if (sorted.length === 0) return 0;
-  const mid = Math.floor(sorted.length / 2);
-  if (sorted.length % 2 === 0) {
-    return (sorted[mid - 1] + sorted[mid]) / 2;
-  }
-  return sorted[mid];
-}
-
-function calculateDistribution(scores: number[]): ScoreDistribution {
-  if (scores.length === 0) {
-    return { min: 0, max: 0, median: 0 };
-  }
-  const sorted = [...scores].sort((a, b) => a - b);
-  return {
-    min: sorted[0],
-    max: sorted[sorted.length - 1],
-    median: calculateMedian(sorted),
-  };
 }
 
 function groupBy<T>(items: T[], keyFn: (item: T) => string | undefined): Map<string, T[]> {
@@ -59,24 +30,19 @@ function groupBy<T>(items: T[], keyFn: (item: T) => string | undefined): Map<str
 
 function calculateGroupStats(tasks: TaskResult[]): GroupStats {
   const completed = tasks.filter((t) => t.status === 'completed');
-  const complianceScores = completed
-    .map((t) => t.complianceScore)
-    .filter((s): s is number => s !== undefined);
-  const readerScores = completed
-    .map((t) => t.readerScore)
-    .filter((s): s is number => s !== undefined);
+  const compliancePassed = completed.filter((t) => t.compliancePass === true).length;
+  const verdictDist: Record<string, number> = {};
+  for (const t of completed) {
+    if (t.verdictLevel) {
+      verdictDist[t.verdictLevel] = (verdictDist[t.verdictLevel] || 0) + 1;
+    }
+  }
 
   return {
     count: tasks.length,
     successRate: tasks.length > 0 ? completed.length / tasks.length : 0,
-    avgComplianceScore:
-      complianceScores.length > 0
-        ? complianceScores.reduce((a, b) => a + b, 0) / complianceScores.length
-        : 0,
-    avgReaderScore:
-      readerScores.length > 0
-        ? readerScores.reduce((a, b) => a + b, 0) / readerScores.length
-        : 0,
+    compliancePassRate: completed.length > 0 ? compliancePassed / completed.length : 0,
+    verdictDistribution: verdictDist,
   };
 }
 
@@ -86,10 +52,8 @@ export function calculateAnalytics(result: BatchResult): BatchAnalytics {
   if (results.length === 0) {
     return {
       successRate: 0,
-      avgComplianceScore: 0,
-      avgReaderScore: 0,
-      complianceDistribution: { min: 0, max: 0, median: 0 },
-      readerDistribution: { min: 0, max: 0, median: 0 },
+      compliancePassRate: 0,
+      verdictDistribution: {},
       byEmotion: new Map(),
       byTimeline: new Map(),
       totalTokensUsed: result.totalTokensUsed,
@@ -99,21 +63,15 @@ export function calculateAnalytics(result: BatchResult): BatchAnalytics {
   const completed = results.filter((r) => r.status === 'completed');
   const successRate = results.length > 0 ? completed.length / results.length : 0;
 
-  const complianceScores = completed
-    .map((r) => r.complianceScore)
-    .filter((s): s is number => s !== undefined);
-  const readerScores = completed
-    .map((r) => r.readerScore)
-    .filter((s): s is number => s !== undefined);
+  const compliancePassed = completed.filter((r) => r.compliancePass === true).length;
+  const compliancePassRate = completed.length > 0 ? compliancePassed / completed.length : 0;
 
-  const avgComplianceScore =
-    complianceScores.length > 0
-      ? complianceScores.reduce((a, b) => a + b, 0) / complianceScores.length
-      : 0;
-  const avgReaderScore =
-    readerScores.length > 0
-      ? readerScores.reduce((a, b) => a + b, 0) / readerScores.length
-      : 0;
+  const verdictDistribution: Record<string, number> = {};
+  for (const r of completed) {
+    if (r.verdictLevel) {
+      verdictDistribution[r.verdictLevel] = (verdictDistribution[r.verdictLevel] || 0) + 1;
+    }
+  }
 
   // Group by emotion
   const emotionGroups = groupBy(results, (r) => r.emotion);
@@ -131,10 +89,8 @@ export function calculateAnalytics(result: BatchResult): BatchAnalytics {
 
   return {
     successRate,
-    avgComplianceScore,
-    avgReaderScore,
-    complianceDistribution: calculateDistribution(complianceScores),
-    readerDistribution: calculateDistribution(readerScores),
+    compliancePassRate,
+    verdictDistribution,
     byEmotion,
     byTimeline,
     totalTokensUsed: result.totalTokensUsed,

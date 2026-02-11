@@ -61,6 +61,18 @@ export class DatabaseConnection {
       // Column already exists, ignore
     }
 
+    // Add compliance_pass and verdict_level columns (migration for verdict-level scoring)
+    try {
+      this.sqlite.exec(`ALTER TABLE works ADD COLUMN compliance_pass INTEGER`);
+    } catch {
+      // Column already exists, ignore
+    }
+    try {
+      this.sqlite.exec(`ALTER TABLE works ADD COLUMN verdict_level TEXT`);
+    } catch {
+      // Column already exists, ignore
+    }
+
     // Create chapters table
     this.sqlite.exec(`
       CREATE TABLE IF NOT EXISTS chapters (
