@@ -22,6 +22,8 @@ export const FactoryConfigSchema = z.object({
   motifAnalysisCount: z.number().int().min(0).default(20),
   /** Generation mode: tournament (default) or collaboration */
   mode: z.enum(['tournament', 'collaboration']).default('tournament'),
+  /** Emergency stop after N consecutive failures across all slots (0 = disabled) */
+  maxConsecutiveFailures: z.number().int().min(0).default(20),
 });
 
 export type FactoryConfig = z.infer<typeof FactoryConfigSchema>;

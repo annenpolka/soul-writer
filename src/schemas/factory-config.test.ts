@@ -14,6 +14,7 @@ describe('FactoryConfigSchema', () => {
         taskDelayMs: 1000,
         motifAnalysisCount: 20,
         mode: 'tournament',
+        maxConsecutiveFailures: 20,
       };
 
       const result = FactoryConfigSchema.safeParse(config);
