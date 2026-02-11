@@ -327,18 +327,20 @@ describe('createFullPipeline (FP)', () => {
 
     for (const chapter of result.chapters) {
       expect(chapter.complianceResult).toBeDefined();
-      expect(chapter.complianceResult.score).toBeGreaterThanOrEqual(0);
-      expect(chapter.complianceResult.score).toBeLessThanOrEqual(1);
+      expect(typeof chapter.complianceResult.isCompliant).toBe('boolean');
+      expect(typeof chapter.complianceResult.errorCount).toBe('number');
+      expect(typeof chapter.complianceResult.warningCount).toBe('number');
     }
   });
 
-  it('should run reader jury evaluation on each chapter', async () => {
+  it('should run evaluation on each chapter', async () => {
     const runner = createFullPipeline(deps);
     const result = await runner.generateStory('テスト生成');
 
     for (const chapter of result.chapters) {
-      expect(chapter.readerJuryResult).toBeDefined();
-      expect(chapter.readerJuryResult.aggregatedScore).toBeGreaterThanOrEqual(0);
+      expect(chapter.evaluationResult).toBeDefined();
+      expect(chapter.evaluationResult.verdictLevel).toBeDefined();
+      expect(typeof chapter.evaluationResult.passed).toBe('boolean');
     }
   });
 

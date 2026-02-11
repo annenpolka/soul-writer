@@ -1,8 +1,10 @@
 import type { ToolCallResponse } from '../../llm/types.js';
-import type { DefectDetectorResult, Defect, DefectSeverity } from '../types.js';
+import type { DefectDetectorResult, Defect, DefectSeverity, VerdictLevel } from '../types.js';
 import { parseToolArguments } from '../../llm/tooling.js';
+import { isVerdictPassing } from '../../evaluation/verdict-utils.js';
 
 const VALID_SEVERITIES: Set<string> = new Set(['critical', 'major', 'minor']);
+const VALID_VERDICT_LEVELS: Set<string> = new Set(['exceptional', 'publishable', 'acceptable', 'needs_work', 'unacceptable']);
 
 /**
  * Parse a tool-call response into a DefectDetectorResult (pure function).
@@ -17,8 +19,15 @@ export function parseDefectDetectorResponse(response: ToolCallResponse): DefectD
   }
 
   try {
-    const candidate = parsed as { defects?: unknown[] };
+    const candidate = parsed as { defects?: unknown[]; verdict_level?: string };
     const rawDefects = Array.isArray(candidate.defects) ? candidate.defects : [];
+
+    // Parse verdict level with fallback
+    const rawVerdict = candidate.verdict_level;
+    const verdictLevel: VerdictLevel =
+      typeof rawVerdict === 'string' && VALID_VERDICT_LEVELS.has(rawVerdict)
+        ? (rawVerdict as VerdictLevel)
+        : 'needs_work';
 
     // Filter and validate defects
     const defects: Defect[] = rawDefects
@@ -40,8 +49,8 @@ export function parseDefectDetectorResponse(response: ToolCallResponse): DefectD
     const majorCount = defects.filter(d => d.severity === 'major').length;
     const minorCount = defects.filter(d => d.severity === 'minor').length;
 
-    // Default pass criteria: no critical defects
-    const passed = criticalCount === 0;
+    // Pass criteria: no critical defects AND verdict is passing
+    const passed = criticalCount === 0 && isVerdictPassing(verdictLevel);
 
     const feedback = defects.length === 0
       ? '欠陥なし'
@@ -57,6 +66,7 @@ export function parseDefectDetectorResponse(response: ToolCallResponse): DefectD
       criticalCount,
       majorCount,
       minorCount,
+      verdictLevel,
       passed,
       feedback,
     };
@@ -75,7 +85,8 @@ export function createFallbackResult(): DefectDetectorResult {
     criticalCount: 0,
     majorCount: 0,
     minorCount: 0,
-    passed: true,
+    verdictLevel: 'needs_work',
+    passed: false,
     feedback: 'パース失敗: ツールコールの解析に失敗しました',
   };
 }

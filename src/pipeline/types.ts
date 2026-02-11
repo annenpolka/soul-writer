@@ -2,7 +2,7 @@ import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import type { NarrativeRules } from '../factory/narrative-rules.js';
 import type { TournamentResult } from '../tournament/arena.js';
-import type { ComplianceResult, ReaderJuryResult, ThemeContext, MacGuffinContext, ChapterContext, ImprovementPlan, DefectDetectorResult, CrossChapterState } from '../agents/types.js';
+import type { ComplianceResult, ReaderJuryResult, ThemeContext, MacGuffinContext, ChapterContext, ImprovementPlan, DefectDetectorResult, EvaluationResult, CrossChapterState } from '../agents/types.js';
 import type { AntiPattern } from '../learning/anti-soul-collector.js';
 import type { DevelopedCharacter } from '../factory/character-developer.js';
 import type { EnrichedCharacter } from '../factory/character-enricher.js';
@@ -17,6 +17,7 @@ export interface PipelineContext {
   readerJuryResult?: ReaderJuryResult;
   improvementPlan?: ImprovementPlan;
   defectResult?: DefectDetectorResult;
+  evaluationResult?: EvaluationResult;
   tokensUsed: number;
   correctionAttempts: number;
   synthesized: boolean;

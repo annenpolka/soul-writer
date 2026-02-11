@@ -182,8 +182,11 @@ export interface Violation {
  */
 export interface ComplianceResult {
   isCompliant: boolean;
-  score: number;
   violations: Violation[];
+  errorCount: number;
+  warningCount: number;
+  /** @deprecated — 後方互換用。新コードでは使用しない */
+  score?: number;
 }
 
 /**
@@ -349,7 +352,9 @@ export interface ChapterPipelineResult {
   champion: string;
   complianceResult: ComplianceResult;
   correctionAttempts: number;
-  readerJuryResult: ReaderJuryResult;
+  evaluationResult: EvaluationResult;
+  /** @deprecated — 旧チェックポイント互換。新コードでは evaluationResult を使用 */
+  readerJuryResult?: ReaderJuryResult;
   learningResult?: import('../learning/learning-pipeline.js').ProcessResult;
   synthesized?: boolean;
   tokensUsed: number;
@@ -363,10 +368,14 @@ export interface FullPipelineResult {
   plot: import('../schemas/plot.js').Plot;
   chapters: ChapterPipelineResult[];
   totalTokensUsed: number;
-  avgComplianceScore: number;
-  avgReaderScore: number;
+  compliancePassRate: number;
+  verdictDistribution: Record<VerdictLevel, number>;
   learningCandidates: number;
   antiPatternsCollected: number;
+  /** @deprecated — 後方互換用 */
+  avgComplianceScore?: number;
+  /** @deprecated — 後方互換用 */
+  avgReaderScore?: number;
 }
 
 // =====================
@@ -600,6 +609,35 @@ export interface Retaker {
 }
 
 // =====================
+// VerdictLevel + EvaluationResult
+// =====================
+
+/**
+ * Quality verdict level — replaces numeric scoring
+ */
+export type VerdictLevel = 'exceptional' | 'publishable' | 'acceptable' | 'needs_work' | 'unacceptable';
+
+/**
+ * Ordered verdict levels for comparison (higher index = better)
+ */
+export const VERDICT_LEVEL_ORDER: readonly VerdictLevel[] = ['unacceptable', 'needs_work', 'acceptable', 'publishable', 'exceptional'] as const;
+
+/**
+ * Integrated evaluation result — DefectDetector + VerdictLevel
+ */
+export interface EvaluationResult {
+  defects: Defect[];
+  criticalCount: number;
+  majorCount: number;
+  minorCount: number;
+  verdictLevel: VerdictLevel;
+  /** Pass = criticalCount===0 AND verdictLevel >= 'publishable' */
+  passed: boolean;
+  needsRetake: boolean;
+  feedback: string;
+}
+
+// =====================
 // DefectDetector Types
 // =====================
 
@@ -628,6 +666,8 @@ export interface DefectDetectorResult {
   criticalCount: number;
   majorCount: number;
   minorCount: number;
+  verdictLevel: VerdictLevel;
+  /** Pass = criticalCount===0 AND verdictLevel >= 'publishable' */
   passed: boolean;
   feedback: string;
 }
@@ -641,6 +681,12 @@ export interface DefectDetectorDeps extends AgentDeps {
   enrichedCharacters?: EnrichedCharacter[];
   toneDirective?: string;
   crossChapterState?: CrossChapterState;
+  /** Judge weaknesses for the champion text — enables cross-referencing */
+  judgeWeaknesses?: TextWeakness[];
+  /** Judge per-axis commentary — provides quality context */
+  judgeAxisComments?: AxisComment[];
+  /** Compliance warnings (non-error violations) — delegated to DefectDetector */
+  complianceWarnings?: Violation[];
 }
 
 /**

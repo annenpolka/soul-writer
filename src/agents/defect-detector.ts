@@ -13,6 +13,11 @@ const SUBMIT_DEFECTS_TOOL: ToolDefinition = {
     parameters: {
       type: 'object',
       properties: {
+        verdict_level: {
+          type: 'string',
+          enum: ['exceptional', 'publishable', 'acceptable', 'needs_work', 'unacceptable'],
+          description: '総合的な品質裁定レベル',
+        },
         defects: {
           type: 'array',
           items: {
@@ -30,7 +35,7 @@ const SUBMIT_DEFECTS_TOOL: ToolDefinition = {
           },
         },
       },
-      required: ['defects'],
+      required: ['defects', 'verdict_level'],
       additionalProperties: false,
     },
     strict: true,
@@ -41,11 +46,11 @@ const SUBMIT_DEFECTS_TOOL: ToolDefinition = {
  * Create a functional DefectDetector from dependencies
  */
 export function createDefectDetector(deps: DefectDetectorDeps): DefectDetectorFn {
-  const { llmClient, soulText, enrichedCharacters, toneDirective, crossChapterState } = deps;
+  const { llmClient, soulText, enrichedCharacters, toneDirective, crossChapterState, judgeWeaknesses, judgeAxisComments, complianceWarnings } = deps;
 
   return {
     detect: async (text: string) => {
-      const context = buildDefectDetectorContext({ soulText, text, enrichedCharacters, toneDirective, crossChapterState });
+      const context = buildDefectDetectorContext({ soulText, text, enrichedCharacters, toneDirective, crossChapterState, judgeWeaknesses, judgeAxisComments, complianceWarnings });
       const { system: systemPrompt, user: userPrompt } = buildPrompt('defect-detector', context);
 
       assertToolCallingClient(llmClient);

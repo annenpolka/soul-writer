@@ -51,13 +51,13 @@ describe('createLearningPipeline (FP)', () => {
   });
 
   describe('process', () => {
-    it('should extract and add candidates from high-scoring text', async () => {
+    it('should extract and add candidates from publishable text', async () => {
       const result = await pipeline.process({
         soulId: 'test-soul',
         workId: 'work-1',
         text: 'Chapter text',
-        complianceScore: 0.9,
-        readerScore: 0.85,
+        isCompliant: true,
+        verdictLevel: 'publishable',
       });
 
       expect(result.extracted).toBe(2);
@@ -66,13 +66,26 @@ describe('createLearningPipeline (FP)', () => {
       expect(mockExtractor.extract).toHaveBeenCalled();
     });
 
-    it('should skip for low compliance score', async () => {
+    it('should extract candidates from exceptional text', async () => {
+      const result = await pipeline.process({
+        soulId: 'test-soul',
+        workId: 'work-1',
+        text: 'Chapter text',
+        isCompliant: true,
+        verdictLevel: 'exceptional',
+      });
+
+      expect(result.skipped).toBe(false);
+      expect(mockExtractor.extract).toHaveBeenCalled();
+    });
+
+    it('should skip for non-compliant text', async () => {
       const result = await pipeline.process({
         soulId: 'test-soul',
         workId: 'work-1',
         text: 'Low quality',
-        complianceScore: 0.7,
-        readerScore: 0.85,
+        isCompliant: false,
+        verdictLevel: 'publishable',
       });
 
       expect(result.skipped).toBe(true);
@@ -80,34 +93,31 @@ describe('createLearningPipeline (FP)', () => {
       expect(mockExtractor.extract).not.toHaveBeenCalled();
     });
 
-    it('should skip for low reader score', async () => {
+    it('should skip for verdict below publishable', async () => {
       const result = await pipeline.process({
         soulId: 'test-soul',
         workId: 'work-1',
         text: 'Low quality',
-        complianceScore: 0.9,
-        readerScore: 0.7,
+        isCompliant: true,
+        verdictLevel: 'acceptable',
       });
 
       expect(result.skipped).toBe(true);
-      expect(result.reason?.toLowerCase()).toContain('reader');
+      expect(result.reason?.toLowerCase()).toContain('verdict');
       expect(mockExtractor.extract).not.toHaveBeenCalled();
     });
 
-    it('should use custom thresholds', async () => {
-      const strictPipeline = createLearningPipeline(mockExtractor, mockExpander, {
-        minComplianceScore: 0.95,
-      });
-
-      const result = await strictPipeline.process({
+    it('should skip for needs_work verdict', async () => {
+      const result = await pipeline.process({
         soulId: 'test-soul',
         workId: 'work-1',
-        text: 'Text',
-        complianceScore: 0.9,
-        readerScore: 0.85,
+        text: 'Low quality',
+        isCompliant: true,
+        verdictLevel: 'needs_work',
       });
 
       expect(result.skipped).toBe(true);
+      expect(mockExtractor.extract).not.toHaveBeenCalled();
     });
   });
 
@@ -115,19 +125,15 @@ describe('createLearningPipeline (FP)', () => {
     it('should return default thresholds', () => {
       const thresholds = pipeline.getThresholds();
 
-      expect(thresholds.minComplianceScore).toBe(0.85);
-      expect(thresholds.minReaderScore).toBe(0.80);
       expect(thresholds.minFragmentScore).toBe(0.85);
     });
 
     it('should return custom thresholds', () => {
       const customPipeline = createLearningPipeline(mockExtractor, mockExpander, {
-        minComplianceScore: 0.9,
         minFragmentScore: 0.95,
       });
 
       const thresholds = customPipeline.getThresholds();
-      expect(thresholds.minComplianceScore).toBe(0.9);
       expect(thresholds.minFragmentScore).toBe(0.95);
     });
   });

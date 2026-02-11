@@ -109,18 +109,22 @@ export async function resume(options: ResumeOptions): Promise<void> {
     console.log(`\nPer-chapter results:`);
 
     for (const chapter of result.chapters) {
-      const compliancePercent = (chapter.complianceResult.score * 100).toFixed(1);
-      const readerPercent = (chapter.readerJuryResult.aggregatedScore * 100).toFixed(1);
+      const complianceStatus = chapter.complianceResult.isCompliant ? 'PASS' : 'FAIL';
+      const verdict = chapter.evaluationResult.verdictLevel;
+      const majorCount = chapter.evaluationResult.majorCount;
       console.log(
-        `  Chapter ${chapter.chapterIndex}: Compliance ${compliancePercent}%, Reader ${readerPercent}%`
+        `  Chapter ${chapter.chapterIndex}: Compliance ${complianceStatus}, Quality: ${verdict}${majorCount > 0 ? ` (${majorCount} major)` : ''}`
       );
     }
 
     console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     console.log(`Statistics:`);
     console.log(`  Total tokens: ${result.totalTokensUsed}`);
-    console.log(`  Avg compliance: ${(result.avgComplianceScore * 100).toFixed(1)}%`);
-    console.log(`  Avg reader score: ${(result.avgReaderScore * 100).toFixed(1)}%`);
+    console.log(`  Compliance pass rate: ${(result.compliancePassRate * 100).toFixed(1)}%`);
+    if (result.verdictDistribution) {
+      const dist = Object.entries(result.verdictDistribution).map(([k, v]) => `${k}: ${v}`).join(', ');
+      console.log(`  Verdict distribution: ${dist}`);
+    }
     console.log(`  Learning candidates: ${result.learningCandidates}`);
     console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
 
