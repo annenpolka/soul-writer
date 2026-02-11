@@ -15,20 +15,6 @@ import type { SoulText } from '../soul/manager.js';
 import type { NarrativeRules } from '../factory/narrative-rules.js';
 import type { LLMClient } from '../llm/types.js';
 
-const COMPLIANCE_THRESHOLD = 0.75;
-
-function calculateScore(text: string, violations: Violation[]): number {
-  if (violations.length === 0) {
-    return 1.0;
-  }
-
-  const sentenceCount = Math.max(1, (text.match(/[。！？]/g) || []).length);
-  const violationsPerSentence = violations.length / sentenceCount;
-  const score = Math.max(0, 1 - violationsPerSentence * 0.5);
-
-  return Math.round(score * 100) / 100;
-}
-
 function buildRulesFromSoulText(
   soulText: SoulText,
   narrativeRules?: NarrativeRules,
@@ -93,9 +79,14 @@ export function createComplianceChecker(
       for (const rule of rules) {
         violations.push(...rule.check(text));
       }
-      const score = calculateScore(text, violations);
-      const isCompliant = score >= COMPLIANCE_THRESHOLD;
-      return { isCompliant, score, violations };
+      const errors = violations.filter(v => v.severity === 'error');
+      const warnings = violations.filter(v => v.severity === 'warning');
+      return {
+        isCompliant: errors.length === 0,
+        violations,
+        errorCount: errors.length,
+        warningCount: warnings.length,
+      };
     },
 
     checkWithContext: async (text, chapterContext?) => {
@@ -110,10 +101,14 @@ export function createComplianceChecker(
       const asyncViolations = asyncResults.flat();
 
       const violations = [...syncViolations, ...asyncViolations];
-      const score = calculateScore(text, violations);
-      const isCompliant = score >= COMPLIANCE_THRESHOLD;
-
-      return { isCompliant, score, violations };
+      const errors = violations.filter(v => v.severity === 'error');
+      const warnings = violations.filter(v => v.severity === 'warning');
+      return {
+        isCompliant: errors.length === 0,
+        violations,
+        errorCount: errors.length,
+        warningCount: warnings.length,
+      };
     },
   };
 }

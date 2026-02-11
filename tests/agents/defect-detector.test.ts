@@ -13,6 +13,7 @@ function createMockDefectDetectorDeps(overrides?: {
   const defaultToolResponse = {
     name: 'submit_defects',
     arguments: {
+      verdict_level: 'publishable',
       defects: [
         { severity: 'major', category: 'pacing_issue', description: 'Middle section drags' },
         { severity: 'minor', category: 'style_deviation', description: 'Slight rhythm inconsistency' },
@@ -82,6 +83,7 @@ describe('createDefectDetector (FP)', () => {
       toolResponse: {
         name: 'submit_defects',
         arguments: {
+          verdict_level: 'unacceptable',
           defects: [
             { severity: 'critical', category: 'plot_contradiction', description: 'Major plot hole' },
           ],
@@ -100,6 +102,7 @@ describe('createDefectDetector (FP)', () => {
       toolResponse: {
         name: 'submit_defects',
         arguments: {
+          verdict_level: 'needs_work',
           defects: [
             { severity: 'critical', category: 'plot', description: 'Plot hole found' },
             { severity: 'major', category: 'pacing', description: 'Slow pacing' },
@@ -114,11 +117,11 @@ describe('createDefectDetector (FP)', () => {
     expect(result.feedback).toContain('Slow pacing');
   });
 
-  it('detect() should return passed=true and feedback="欠陥なし" when no defects', async () => {
+  it('detect() should return passed=true and feedback="欠陥なし" when no defects and publishable verdict', async () => {
     const deps = createMockDefectDetectorDeps({
       toolResponse: {
         name: 'submit_defects',
-        arguments: { defects: [] },
+        arguments: { verdict_level: 'publishable', defects: [] },
       },
     });
     const detector = createDefectDetector(deps);

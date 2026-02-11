@@ -45,6 +45,7 @@ describe('DefectDetector Types', () => {
       criticalCount: 0,
       majorCount: 0,
       minorCount: 0,
+      verdictLevel: 'publishable',
       passed: true,
       feedback: 'No defects found',
     };
@@ -52,6 +53,7 @@ describe('DefectDetector Types', () => {
     expect(result.criticalCount).toBe(0);
     expect(result.majorCount).toBe(0);
     expect(result.minorCount).toBe(0);
+    expect(result.verdictLevel).toBe('publishable');
     expect(result.passed).toBe(true);
     expect(result.feedback).toBe('No defects found');
   });
@@ -68,6 +70,7 @@ describe('DefectDetector Types', () => {
       criticalCount: 1,
       majorCount: 2,
       minorCount: 1,
+      verdictLevel: 'unacceptable',
       passed: false,
       feedback: 'Critical defect found',
     };
@@ -106,6 +109,7 @@ describe('DefectDetector Types', () => {
         criticalCount: 0,
         majorCount: 0,
         minorCount: 0,
+        verdictLevel: 'publishable',
         passed: true,
         feedback: 'No defects',
       }),

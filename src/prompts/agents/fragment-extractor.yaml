@@ -60,8 +60,7 @@ user:
 
     - type: text
       text: |
-        - コンプライアンススコア: {{ complianceScore }}
-        - 読者評価スコア: {{ readerScore }}
+        - 品質判定: {{ verdictLabel }} ({{ verdictLevel }})
 
     - type: text
       text: "高品質な断片を抽出してください。見つからない場合は空配列を返してください。"

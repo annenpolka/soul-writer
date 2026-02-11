@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createCheckerFromSoulText } from '../../src/compliance/checker.js';
+import { createCheckerFromSoulText, createComplianceChecker } from '../../src/compliance/checker.js';
 import { createMockSoulText } from '../helpers/mock-soul-text.js';
+import type { ComplianceRule } from '../../src/compliance/rules/forbidden-words.js';
 
 const mockSoulText = createMockSoulText({
   forbiddenWords: ['とても', '非常に'],
@@ -30,8 +31,9 @@ describe('createCheckerFromSoulText (FP)', () => {
       const result = checker.check('透心は静かに窓の外を見つめていた。');
 
       expect(result.isCompliant).toBe(true);
-      expect(result.score).toBe(1);
       expect(result.violations).toHaveLength(0);
+      expect(result.errorCount).toBe(0);
+      expect(result.warningCount).toBe(0);
     });
 
     it('should detect forbidden words', () => {
@@ -41,6 +43,8 @@ describe('createCheckerFromSoulText (FP)', () => {
       expect(result.isCompliant).toBe(false);
       expect(result.violations).toHaveLength(1);
       expect(result.violations[0].type).toBe('forbidden_word');
+      expect(result.errorCount).toBe(1);
+      expect(result.warningCount).toBe(0);
     });
 
     it('should detect forbidden similes', () => {
@@ -50,6 +54,7 @@ describe('createCheckerFromSoulText (FP)', () => {
       expect(result.isCompliant).toBe(false);
       const simileViolations = result.violations.filter(v => v.type === 'forbidden_simile');
       expect(simileViolations).toHaveLength(1);
+      expect(result.errorCount).toBeGreaterThanOrEqual(1);
     });
 
     it('should detect special mark misuse', () => {
@@ -58,6 +63,7 @@ describe('createCheckerFromSoulText (FP)', () => {
 
       expect(result.isCompliant).toBe(false);
       expect(result.violations[0].type).toBe('special_mark_misuse');
+      expect(result.errorCount).toBeGreaterThanOrEqual(1);
     });
 
     it('should detect multiple violations', () => {
@@ -66,14 +72,7 @@ describe('createCheckerFromSoulText (FP)', () => {
 
       expect(result.violations.length).toBeGreaterThanOrEqual(3);
       expect(result.isCompliant).toBe(false);
-    });
-
-    it('should calculate compliance score based on violations', () => {
-      const checker = createCheckerFromSoulText(mockSoulText);
-      const result = checker.check('彼女はとても美しく、天使のような笑顔だった。');
-
-      expect(result.score).toBeLessThan(1);
-      expect(result.score).toBeGreaterThanOrEqual(0);
+      expect(result.errorCount).toBeGreaterThanOrEqual(3);
     });
   });
 
@@ -95,8 +94,9 @@ describe('createCheckerFromSoulText (FP)', () => {
       const result = await checker.checkWithContext('問題のないテキスト。');
 
       expect(result.isCompliant).toBe(true);
-      expect(result.score).toBe(1);
       expect(result.violations).toHaveLength(0);
+      expect(result.errorCount).toBe(0);
+      expect(result.warningCount).toBe(0);
     });
   });
 
@@ -121,5 +121,78 @@ describe('createCheckerFromSoulText (FP)', () => {
       expect(checker.check).toBeInstanceOf(Function);
       expect(checker.checkWithContext).toBeInstanceOf(Function);
     });
+  });
+});
+
+describe('Compliance 2-tier (error/warning)', () => {
+  function makeRule(severity: 'error' | 'warning', type = 'test_rule'): ComplianceRule {
+    return {
+      name: `${severity}-rule`,
+      check: () => [{
+        type: type as never,
+        position: { start: 0, end: 1 },
+        context: 'test',
+        rule: `${severity}-rule`,
+        severity,
+      }],
+    };
+  }
+
+  it('error violation only: isCompliant=false, errorCount=1, warningCount=0', () => {
+    const checker = createComplianceChecker([makeRule('error')]);
+    const result = checker.check('test text');
+
+    expect(result.isCompliant).toBe(false);
+    expect(result.errorCount).toBe(1);
+    expect(result.warningCount).toBe(0);
+  });
+
+  it('warning violation only: isCompliant=true, errorCount=0, warningCount=1', () => {
+    const checker = createComplianceChecker([makeRule('warning')]);
+    const result = checker.check('test text');
+
+    expect(result.isCompliant).toBe(true);
+    expect(result.errorCount).toBe(0);
+    expect(result.warningCount).toBe(1);
+  });
+
+  it('error + warning: isCompliant=false, errorCount=1, warningCount=1', () => {
+    const checker = createComplianceChecker([makeRule('error'), makeRule('warning')]);
+    const result = checker.check('test text');
+
+    expect(result.isCompliant).toBe(false);
+    expect(result.errorCount).toBe(1);
+    expect(result.warningCount).toBe(1);
+  });
+
+  it('no violations: isCompliant=true, errorCount=0, warningCount=0', () => {
+    const noViolationRule: ComplianceRule = {
+      name: 'no-violation-rule',
+      check: () => [],
+    };
+    const checker = createComplianceChecker([noViolationRule]);
+    const result = checker.check('test text');
+
+    expect(result.isCompliant).toBe(true);
+    expect(result.errorCount).toBe(0);
+    expect(result.warningCount).toBe(0);
+  });
+
+  it('checkWithContext: error violation only: isCompliant=false', async () => {
+    const checker = createComplianceChecker([makeRule('error')]);
+    const result = await checker.checkWithContext('test text');
+
+    expect(result.isCompliant).toBe(false);
+    expect(result.errorCount).toBe(1);
+    expect(result.warningCount).toBe(0);
+  });
+
+  it('checkWithContext: warning only: isCompliant=true', async () => {
+    const checker = createComplianceChecker([makeRule('warning')]);
+    const result = await checker.checkWithContext('test text');
+
+    expect(result.isCompliant).toBe(true);
+    expect(result.errorCount).toBe(0);
+    expect(result.warningCount).toBe(1);
   });
 });

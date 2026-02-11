@@ -1,6 +1,6 @@
 import type { SoulText } from '../../soul/manager.js';
 import type { EnrichedCharacter } from '../../factory/character-enricher.js';
-import type { CrossChapterState } from '../types.js';
+import type { CrossChapterState, TextWeakness, AxisComment, Violation } from '../types.js';
 
 /**
  * Input for buildDefectDetectorContext
@@ -11,6 +11,9 @@ export interface DefectDetectorContextInput {
   enrichedCharacters?: EnrichedCharacter[];
   toneDirective?: string;
   crossChapterState?: CrossChapterState;
+  judgeWeaknesses?: TextWeakness[];
+  judgeAxisComments?: AxisComment[];
+  complianceWarnings?: Violation[];
 }
 
 /**
@@ -100,6 +103,41 @@ export function buildDefectDetectorContext(input: DefectDetectorContextInput): R
     }
   }
 
+  // Judge analysis data for cross-referencing
+  const judgeAnalysis: Record<string, unknown> | undefined =
+    (input.judgeWeaknesses && input.judgeWeaknesses.length > 0) || (input.judgeAxisComments && input.judgeAxisComments.length > 0)
+      ? {
+          ...(input.judgeWeaknesses && input.judgeWeaknesses.length > 0
+            ? {
+                weaknesses: input.judgeWeaknesses.map(w => ({
+                  category: w.category,
+                  severity: w.severity,
+                  description: w.description,
+                  suggestedFix: w.suggestedFix,
+                })),
+              }
+            : {}),
+          ...(input.judgeAxisComments && input.judgeAxisComments.length > 0
+            ? {
+                axisComments: input.judgeAxisComments.map(ac => ({
+                  axis: ac.axis,
+                  comment: ac.commentA || ac.commentB,
+                })),
+              }
+            : {}),
+        }
+      : undefined;
+
+  // Compliance warnings
+  const complianceWarnings =
+    input.complianceWarnings && input.complianceWarnings.length > 0
+      ? input.complianceWarnings.map(v => ({
+          type: v.type,
+          context: v.context,
+          rule: v.rule,
+        }))
+      : undefined;
+
   return {
     text,
     constitutionRules,
@@ -109,5 +147,7 @@ export function buildDefectDetectorContext(input: DefectDetectorContextInput): R
     ...(enrichedCharacters && enrichedCharacters.length > 0 ? { enrichedCharacters } : {}),
     ...(input.toneDirective ? { toneDirective: input.toneDirective } : {}),
     ...(Object.keys(crossChapterContext).length > 0 ? { crossChapterContext } : {}),
+    ...(judgeAnalysis ? { judgeAnalysis } : {}),
+    ...(complianceWarnings ? { complianceWarnings } : {}),
   };
 }

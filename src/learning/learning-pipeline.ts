@@ -1,18 +1,22 @@
+import type { VerdictLevel } from '../agents/types.js';
+import { isVerdictPassing } from '../evaluation/verdict-utils.js';
 import type { FragmentExtractorFn } from './fragment-extractor.js';
 import type { SoulExpanderFn } from './soul-expander.js';
 
 export interface LearningThresholds {
-  minComplianceScore: number;
-  minReaderScore: number;
   minFragmentScore: number;
+  /** @deprecated use verdict-based gating */
+  minComplianceScore?: number;
+  /** @deprecated use verdict-based gating */
+  minReaderScore?: number;
 }
 
 export interface ProcessInput {
   soulId: string;
   workId: string;
   text: string;
-  complianceScore: number;
-  readerScore: number;
+  isCompliant: boolean;
+  verdictLevel: VerdictLevel;
   chapterId?: string;
 }
 
@@ -25,8 +29,6 @@ export interface ProcessResult {
 }
 
 const DEFAULT_THRESHOLDS: LearningThresholds = {
-  minComplianceScore: 0.85,
-  minReaderScore: 0.80,
   minFragmentScore: 0.85,
 };
 
@@ -44,29 +46,30 @@ export function createLearningPipeline(
 
   return {
     async process(input: ProcessInput): Promise<ProcessResult> {
-      if (input.complianceScore < thresholds.minComplianceScore) {
+      // Gate 1: Compliance must pass (no error violations)
+      if (!input.isCompliant) {
         return {
           extracted: 0,
           added: 0,
           skipped: true,
-          reason: `Compliance score ${input.complianceScore} below threshold ${thresholds.minComplianceScore}`,
+          reason: 'Compliance check failed (error violations present)',
           tokensUsed: 0,
         };
       }
 
-      if (input.readerScore < thresholds.minReaderScore) {
+      // Gate 2: Verdict must be publishable or exceptional
+      if (!isVerdictPassing(input.verdictLevel)) {
         return {
           extracted: 0,
           added: 0,
           skipped: true,
-          reason: `Reader score ${input.readerScore} below threshold ${thresholds.minReaderScore}`,
+          reason: `Verdict level '${input.verdictLevel}' below publishable threshold`,
           tokensUsed: 0,
         };
       }
 
       const extractionResult = await extractor.extract(input.text, {
-        complianceScore: input.complianceScore,
-        readerScore: input.readerScore,
+        verdictLevel: input.verdictLevel,
       });
 
       const highQualityFragments = extractor.filterHighQuality(

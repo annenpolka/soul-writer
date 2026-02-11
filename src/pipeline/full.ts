@@ -9,10 +9,14 @@ import {
   type FullPipelineResult,
   type ChapterPipelineResult,
   type ComplianceResult,
+  type EvaluationResult,
+  type VerdictLevel,
   type ThemeContext,
   type MacGuffinContext,
   type ChapterContext,
   type CrossChapterState,
+  type TextWeakness,
+  type AxisComment,
   DEFAULT_FULL_PIPELINE_CONFIG,
 } from '../agents/types.js';
 import type { Plot, Chapter, VariationAxis } from '../schemas/plot.js';
@@ -39,6 +43,7 @@ import type { EnrichedCharacter } from '../factory/character-enricher.js';
 import { buildChapterPrompt } from './chapter-prompt.js';
 import { analyzePreviousChapter, extractEstablishedInsights, type PreviousChapterAnalysis, type EstablishedInsight } from './chapter-summary.js';
 import { defectResultToReaderJuryResult } from './adapters/defect-to-reader.js';
+import { buildRetakeFeedback } from '../evaluation/verdict-utils.js';
 import { createChapterStateExtractor } from '../agents/chapter-state-extractor.js';
 import { createInitialCrossChapterState, updateCrossChapterState } from './cross-chapter-state.js';
 import { filterChineseContamination } from './filters/chinese-filter.js';
@@ -268,7 +273,19 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       }
     }
 
-    // DefectDetector evaluation (with retake on failure, max 2 retries)
+    // Extract Judge analysis data from tournament for DefectDetector cross-referencing
+    const finalRound = tournamentResult.rounds[tournamentResult.rounds.length - 1];
+    const judgeResult = finalRound?.judgeResult;
+    let judgeWeaknesses: TextWeakness[] = [];
+    let judgeAxisComments: AxisComment[] = [];
+    if (judgeResult) {
+      const championKey = finalRound.winner === finalRound.contestantA ? 'A' : 'B';
+      judgeWeaknesses = judgeResult.weaknesses?.[championKey] ?? [];
+      judgeAxisComments = judgeResult.axis_comments ?? [];
+    }
+    const complianceWarnings = complianceResult.violations.filter(v => v.severity === 'warning');
+
+    // DefectDetector evaluation (Judge-informed, with retake on failure, max 2 retries)
     logger?.section('DefectDetector Evaluation');
     const detector = createDefectDetector({
       llmClient,
@@ -276,6 +293,9 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       enrichedCharacters: enrichedCharacters as EnrichedCharacter[] | undefined,
       toneDirective: themeContext?.tone,
       crossChapterState,
+      judgeWeaknesses,
+      judgeAxisComments,
+      complianceWarnings,
     });
     let defectResult = await detector.detect(finalText);
     logger?.debug('DefectDetector result', defectResult);
@@ -284,6 +304,12 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
     let retakeCount = 0;
     while (!defectResult.passed && retakeCount < MAX_RETAKES) {
       logger?.section(`DefectDetector Retake ${retakeCount + 1}/${MAX_RETAKES}`);
+
+      const feedback = buildRetakeFeedback(
+        defectResult.defects,
+        judgeWeaknesses,
+        defectResult.verdictLevel,
+      );
 
       // Extract plot chapter info for retake enrichment
       const plotChapter = chapter.summary ? {
@@ -300,7 +326,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
         chapterContext: chapterCtx,
         plotChapter,
       });
-      const retakeResult = await retakeAgent.retake(finalText, defectResult.feedback, defectResult.defects);
+      const retakeResult = await retakeAgent.retake(finalText, feedback, defectResult.defects);
       finalText = retakeResult.retakenText;
       complianceResult = checker.check(finalText);
       defectResult = await detector.detect(finalText);
@@ -308,6 +334,19 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       logger?.debug(`DefectDetector Retake ${retakeCount} result`, defectResult);
     }
 
+    // Build EvaluationResult from DefectDetector output
+    const evaluationResult: EvaluationResult = {
+      defects: defectResult.defects,
+      criticalCount: defectResult.criticalCount,
+      majorCount: defectResult.majorCount,
+      minorCount: defectResult.minorCount,
+      verdictLevel: defectResult.verdictLevel,
+      passed: defectResult.passed,
+      needsRetake: !defectResult.passed,
+      feedback: defectResult.feedback,
+    };
+
+    // Deprecated compat: maintain readerJuryResult for old checkpoint format
     const readerJuryResult = defectResultToReaderJuryResult(defectResult);
 
     logger?.debug(`Chapter text (${finalText.length}文字)`, finalText);
@@ -320,6 +359,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       champion: tournamentResult.champion,
       complianceResult,
       correctionAttempts,
+      evaluationResult,
       readerJuryResult,
       synthesized,
       tokensUsed,
@@ -342,8 +382,8 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
         soulId: soulManager.getConstitution().meta.soul_id,
         workId,
         text: chapterResult.text,
-        complianceScore: chapterResult.complianceResult.score,
-        readerScore: chapterResult.readerJuryResult.aggregatedScore,
+        isCompliant: chapterResult.complianceResult.isCompliant,
+        verdictLevel: chapterResult.evaluationResult.verdictLevel,
         chapterId: undefined,
       });
 
@@ -479,11 +519,14 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       );
     }
 
-    // Calculate average scores
-    const avgComplianceScore =
-      chapterResults.reduce((sum, c) => sum + c.complianceResult.score, 0) / chapterResults.length;
-    const avgReaderScore =
-      chapterResults.reduce((sum, c) => sum + c.readerJuryResult.aggregatedScore, 0) / chapterResults.length;
+    // Calculate verdict-based metrics
+    const compliancePassRate =
+      chapterResults.filter(c => c.complianceResult.isCompliant).length / chapterResults.length;
+    const verdictDistribution = chapterResults.reduce((dist, c) => {
+      const level = c.evaluationResult.verdictLevel;
+      dist[level] = (dist[level] || 0) + 1;
+      return dist;
+    }, {} as Record<VerdictLevel, number>);
 
     // Archive work to database
     const work = await workRepo.create({
@@ -492,8 +535,8 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       content: chapterResults.map((c) => c.text).join('\n\n---\n\n'),
       totalChapters: chapterResults.length,
       totalTokens: totalTokensUsed,
-      complianceScore: avgComplianceScore,
-      readerScore: avgReaderScore,
+      complianceScore: compliancePassRate,
+      readerScore: 0,
     });
 
     // Run learning pipeline
@@ -510,8 +553,8 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       plot,
       chapters: chapterResults,
       totalTokensUsed,
-      avgComplianceScore,
-      avgReaderScore,
+      compliancePassRate,
+      verdictDistribution,
       learningCandidates,
       antiPatternsCollected,
     };
@@ -626,10 +669,13 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       );
     }
 
-    const avgComplianceScore =
-      chapterResults.reduce((sum, c) => sum + c.complianceResult.score, 0) / chapterResults.length;
-    const avgReaderScore =
-      chapterResults.reduce((sum, c) => sum + c.readerJuryResult.aggregatedScore, 0) / chapterResults.length;
+    const compliancePassRate =
+      chapterResults.filter(c => c.complianceResult.isCompliant).length / chapterResults.length;
+    const verdictDistribution = chapterResults.reduce((dist, c) => {
+      const level = c.evaluationResult.verdictLevel;
+      dist[level] = (dist[level] || 0) + 1;
+      return dist;
+    }, {} as Record<VerdictLevel, number>);
 
     const work = await workRepo.create({
       soulId: soulManager.getConstitution().meta.soul_id,
@@ -637,8 +683,8 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       content: chapterResults.map((c) => c.text).join('\n\n---\n\n'),
       totalChapters: chapterResults.length,
       totalTokens: totalTokensUsed,
-      complianceScore: avgComplianceScore,
-      readerScore: avgReaderScore,
+      complianceScore: compliancePassRate,
+      readerScore: 0,
     });
 
     learningCandidates += await runLearningPipeline(chapterResults, work.id, progress.completedChapters);
@@ -650,8 +696,8 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       plot,
       chapters: chapterResults,
       totalTokensUsed,
-      avgComplianceScore,
-      avgReaderScore,
+      compliancePassRate,
+      verdictDistribution,
       learningCandidates,
       antiPatternsCollected,
     };
@@ -681,7 +727,26 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       }
 
       const plot = resumeState.plot as Plot;
-      const completed = (resumeState.chapters || []) as ChapterPipelineResult[];
+      const rawCompleted = (resumeState.chapters || []) as ChapterPipelineResult[];
+      // Backfill evaluationResult for old checkpoint format
+      const completed = rawCompleted.map(ch => {
+        if (!ch.evaluationResult) {
+          return {
+            ...ch,
+            evaluationResult: {
+              defects: [],
+              criticalCount: 0,
+              majorCount: 0,
+              minorCount: 0,
+              verdictLevel: 'publishable' as VerdictLevel,
+              passed: true,
+              needsRetake: false,
+              feedback: 'Restored from legacy checkpoint',
+            },
+          };
+        }
+        return ch;
+      });
       const progress = resumeState._progress as { completedChapters: number; totalChapters: number };
 
       const task = await taskRepo.findById(taskId);

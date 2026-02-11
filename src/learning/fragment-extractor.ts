@@ -1,5 +1,7 @@
+import type { VerdictLevel } from '../agents/types.js';
 import type { LLMClient, ToolDefinition, ToolCallResponse } from '../llm/types.js';
 import { assertToolCallingClient, parseToolArguments } from '../llm/tooling.js';
+import { verdictToString } from '../evaluation/verdict-utils.js';
 import { buildPrompt } from '../template/composer.js';
 
 export interface ExtractedFragment {
@@ -10,8 +12,7 @@ export interface ExtractedFragment {
 }
 
 export interface ExtractionContext {
-  complianceScore: number;
-  readerScore: number;
+  verdictLevel: VerdictLevel;
 }
 
 export interface ExtractionResult {
@@ -82,8 +83,8 @@ export function createFragmentExtractor(llmClient: LLMClient): FragmentExtractor
     async extract(text: string, context: ExtractionContext): Promise<ExtractionResult> {
       const templateContext = {
         text,
-        complianceScore: String(context.complianceScore),
-        readerScore: String(context.readerScore),
+        verdictLevel: context.verdictLevel,
+        verdictLabel: verdictToString(context.verdictLevel),
       };
 
       const { system: systemPrompt, user: userPrompt } = buildPrompt('fragment-extractor', templateContext);

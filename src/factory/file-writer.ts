@@ -25,8 +25,11 @@ function buildMarkdown(result: FullPipelineResult, theme: GeneratedTheme): strin
   if (theme.narrative_type) {
     lines.push(`narrative_type: "${theme.narrative_type}"`);
   }
-  lines.push(`compliance_score: ${result.avgComplianceScore.toFixed(3)}`);
-  lines.push(`reader_score: ${result.avgReaderScore.toFixed(3)}`);
+  lines.push(`compliance: ${result.compliancePassRate >= 1.0 ? 'pass' : 'partial'}`);
+  if (result.verdictDistribution) {
+    const primary = Object.entries(result.verdictDistribution).sort((a, b) => b[1] - a[1])[0];
+    lines.push(`verdict: ${primary ? primary[0] : 'unknown'}`);
+  }
   lines.push('---');
   lines.push('');
 

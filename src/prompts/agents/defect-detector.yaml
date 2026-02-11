@@ -214,13 +214,87 @@ system:
                 - type: text
                   text: "- Ch{{ ps.chapterIndex }}: {{ ps.summary }} (トーン: {{ ps.dominantTone }}, 強度: {{ ps.peakIntensity }})"
 
+    - type: condition
+      if:
+        has: judgeAnalysis
+      then:
+        - type: heading
+          heading: Judge分析データ（品質クロスリファレンス用）
+
+        - type: text
+          text: |
+            以下はJudge（トーナメント審査員）が検出した分析結果です。
+            DefectDetectorとして独自に欠陥を検出しつつ、Judge の指摘との整合性も確認してください。
+
+        - type: condition
+          if:
+            has: judgeAnalysis.weaknesses
+          then:
+            - type: text
+              text: "**Judgeが検出した弱点:**"
+            - type: loop
+              over: judgeAnalysis.weaknesses
+              as: w
+              body:
+                - type: text
+                  text: "- [{{ w.severity }}/{{ w.category }}] {{ w.description }}{{ w.suggestedFix }}"
+
+        - type: condition
+          if:
+            has: judgeAnalysis.axisComments
+          then:
+            - type: text
+              text: "**Judge軸別評価:**"
+            - type: loop
+              over: judgeAnalysis.axisComments
+              as: ac
+              body:
+                - type: text
+                  text: "- {{ ac.axis }}: {{ ac.comment }}"
+
+    - type: condition
+      if:
+        has: complianceWarnings
+      then:
+        - type: heading
+          heading: Compliance警告（warning）
+
+        - type: text
+          text: |
+            以下はComplianceチェッカーが検出した警告（errorではないwarning）です。
+            これらの文脈を踏まえて欠陥検出に反映してください。
+
+        - type: loop
+          over: complianceWarnings
+          as: cw
+          body:
+            - type: text
+              text: "- [{{ cw.type }}] {{ cw.context }} ({{ cw.rule }})"
+
+    - type: heading
+      heading: 品質裁定レベル（verdict_level）
+
+    - type: text
+      text: |
+        欠陥検出後、テキスト全体の品質を以下の5段階で裁定してください:
+
+        **exceptional（出版水準超）**: 欠陥が皆無または極めて軽微。文体・構成・キャラクターすべてが高水準
+        **publishable（出版可能）**: 軽微な欠陥のみ。商業出版に耐えうる品質
+        **acceptable（構造的に機能）**: 物語として成立するが、改善の余地がある
+        **needs_work（要改善）**: 重大な欠陥があり、リテイクが望ましい
+        **unacceptable（根本的問題）**: 致命的欠陥があり、リテイク必須
+
+        Judgeの分析がある場合は、Judge が検出した弱点とのクロスリファレンスを行い、
+        総合的な品質判定に反映してください。
+
     - type: heading
       heading: 指示
 
     - type: text
       text: |
-        テキストを入念に検査し、submit_defects ツールで欠陥リストを提出してください。
+        テキストを入念に検査し、submit_defects ツールで欠陥リストと品質裁定レベルを提出してください。
         欠陥がない場合は空の配列を提出してください。
+        verdict_level は必ず5段階のいずれかを指定してください。
         各欠陥には以下を必ず含めてください:
         - severity, category, description: 基本情報
         - location: 該当箇所の概略（「冒頭の教室シーン」等）

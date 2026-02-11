@@ -13,7 +13,7 @@ function makeDeps(overrides?: Partial<PipelineDeps>): PipelineDeps {
           type: 'function',
           function: {
             name: 'submit_defects',
-            arguments: JSON.stringify({ defects: [] }),
+            arguments: JSON.stringify({ verdict_level: 'publishable', defects: [] }),
           },
         }],
         content: null,
@@ -57,6 +57,7 @@ describe('defectResultToReaderJuryResult', () => {
       criticalCount: 0,
       majorCount: 0,
       minorCount: 0,
+      verdictLevel: 'publishable',
       passed: true,
       feedback: 'No defects found',
     };
@@ -119,6 +120,7 @@ describe('createDefectDetectorStage', () => {
       criticalCount: 0,
       majorCount: 0,
       minorCount: 0,
+      verdictLevel: 'publishable',
       passed: true,
       feedback: 'All clear',
     };
@@ -149,6 +151,7 @@ describe('createDefectDetectorStage', () => {
       criticalCount: 1,
       majorCount: 0,
       minorCount: 0,
+      verdictLevel: 'unacceptable',
       passed: false,
       feedback: 'Voice defect found',
     };
@@ -200,6 +203,7 @@ describe('createDefectDetectorStage', () => {
       criticalCount: 1,
       majorCount: 0,
       minorCount: 0,
+      verdictLevel: 'unacceptable',
       passed: false,
       feedback: 'Still has defects',
     };
@@ -241,6 +245,7 @@ describe('createDefectDetectorStage', () => {
       criticalCount: 0,
       majorCount: 0,
       minorCount: 1,
+      verdictLevel: 'publishable',
       passed: true,
       feedback: 'Minor issues only',
     };
