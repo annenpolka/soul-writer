@@ -9,7 +9,7 @@ import {
   OPENING_CONSTRAINTS,
   IDEATION_STRATEGIES,
   CONCEPT_SEEDS,
-  TONE_DIRECTIVES,
+  TONE_CATALOG,
   pickRandom,
 } from './diversity-catalog.js';
 import { buildPrompt } from '../template/composer.js';
@@ -77,8 +77,18 @@ async function generateWildIdea(llmClient: LLMClient, soulText: SoulText): Promi
   const worldDescription = soulText.promptConfig?.agents?.theme_generator?.world_description
     ?? 'AR/MRテクノロジーが浸透した近未来。無関心な社会。主要人物も無名の住人も存在する。';
 
-  const toneDirectives = soulText.promptConfig?.tone_directives ?? TONE_DIRECTIVES;
-  const tone = pickRandom(toneDirectives);
+  // tone_catalog (structured) > tone_directives (legacy string[]) > TONE_CATALOG (hardcoded)
+  const toneCatalog = soulText.promptConfig?.tone_catalog;
+  const legacyToneDirectives = soulText.promptConfig?.tone_directives;
+
+  let tone: string;
+  if (toneCatalog && toneCatalog.length > 0) {
+    tone = pickRandom(toneCatalog).directive;
+  } else if (legacyToneDirectives && legacyToneDirectives.length > 0) {
+    tone = pickRandom(legacyToneDirectives);
+  } else {
+    tone = pickRandom(TONE_CATALOG).directive;
+  }
 
   const stage1Context = {
     strategy,

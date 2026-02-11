@@ -368,6 +368,26 @@ describe('buildChapterPrompt', () => {
     });
   });
 
+  describe('toneDirective', () => {
+    it('should include tone directive in prompt when provided', () => {
+      const input: ChapterPromptInput = {
+        chapter: mockChapter,
+        plot: mockPlot,
+        toneDirective: '脆い温もり — 不器用な優しさや壊れやすい親密さ',
+      };
+      const result = buildChapterPrompt(input);
+
+      expect(result).toContain('文体トーン: 脆い温もり — 不器用な優しさや壊れやすい親密さ');
+    });
+
+    it('should not include tone directive when not provided', () => {
+      const input: ChapterPromptInput = { chapter: mockChapter, plot: mockPlot };
+      const result = buildChapterPrompt(input);
+
+      expect(result).not.toContain('文体トーン:');
+    });
+  });
+
   describe('motifAvoidanceList', () => {
     it('should include motif avoidance section when list is provided', () => {
       const input: ChapterPromptInput = {

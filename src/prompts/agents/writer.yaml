@@ -145,6 +145,18 @@ system:
 
     - type: condition
       if:
+        has: toneDirective
+      then:
+        - type: heading
+          heading: 文体トーン
+        - type: text
+          text: |
+            {{ toneDirective }}
+            このトーンを物語全体の基調として維持すること。
+            ただし、シーンの要請に応じた自然な揺れは許容する。
+
+    - type: condition
+      if:
         has: rawSoultext
       then:
         - type: heading

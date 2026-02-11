@@ -638,6 +638,7 @@ export interface DefectDetectorDeps extends AgentDeps {
   maxCriticalDefects?: number;
   maxMajorDefects?: number;
   enrichedCharacters?: EnrichedCharacter[];
+  toneDirective?: string;
 }
 
 /**

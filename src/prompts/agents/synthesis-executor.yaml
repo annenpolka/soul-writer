@@ -45,6 +45,14 @@ system:
             - 感情: {{ themeContext.emotion }}
             - 時間軸: {{ themeContext.timeline }}
             - 前提: {{ themeContext.premise }}
+        - type: condition
+          if:
+            has: themeContext.tone
+          then:
+            - type: text
+              text: |
+                - 文体トーン: {{ themeContext.tone }}
+                編集後もこのトーンを維持すること。
 
 user:
   sections:

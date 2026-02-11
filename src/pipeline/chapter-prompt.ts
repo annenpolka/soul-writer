@@ -19,6 +19,8 @@ export interface ChapterPromptInput {
   motifAvoidanceList?: string[];
   /** Cumulative established insights from previous chapters (WS4) */
   establishedInsights?: EstablishedInsight[];
+  /** Tone directive for consistent writing style */
+  toneDirective?: string;
 }
 
 /**
@@ -31,6 +33,9 @@ export function buildChapterPrompt(input: ChapterPromptInput): string {
 
   parts.push(`# ${plot.title}`);
   parts.push(`テーマ: ${plot.theme}`);
+  if (input.toneDirective) {
+    parts.push(`文体トーン: ${input.toneDirective}`);
+  }
   parts.push('');
 
   // Inject narrative rules

@@ -137,6 +137,21 @@ system:
                 - 盲点: {{ ec.blindSpot }}
                 - 身体の癖: {{ ec.habits }}
 
+    - type: condition
+      if:
+        has: toneDirective
+      then:
+        - type: heading
+          heading: トーンドリフト検出（tone_drift）
+        - type: text
+          text: |
+            この作品に指定されたトーン:
+            「{{ toneDirective }}」
+
+            tone_drift の検出基準:
+            - テキスト全体が指定トーンと明らかに異なるトーンで書かれている: major
+            - 特定のセクションだけが指定トーンから逸脱している: minor
+
     - type: heading
       heading: 指示
 

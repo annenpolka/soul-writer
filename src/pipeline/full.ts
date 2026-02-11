@@ -139,6 +139,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       previousChapterAnalysis,
       motifAvoidanceList: config.motifAvoidanceList,
       establishedInsights,
+      toneDirective: themeContext?.tone,
     });
 
     const writerPersonas = soulManager.getWriterPersonas();
@@ -264,6 +265,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       llmClient,
       soulText: soulManager.getSoulText(),
       enrichedCharacters: enrichedCharacters as EnrichedCharacter[] | undefined,
+      toneDirective: themeContext?.tone,
     });
     let defectResult = await detector.detect(finalText);
     logger?.debug('DefectDetector result', defectResult);
