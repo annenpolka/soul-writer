@@ -334,7 +334,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
         text: chapterResult.text,
         complianceScore: chapterResult.complianceResult.score,
         readerScore: chapterResult.readerJuryResult.aggregatedScore,
-        chapterId: `chapter_${chapterResult.chapterIndex}`,
+        chapterId: undefined,
       });
 
       chapterResults[i] = { ...chapterResult, learningResult };
