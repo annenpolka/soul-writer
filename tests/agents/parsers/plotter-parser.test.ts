@@ -482,4 +482,92 @@ describe('coerceStringifiedArrays', () => {
     const ch = (result.chapters as Record<string, unknown>[])[0];
     expect(ch.motif_budget).toEqual(budget);
   });
+
+  it('should coerce internal_beats from string in variation_axis', () => {
+    const input = {
+      chapters: [{
+        key_events: ['e'],
+        variation_axis: {
+          curve_type: 'escalation',
+          intensity_target: 3,
+          differentiation_technique: 'test',
+          internal_beats: JSON.stringify(['静寂', '衝撃', '解放']),
+        },
+      }],
+    };
+    const result = coerceStringifiedArrays(input) as Record<string, unknown>;
+    const ch = (result.chapters as Record<string, unknown>[])[0];
+    const va = ch.variation_axis as Record<string, unknown>;
+    expect(va.internal_beats).toEqual(['静寂', '衝撃', '解放']);
+  });
+});
+
+describe('parsePlotSkeletonResponse with variation_axis', () => {
+  it('should parse skeleton with variation_axis', () => {
+    const json = JSON.stringify({
+      title: '螺旋の水位',
+      theme: '存在と監視',
+      chapters: [
+        {
+          index: 1,
+          title: '目覚め',
+          summary: '朝の始まり',
+          key_events: ['起床'],
+          target_length: 4000,
+          variation_axis: {
+            curve_type: 'escalation',
+            intensity_target: 3,
+            differentiation_technique: '内省から外界接触へ',
+          },
+        },
+      ],
+    });
+    const response = makeToolResponse(json, 'submit_plot_skeleton');
+    const result = parsePlotSkeletonResponse(response);
+
+    expect(result.chapters[0].variation_axis).toBeDefined();
+    expect(result.chapters[0].variation_axis!.curve_type).toBe('escalation');
+    expect(result.chapters[0].variation_axis!.intensity_target).toBe(3);
+    expect(result.chapters[0].variation_axis!.differentiation_technique).toBe('内省から外界接触へ');
+  });
+
+  it('should parse skeleton with variation_axis including internal_beats', () => {
+    const json = JSON.stringify({
+      title: 'テスト',
+      theme: 'テーマ',
+      chapters: [
+        {
+          index: 1,
+          title: '章1',
+          summary: '概要',
+          key_events: ['イベント'],
+          target_length: 4000,
+          variation_axis: {
+            curve_type: 'oscillation',
+            intensity_target: 4,
+            differentiation_technique: '揺れ動きと停滞の交互配置',
+            internal_beats: ['導入の静寂', '最初の衝撃', '反動の停滞'],
+          },
+        },
+      ],
+    });
+    const response = makeToolResponse(json, 'submit_plot_skeleton');
+    const result = parsePlotSkeletonResponse(response);
+
+    expect(result.chapters[0].variation_axis!.internal_beats).toEqual(['導入の静寂', '最初の衝撃', '反動の停滞']);
+  });
+
+  it('should parse skeleton without variation_axis (optional)', () => {
+    const json = JSON.stringify({
+      title: 'テスト',
+      theme: 'テーマ',
+      chapters: [
+        { index: 1, title: '章1', summary: '概要', key_events: ['イベント'], target_length: 4000 },
+      ],
+    });
+    const response = makeToolResponse(json, 'submit_plot_skeleton');
+    const result = parsePlotSkeletonResponse(response);
+
+    expect(result.chapters[0].variation_axis).toBeUndefined();
+  });
 });

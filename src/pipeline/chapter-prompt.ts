@@ -1,9 +1,10 @@
-import type { Chapter, Plot } from '../schemas/plot.js';
+import type { Chapter, Plot, VariationAxis } from '../schemas/plot.js';
 import type { NarrativeRules } from '../factory/narrative-rules.js';
 import type { DevelopedCharacter } from '../factory/character-developer.js';
 import type { EnrichedCharacter } from '../factory/character-enricher.js';
 import type { CharacterMacGuffin, PlotMacGuffin } from '../schemas/macguffin.js';
 import type { PreviousChapterAnalysis, EstablishedInsight } from './chapter-summary.js';
+import type { CrossChapterState } from '../agents/types.js';
 
 export interface ChapterPromptInput {
   chapter: Chapter;
@@ -21,6 +22,10 @@ export interface ChapterPromptInput {
   establishedInsights?: EstablishedInsight[];
   /** Tone directive for consistent writing style */
   toneDirective?: string;
+  /** Cross-chapter state for character continuity and motif wear tracking */
+  crossChapterState?: CrossChapterState;
+  /** Variation axis for this chapter's dramatic curve */
+  variationAxis?: VariationAxis;
 }
 
 /**
@@ -225,6 +230,48 @@ export function buildChapterPrompt(input: ChapterPromptInput): string {
       parts.push('テーマ的認識: ★この章では認識に到達しない★ 疑問を提示するだけに留めること。');
     } else if (chapter.thematic_insight) {
       parts.push(`テーマ的認識: この章で到達する認識 → 「${chapter.thematic_insight}」`);
+    }
+    parts.push('');
+  }
+
+  // Cross-chapter character state continuity
+  if (input.crossChapterState && input.crossChapterState.characterStates.length > 0) {
+    parts.push('## キャラクター状態の継続（初見紹介禁止）');
+    parts.push('以下のキャラクターは既に登場済みです。外見描写の再紹介は禁止。前章の最終状態から開始すること。');
+    for (const cs of input.crossChapterState.characterStates) {
+      let line = `- ${cs.characterName}: 最終状態「${cs.emotionalState}」`;
+      if (cs.physicalState) line += `、身体状態「${cs.physicalState}」`;
+      if (cs.relationshipChanges.length > 0) line += `、関係変化: ${cs.relationshipChanges.join(', ')}`;
+      parts.push(line);
+    }
+    parts.push('');
+  }
+
+  // Motif wear warnings
+  if (input.crossChapterState) {
+    const wornMotifs = input.crossChapterState.motifWear.filter(m => m.wearLevel === 'worn' || m.wearLevel === 'exhausted');
+    if (wornMotifs.length > 0) {
+      parts.push('## モチーフ摩耗警告');
+      parts.push('以下のモチーフは使い古されています。そのまま再利用せず、変奏または記号化すること。');
+      for (const m of wornMotifs) {
+        if (m.wearLevel === 'exhausted') {
+          parts.push(`- ${m.motif} [exhausted: ${m.usageCount}回使用] → 単語レベルに記号化すること`);
+        } else {
+          parts.push(`- ${m.motif} [worn: ${m.usageCount}回使用] → 感覚の一部を欠落させること`);
+        }
+      }
+      parts.push('');
+    }
+  }
+
+  // Variation axis
+  if (input.variationAxis) {
+    parts.push('## この章の変奏軸');
+    parts.push(`- 曲線タイプ: ${input.variationAxis.curve_type}`);
+    parts.push(`- 強度目標: ${input.variationAxis.intensity_target}/5`);
+    parts.push(`- 差別化技法: ${input.variationAxis.differentiation_technique}`);
+    if (input.variationAxis.internal_beats && input.variationAxis.internal_beats.length > 0) {
+      parts.push(`- 章内変化ポイント: ${input.variationAxis.internal_beats.join(' → ')}`);
     }
     parts.push('');
   }

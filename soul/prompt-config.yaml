@@ -170,3 +170,24 @@ agents:
 
   theme_generator:
     world_description: "AR/MRテクノロジーが浸透した近未来。無関心な社会。主要人物も無名の住人も存在する。"
+
+narrative_prerequisites:
+  一人称内面独白:
+    recommended_intensity_profile: [2, 3, 4, 3, 5]
+    forbidden_adjacent_curves: ["flat_tension", "flat_tension"]
+  時系列逆転（結末から始まる）:
+    mystery_anchor: "読者が最初に受け取る未解決の問い"
+    revelation_gradient: "遡行するごとに明かされる情報の衝撃度が上がること"
+    temporal_markers: "各セクションの時間的位置を示す明示的な手がかり"
+  断片的叙述（記憶の欠落）:
+    required_chapter_count: 2
+    memory_decay_rule: "反復モチーフは章ごとに情報量が減少すること"
+  反復構造（同じシーンの変奏）:
+    variation_mandate: "同一シーンの各反復で最低1つの感覚チャネルが変化すること"
+  群像劇（複数視点の交差）:
+    required_chapter_count: 3
+    required_structure_types: ["parallel_montage"]
+  書簡体・ログ形式:
+    format_consistency: "文書形式の統一性を維持しつつ、内容の温度差で変奏を表現"
+  三人称限定視点:
+    forbidden_adjacent_curves: ["flat_observation", "flat_observation"]

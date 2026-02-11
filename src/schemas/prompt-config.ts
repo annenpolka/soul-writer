@@ -44,6 +44,25 @@ export const ToneDirectiveSchema = z.object({
   directive: z.string().min(1),
 });
 
+// Narrative type prerequisites - what each narrative form needs to function
+export const NarrativePrerequisiteSchema = z.object({
+  /** Minimum chapters needed for this narrative type */
+  required_chapter_count: z.number().int().min(1).optional(),
+  /** Required structure types */
+  required_structure_types: z.array(z.string()).optional(),
+  /** Adjacent chapters should not share these curve types */
+  forbidden_adjacent_curves: z.array(z.string()).optional(),
+  /** Recommended intensity profile across chapters */
+  recommended_intensity_profile: z.array(z.number()).optional(),
+  /** Free-form prerequisite requirements (passed directly to Plotter) */
+  mystery_anchor: z.string().optional(),
+  revelation_gradient: z.string().optional(),
+  temporal_markers: z.string().optional(),
+  memory_decay_rule: z.string().optional(),
+  variation_mandate: z.string().optional(),
+  format_consistency: z.string().optional(),
+}).catchall(z.unknown());
+
 // Full prompt config
 export const PromptConfigSchema = z.object({
   defaults: PromptConfigDefaultsSchema,
@@ -57,12 +76,15 @@ export const PromptConfigSchema = z.object({
   pov_rules: PovRulesSchema.optional(),
   tournament: TournamentConfigSchema.optional(),
   agents: z.record(z.string(), AgentPromptConfigSchema).optional(),
+  /** Narrative type prerequisites - defines what each narrative form needs to work */
+  narrative_prerequisites: z.record(z.string(), NarrativePrerequisiteSchema).optional(),
 });
 
 export type PromptConfigDefaults = z.infer<typeof PromptConfigDefaultsSchema>;
 export type PovRules = z.infer<typeof PovRulesSchema>;
 export type AgentPromptConfig = z.infer<typeof AgentPromptConfigSchema>;
 export type TournamentConfig = z.infer<typeof TournamentConfigSchema>;
+export type NarrativePrerequisite = z.infer<typeof NarrativePrerequisiteSchema>;
 export type PromptConfig = z.infer<typeof PromptConfigSchema>;
 
 // Default empty config for when prompt-config.yaml doesn't exist

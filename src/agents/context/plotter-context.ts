@@ -99,6 +99,25 @@ export function buildPlotterContext(input: PlotterContextInput): Record<string, 
     ctx.motifAvoidanceList = config.motifAvoidanceList;
   }
 
+  // Narrative prerequisites from prompt-config
+  const narrativeType = config.theme?.narrative_type;
+  if (narrativeType && soulText.promptConfig.narrative_prerequisites) {
+    const prereqs = soulText.promptConfig.narrative_prerequisites[narrativeType];
+    if (prereqs) {
+      const requirementEntries = Object.entries(prereqs)
+        .map(([key, value]) => ({
+          key,
+          value: Array.isArray(value) ? value.join(', ') : String(value),
+        }));
+      if (requirementEntries.length > 0) {
+        ctx.narrative_prerequisites = {
+          narrative_type: narrativeType,
+          requirements: requirementEntries,
+        };
+      }
+    }
+  }
+
   ctx.chapterInstruction = `${config.chapterCount}章構成の物語を設計してください。\n総文字数の目安: ${config.targetTotalLength}字`;
 
   return ctx;

@@ -532,6 +532,7 @@ export interface SynthesisAnalyzerInput {
   plotContext?: { chapter?: import('../schemas/plot.js').Chapter; plot?: import('../schemas/plot.js').Plot };
   chapterContext?: ChapterContext;
   enrichedCharacters?: EnrichedCharacter[];
+  crossChapterState?: CrossChapterState;
 }
 
 /**
@@ -639,6 +640,7 @@ export interface DefectDetectorDeps extends AgentDeps {
   maxMajorDefects?: number;
   enrichedCharacters?: EnrichedCharacter[];
   toneDirective?: string;
+  crossChapterState?: CrossChapterState;
 }
 
 /**
@@ -646,4 +648,75 @@ export interface DefectDetectorDeps extends AgentDeps {
  */
 export interface DefectDetectorFn {
   detect: (text: string) => Promise<DefectDetectorResult>;
+}
+
+// =====================
+// Cross-Chapter State Types
+// =====================
+
+/**
+ * Character state at the end of a chapter — used to prevent re-introduction
+ */
+export interface CharacterState {
+  characterName: string;
+  emotionalState: string;
+  knowledgeGained: string[];
+  relationshipChanges: string[];
+  physicalState?: string;
+}
+
+/**
+ * Motif wear level — tracks how "worn out" a recurring motif has become
+ */
+export type WearLevel = 'fresh' | 'used' | 'worn' | 'exhausted';
+
+/**
+ * Entry tracking a single motif's wear across chapters
+ */
+export interface MotifWearEntry {
+  motif: string;
+  usageCount: number;
+  lastUsedChapter: number;
+  wearLevel: WearLevel;
+}
+
+/**
+ * Accumulated state across chapters — passed forward to each subsequent chapter
+ */
+export interface CrossChapterState {
+  characterStates: CharacterState[];
+  motifWear: MotifWearEntry[];
+  variationHint: string | null;
+  chapterSummaries: Array<{
+    chapterIndex: number;
+    summary: string;
+    dominantTone: string;
+    peakIntensity: number;
+  }>;
+}
+
+/**
+ * Output of the ChapterStateExtractor agent — extracted from a single chapter's text
+ */
+export interface ChapterStateExtraction {
+  characterStates: CharacterState[];
+  motifOccurrences: Array<{ motif: string; count: number }>;
+  nextVariationHint: string;
+  chapterSummary: string;
+  dominantTone: string;
+  peakIntensity: number;
+}
+
+/**
+ * ChapterStateExtractor agent dependencies
+ */
+export interface ChapterStateExtractorDeps extends AgentDeps {
+  previousState?: CrossChapterState;
+}
+
+/**
+ * FP ChapterStateExtractor interface — returned by createChapterStateExtractor()
+ */
+export interface ChapterStateExtractorFn {
+  extract: (chapterText: string, chapterIndex: number) => Promise<ChapterStateExtraction>;
 }

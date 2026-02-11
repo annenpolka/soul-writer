@@ -1,5 +1,6 @@
 import type { SoulText } from '../../soul/manager.js';
 import type { EnrichedCharacter } from '../../factory/character-enricher.js';
+import type { CrossChapterState } from '../types.js';
 
 /**
  * Input for buildDefectDetectorContext
@@ -9,6 +10,7 @@ export interface DefectDetectorContextInput {
   text: string;
   enrichedCharacters?: EnrichedCharacter[];
   toneDirective?: string;
+  crossChapterState?: CrossChapterState;
 }
 
 /**
@@ -26,6 +28,10 @@ const DEFECT_CATEGORIES = [
   { name: 'agency_absence', description: '主人公の能動的行動・選択・介入の欠如。受動的ループの検出' },
   { name: 'character_flatness', description: '生成キャラクターの人格の平板化。プロット奉仕100%、身体的ディテール欠如、口調同質化' },
   { name: 'tone_drift', description: '指定されたトーンからの逸脱' },
+  { name: 'character_state_regression', description: '前章で確立されたキャラクター状態からの退行（再紹介、初見描写の反復）' },
+  { name: 'motif_exhaustion', description: '摩耗度が高いモチーフのそのままの再利用（変奏・記号化なし）' },
+  { name: 'variation_axis_violation', description: '指定された変奏軸の方向に変化していない（前章と同一パターンの反復）' },
+  { name: 'cross_chapter_repetition', description: '前章と同一の台詞・描写・感情パターンのコピペ' },
 ];
 
 /**
@@ -70,6 +76,30 @@ export function buildDefectDetectorContext(input: DefectDetectorContextInput): R
     habits: c.physicalHabits.map(h => `${h.habit}（${h.trigger}、${h.sensoryDetail}）`).join('\n  '),
   }));
 
+  // Cross-chapter state for multi-chapter quality checks
+  const crossChapterContext: Record<string, unknown> = {};
+  if (input.crossChapterState) {
+    const state = input.crossChapterState;
+    if (state.characterStates.length > 0) {
+      crossChapterContext.previousCharacterStates = state.characterStates.map(cs => ({
+        name: cs.characterName,
+        lastEmotionalState: cs.emotionalState,
+        physicalState: cs.physicalState,
+      }));
+    }
+    const wornMotifs = state.motifWear.filter(m => m.wearLevel === 'worn' || m.wearLevel === 'exhausted');
+    if (wornMotifs.length > 0) {
+      crossChapterContext.wornMotifs = wornMotifs.map(m => ({
+        motif: m.motif,
+        usageCount: m.usageCount,
+        wearLevel: m.wearLevel,
+      }));
+    }
+    if (state.chapterSummaries.length > 0) {
+      crossChapterContext.previousChapterSummaries = state.chapterSummaries;
+    }
+  }
+
   return {
     text,
     constitutionRules,
@@ -78,5 +108,6 @@ export function buildDefectDetectorContext(input: DefectDetectorContextInput): R
     characters,
     ...(enrichedCharacters && enrichedCharacters.length > 0 ? { enrichedCharacters } : {}),
     ...(input.toneDirective ? { toneDirective: input.toneDirective } : {}),
+    ...(Object.keys(crossChapterContext).length > 0 ? { crossChapterContext } : {}),
   };
 }

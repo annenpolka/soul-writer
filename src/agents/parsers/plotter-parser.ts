@@ -60,6 +60,13 @@ export function coerceStringifiedArrays(parsed: unknown): unknown {
           coerced = true;
         }
       }
+      if (chResult.variation_axis && typeof chResult.variation_axis === 'object') {
+        const va = chResult.variation_axis as Record<string, unknown>;
+        if (typeof va.internal_beats === 'string') {
+          va.internal_beats = tryParseJson(va.internal_beats);
+          coerced = true;
+        }
+      }
       return chResult;
     });
   }

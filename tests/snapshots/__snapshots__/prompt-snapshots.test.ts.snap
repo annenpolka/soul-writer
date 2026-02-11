@@ -269,6 +269,18 @@ exports[`Prompt Snapshots > plotter > should match snapshot 1`] = `
 
 「見る→感じる→考える」だけの章は許可しない。
 
+## 変奏軸（variation_axis）設計
+各章にvariation_axisを設計すること:
+- curve_type: 劇的曲線の型。隣接する章で同じ型を繰り返さないこと
+  例: escalation（徐々に強度が上がる）, descent_plateau（急降下して停滞）, oscillation（揺れ動き）, sustained_tension（持続的緊張）, release（解放）
+- intensity_target: 1-5の劇的強度目標。全章が同じ強度にならないこと
+- differentiation_technique: 前後の章と差別化する具体的な技法を記述
+  例: 「前章が内省的だったのに対し、物理的接触と外界描写を中心に」
+- internal_beats: 章内の変化ポイント（オプション。単一章でも推奨）
+
+重要: variation_axisは章間の「金太郎飴」化を防ぐための設計。
+各章が独自のリズムと強度を持つよう意識すること。
+
 ## 章別テーマ制御（thematic_insight配置）
 各章にテーマ到達度を設計すること:
 - thematic_insight: この章で読者/主人公が到達する認識。nullなら「まだ気づかない」
@@ -302,6 +314,12 @@ exports[`Prompt Snapshots > plotter > should match snapshot 1`] = `
       "thematic_insight": null,
       "emotion_surface": "違和感、身体の拒絶反応",
       "emotion_subtext": "帰属への渇望",
+      "variation_axis": {
+        "curve_type": "escalation",
+        "intensity_target": 3,
+        "differentiation_technique": "内省中心の前章に対し、外界との物理的接触を中心に構成",
+        "internal_beats": ["静寂からの目覚め", "違和感の蓄積", "衝動的行動"]
+      },
       "target_length": 4000
     }
   ]

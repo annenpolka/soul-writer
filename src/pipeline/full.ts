@@ -12,9 +12,10 @@ import {
   type ThemeContext,
   type MacGuffinContext,
   type ChapterContext,
+  type CrossChapterState,
   DEFAULT_FULL_PIPELINE_CONFIG,
 } from '../agents/types.js';
-import type { Plot, Chapter } from '../schemas/plot.js';
+import type { Plot, Chapter, VariationAxis } from '../schemas/plot.js';
 import { createPlotter } from '../agents/plotter.js';
 import { createTournamentArena } from '../tournament/arena.js';
 import { selectTournamentWriters, DEFAULT_TEMPERATURE_SLOTS, type TemperatureSlot } from '../tournament/persona-pool.js';
@@ -38,6 +39,9 @@ import type { EnrichedCharacter } from '../factory/character-enricher.js';
 import { buildChapterPrompt } from './chapter-prompt.js';
 import { analyzePreviousChapter, extractEstablishedInsights, type PreviousChapterAnalysis, type EstablishedInsight } from './chapter-summary.js';
 import { defectResultToReaderJuryResult } from './adapters/defect-to-reader.js';
+import { createChapterStateExtractor } from '../agents/chapter-state-extractor.js';
+import { createInitialCrossChapterState, updateCrossChapterState } from './cross-chapter-state.js';
+import { filterChineseContamination } from './filters/chinese-filter.js';
 import type { LoggerFn } from '../logger.js';
 
 // =====================
@@ -118,6 +122,8 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
     chapterCtx?: ChapterContext,
     establishedInsights?: EstablishedInsight[],
     enrichedCharacters?: EnrichedCharacter[],
+    crossChapterState?: CrossChapterState,
+    variationAxis?: VariationAxis,
   ): Promise<ChapterPipelineResult> {
     const tokensStart = llmClient.getTotalTokens();
 
@@ -140,6 +146,8 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       motifAvoidanceList: config.motifAvoidanceList,
       establishedInsights,
       toneDirective: themeContext?.tone,
+      crossChapterState,
+      variationAxis,
     });
 
     const writerPersonas = soulManager.getWriterPersonas();
@@ -219,6 +227,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
             plotContext: { chapter, plot },
             chapterContext: chapterCtx,
             enrichedCharacters: enrichedCharacters as EnrichedCharacter[] | undefined,
+            crossChapterState,
           });
           finalText = synthesisResult.synthesizedText;
           synthesized = true;
@@ -266,6 +275,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       soulText: soulManager.getSoulText(),
       enrichedCharacters: enrichedCharacters as EnrichedCharacter[] | undefined,
       toneDirective: themeContext?.tone,
+      crossChapterState,
     });
     let defectResult = await detector.detect(finalText);
     logger?.debug('DefectDetector result', defectResult);
@@ -410,10 +420,18 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
     const antiPatternsCollected = 0;
     const chapterCtx: ChapterContext = { previousChapterTexts: [] };
     const established: EstablishedInsight[] = [];
+    let crossChapterState = createInitialCrossChapterState();
 
     for (const ch of plot.chapters) {
       logger?.section(`Chapter ${ch.index}: ${ch.title}`);
-      const chapterResult = await generateChapter(ch, plot, chapterCtx, established, enrichedCharacters);
+      const chapterResult = await generateChapter(
+        ch, plot, chapterCtx, established, enrichedCharacters,
+        crossChapterState, ch.variation_axis,
+      );
+
+      // Post-processing: Chinese contamination filter
+      chapterResult.text = filterChineseContamination(chapterResult.text);
+
       chapterResults.push(chapterResult);
       chapterCtx.previousChapterTexts.push(chapterResult.text);
       totalTokensUsed += chapterResult.tokensUsed;
@@ -426,6 +444,26 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
           logger?.debug(`Established insights after Ch${ch.index}`, newInsights);
         } catch (err) {
           logger?.debug(`Failed to extract insights for Ch${ch.index}`, { error: String(err) });
+        }
+      }
+
+      // Cross-chapter state extraction (for multi-chapter stories)
+      if (plot.chapters.length > 1 && ch.index < plot.chapters.length) {
+        try {
+          const extractor = createChapterStateExtractor({
+            llmClient,
+            soulText: soulManager.getSoulText(),
+            previousState: crossChapterState,
+          });
+          const extraction = await extractor.extract(chapterResult.text, ch.index);
+          crossChapterState = updateCrossChapterState(crossChapterState, extraction, ch.index);
+          logger?.debug(`Cross-chapter state after Ch${ch.index}`, {
+            characterStates: crossChapterState.characterStates.length,
+            motifWear: crossChapterState.motifWear.length,
+            variationHint: crossChapterState.variationHint,
+          });
+        } catch (err) {
+          logger?.debug(`Failed to extract chapter state for Ch${ch.index}`, { error: String(err) });
         }
       }
 
@@ -515,8 +553,38 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       }
     }
 
+    // Reconstruct CrossChapterState from completed chapters
+    let crossChapterState = createInitialCrossChapterState();
+    if (completedChapters.length > 0) {
+      for (let i = 0; i < completedChapters.length; i++) {
+        try {
+          const extractor = createChapterStateExtractor({
+            llmClient,
+            soulText: soulManager.getSoulText(),
+            previousState: crossChapterState,
+          });
+          const chapterIndex = i + 1;
+          const extraction = await extractor.extract(completedChapters[i].text, chapterIndex);
+          crossChapterState = updateCrossChapterState(crossChapterState, extraction, chapterIndex);
+        } catch {
+          // Non-critical: continue with partial state
+        }
+      }
+      logger?.debug('Reconstructed cross-chapter state for resume', {
+        characterStates: crossChapterState.characterStates.length,
+        motifWear: crossChapterState.motifWear.length,
+      });
+    }
+
     for (const ch of remainingChapters) {
-      const chapterResult = await generateChapter(ch, plot, chapterCtx, established, enrichedCharacters);
+      const chapterResult = await generateChapter(
+        ch, plot, chapterCtx, established, enrichedCharacters,
+        crossChapterState, ch.variation_axis,
+      );
+
+      // Post-processing: Chinese contamination filter
+      chapterResult.text = filterChineseContamination(chapterResult.text);
+
       chapterResults.push(chapterResult);
       chapterCtx.previousChapterTexts.push(chapterResult.text);
       totalTokensUsed += chapterResult.tokensUsed;
@@ -528,6 +596,21 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
           established.push(...newInsights);
         } catch {
           // Non-critical: continue without insights
+        }
+      }
+
+      // Cross-chapter state extraction
+      if (plot.chapters.length > 1 && ch.index < plot.chapters.length) {
+        try {
+          const extractor = createChapterStateExtractor({
+            llmClient,
+            soulText: soulManager.getSoulText(),
+            previousState: crossChapterState,
+          });
+          const extraction = await extractor.extract(chapterResult.text, ch.index);
+          crossChapterState = updateCrossChapterState(crossChapterState, extraction, ch.index);
+        } catch {
+          // Non-critical: continue without cross-chapter state
         }
       }
 
