@@ -12,10 +12,8 @@ export interface JsonReport {
   };
   analytics: {
     successRate: number;
-    avgComplianceScore: number;
-    avgReaderScore: number;
-    complianceDistribution: { min: number; max: number; median: number };
-    readerDistribution: { min: number; max: number; median: number };
+    compliancePassRate: number;
+    verdictDistribution: Record<string, number>;
     byEmotion: Array<{ emotion: string } & GroupStats>;
     byTimeline: Array<{ timeline: string } & GroupStats>;
   };
@@ -24,6 +22,12 @@ export interface JsonReport {
 // =====================
 // FP API — pure functions
 // =====================
+
+function formatVerdictDistribution(dist: Record<string, number>): string {
+  const entries = Object.entries(dist).sort((a, b) => b[1] - a[1]);
+  if (entries.length === 0) return 'N/A';
+  return entries.map(([k, v]) => `${k}: ${v}`).join(', ');
+}
 
 export function generateCliReport(analytics: BatchAnalytics): string {
   const lines: string[] = [];
@@ -38,15 +42,9 @@ export function generateCliReport(analytics: BatchAnalytics): string {
   lines.push(`  Total Tokens: ${analytics.totalTokensUsed.toLocaleString()}`);
   lines.push('');
 
-  lines.push('Scores:');
-  lines.push(
-    `  Compliance: avg ${analytics.avgComplianceScore.toFixed(2)} ` +
-      `(${analytics.complianceDistribution.min.toFixed(2)}-${analytics.complianceDistribution.max.toFixed(2)})`
-  );
-  lines.push(
-    `  Reader: avg ${analytics.avgReaderScore.toFixed(2)} ` +
-      `(${analytics.readerDistribution.min.toFixed(2)}-${analytics.readerDistribution.max.toFixed(2)})`
-  );
+  lines.push('Quality:');
+  lines.push(`  Compliance Pass Rate: ${(analytics.compliancePassRate * 100).toFixed(1)}%`);
+  lines.push(`  Verdict Distribution: ${formatVerdictDistribution(analytics.verdictDistribution)}`);
   lines.push('');
 
   if (analytics.byEmotion.size > 0) {
@@ -55,7 +53,7 @@ export function generateCliReport(analytics: BatchAnalytics): string {
       lines.push(
         `  ${emotion}: ${stats.count} tasks, ` +
           `${(stats.successRate * 100).toFixed(0)}% success, ` +
-          `avg ${stats.avgComplianceScore.toFixed(2)}`
+          `compliance ${(stats.compliancePassRate * 100).toFixed(0)}%`
       );
     }
     lines.push('');
@@ -67,7 +65,7 @@ export function generateCliReport(analytics: BatchAnalytics): string {
       lines.push(
         `  ${timeline}: ${stats.count} tasks, ` +
           `${(stats.successRate * 100).toFixed(0)}% success, ` +
-          `avg ${stats.avgComplianceScore.toFixed(2)}`
+          `compliance ${(stats.compliancePassRate * 100).toFixed(0)}%`
       );
     }
     lines.push('');
@@ -100,10 +98,8 @@ export function generateJsonReport(result: BatchResult, analytics: BatchAnalytic
     },
     analytics: {
       successRate: analytics.successRate,
-      avgComplianceScore: analytics.avgComplianceScore,
-      avgReaderScore: analytics.avgReaderScore,
-      complianceDistribution: analytics.complianceDistribution,
-      readerDistribution: analytics.readerDistribution,
+      compliancePassRate: analytics.compliancePassRate,
+      verdictDistribution: analytics.verdictDistribution,
       byEmotion,
       byTimeline,
     },

@@ -57,6 +57,25 @@ describe('createWorkRepo (FP)', () => {
       expect(work.readerScore).toBe(0.88);
     });
 
+    it('should create with verdict fields', async () => {
+      const work = await repo.create({
+        soulId: 'test-soul',
+        title: 'Verdict Work',
+        content: 'Content',
+        totalChapters: 3,
+        totalTokens: 5000,
+        compliancePass: true,
+        verdictLevel: 'publishable',
+      });
+
+      expect(work.compliancePass).toBe(true);
+      expect(work.verdictLevel).toBe('publishable');
+
+      const found = await repo.findById(work.id);
+      expect(found?.compliancePass).toBe(true);
+      expect(found?.verdictLevel).toBe('publishable');
+    });
+
     it('should create with tone', async () => {
       const work = await repo.create({
         soulId: 'test-soul',

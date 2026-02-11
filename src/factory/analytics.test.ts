@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateAnalytics, type BatchAnalytics } from './analytics.js';
+import { calculateAnalytics } from './analytics.js';
 import type { BatchResult, TaskResult } from './batch-runner.js';
 
 describe('calculateAnalytics', () => {
@@ -8,8 +8,8 @@ describe('calculateAnalytics', () => {
     themeId: 'theme-1',
     status: 'completed',
     tokensUsed: 1000,
-    complianceScore: 0.9,
-    readerScore: 0.85,
+    compliancePass: true,
+    verdictLevel: 'publishable',
     emotion: '孤独',
     timeline: '出会い前',
     ...overrides,
@@ -58,80 +58,58 @@ describe('calculateAnalytics', () => {
     });
   });
 
-  describe('score averages', () => {
-    it('should calculate average compliance score', () => {
+  describe('compliance pass rate', () => {
+    it('should calculate compliance pass rate', () => {
       const results = [
-        createTaskResult({ complianceScore: 0.8 }),
-        createTaskResult({ complianceScore: 0.9 }),
-        createTaskResult({ complianceScore: 1.0 }),
+        createTaskResult({ compliancePass: true }),
+        createTaskResult({ compliancePass: true }),
+        createTaskResult({ compliancePass: false }),
       ];
       const analytics = calculateAnalytics(createBatchResult(results));
 
-      expect(analytics.avgComplianceScore).toBeCloseTo(0.9, 2);
+      expect(analytics.compliancePassRate).toBeCloseTo(0.667, 2);
     });
 
-    it('should calculate average reader score', () => {
+    it('should ignore failed tasks', () => {
       const results = [
-        createTaskResult({ readerScore: 0.7 }),
-        createTaskResult({ readerScore: 0.8 }),
-        createTaskResult({ readerScore: 0.9 }),
+        createTaskResult({ status: 'completed', compliancePass: true }),
+        createTaskResult({ status: 'failed', compliancePass: undefined }),
       ];
       const analytics = calculateAnalytics(createBatchResult(results));
 
-      expect(analytics.avgReaderScore).toBeCloseTo(0.8, 2);
-    });
-
-    it('should ignore failed tasks in score calculation', () => {
-      const results = [
-        createTaskResult({ status: 'completed', complianceScore: 0.9 }),
-        createTaskResult({ status: 'failed', complianceScore: undefined }),
-      ];
-      const analytics = calculateAnalytics(createBatchResult(results));
-
-      expect(analytics.avgComplianceScore).toBe(0.9);
+      expect(analytics.compliancePassRate).toBe(1);
     });
   });
 
-  describe('score distribution', () => {
-    it('should calculate min, max, median for compliance', () => {
+  describe('verdict distribution', () => {
+    it('should count verdicts across tasks', () => {
       const results = [
-        createTaskResult({ complianceScore: 0.7 }),
-        createTaskResult({ complianceScore: 0.8 }),
-        createTaskResult({ complianceScore: 0.9 }),
-        createTaskResult({ complianceScore: 1.0 }),
+        createTaskResult({ verdictLevel: 'publishable' }),
+        createTaskResult({ verdictLevel: 'publishable' }),
+        createTaskResult({ verdictLevel: 'exceptional' }),
+        createTaskResult({ verdictLevel: 'acceptable' }),
       ];
       const analytics = calculateAnalytics(createBatchResult(results));
 
-      expect(analytics.complianceDistribution.min).toBeCloseTo(0.7, 2);
-      expect(analytics.complianceDistribution.max).toBeCloseTo(1.0, 2);
-      expect(analytics.complianceDistribution.median).toBeCloseTo(0.85, 2);
-    });
-
-    it('should handle odd number of scores for median', () => {
-      const results = [
-        createTaskResult({ complianceScore: 0.7 }),
-        createTaskResult({ complianceScore: 0.8 }),
-        createTaskResult({ complianceScore: 0.9 }),
-      ];
-      const analytics = calculateAnalytics(createBatchResult(results));
-
-      expect(analytics.complianceDistribution.median).toBe(0.8);
+      expect(analytics.verdictDistribution['publishable']).toBe(2);
+      expect(analytics.verdictDistribution['exceptional']).toBe(1);
+      expect(analytics.verdictDistribution['acceptable']).toBe(1);
     });
   });
 
   describe('by emotion', () => {
     it('should group stats by emotion', () => {
       const results = [
-        createTaskResult({ emotion: '孤独', complianceScore: 0.9 }),
-        createTaskResult({ emotion: '孤独', complianceScore: 0.8 }),
-        createTaskResult({ emotion: '渇望', complianceScore: 0.95 }),
+        createTaskResult({ emotion: '孤独', compliancePass: true, verdictLevel: 'publishable' }),
+        createTaskResult({ emotion: '孤独', compliancePass: false, verdictLevel: 'acceptable' }),
+        createTaskResult({ emotion: '渇望', compliancePass: true, verdictLevel: 'exceptional' }),
       ];
       const analytics = calculateAnalytics(createBatchResult(results));
 
       expect(analytics.byEmotion.get('孤独')?.count).toBe(2);
-      expect(analytics.byEmotion.get('孤独')?.avgComplianceScore).toBeCloseTo(0.85, 2);
+      expect(analytics.byEmotion.get('孤独')?.compliancePassRate).toBe(0.5);
       expect(analytics.byEmotion.get('渇望')?.count).toBe(1);
-      expect(analytics.byEmotion.get('渇望')?.avgComplianceScore).toBe(0.95);
+      expect(analytics.byEmotion.get('渇望')?.compliancePassRate).toBe(1);
     });
 
     it('should calculate success rate per emotion', () => {
@@ -150,15 +128,14 @@ describe('calculateAnalytics', () => {
   describe('by timeline', () => {
     it('should group stats by timeline', () => {
       const results = [
-        createTaskResult({ timeline: '出会い前', complianceScore: 0.9 }),
-        createTaskResult({ timeline: '出会い', complianceScore: 0.85 }),
-        createTaskResult({ timeline: '出会い', complianceScore: 0.95 }),
+        createTaskResult({ timeline: '出会い前', verdictLevel: 'publishable' }),
+        createTaskResult({ timeline: '出会い', verdictLevel: 'publishable' }),
+        createTaskResult({ timeline: '出会い', verdictLevel: 'exceptional' }),
       ];
       const analytics = calculateAnalytics(createBatchResult(results));
 
       expect(analytics.byTimeline.get('出会い前')?.count).toBe(1);
       expect(analytics.byTimeline.get('出会い')?.count).toBe(2);
-      expect(analytics.byTimeline.get('出会い')?.avgComplianceScore).toBeCloseTo(0.9, 2);
     });
   });
 
@@ -167,20 +144,20 @@ describe('calculateAnalytics', () => {
       const analytics = calculateAnalytics(createBatchResult([]));
 
       expect(analytics.successRate).toBe(0);
-      expect(analytics.avgComplianceScore).toBe(0);
-      expect(analytics.avgReaderScore).toBe(0);
+      expect(analytics.compliancePassRate).toBe(0);
+      expect(Object.keys(analytics.verdictDistribution)).toHaveLength(0);
       expect(analytics.byEmotion.size).toBe(0);
       expect(analytics.byTimeline.size).toBe(0);
     });
 
-    it('should handle results without scores', () => {
+    it('should handle results without verdict fields', () => {
       const results = [
-        createTaskResult({ status: 'failed', complianceScore: undefined, readerScore: undefined }),
+        createTaskResult({ status: 'failed', compliancePass: undefined, verdictLevel: undefined }),
       ];
       const analytics = calculateAnalytics(createBatchResult(results));
 
-      expect(analytics.avgComplianceScore).toBe(0);
-      expect(analytics.avgReaderScore).toBe(0);
+      expect(analytics.compliancePassRate).toBe(0);
+      expect(Object.keys(analytics.verdictDistribution)).toHaveLength(0);
     });
   });
 });

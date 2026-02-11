@@ -14,6 +14,10 @@ export const works = sqliteTable(
     totalTokens: integer('total_tokens').notNull(),
     complianceScore: real('compliance_score'),
     readerScore: real('reader_score'),
+    /** Whether all chapters passed compliance (errorCount === 0) */
+    compliancePass: integer('compliance_pass'),
+    /** Primary verdict level from DefectDetector */
+    verdictLevel: text('verdict_level'),
     /** Tone directive used for generation */
     tone: text('tone'),
     status: text('status').notNull().default('completed'),

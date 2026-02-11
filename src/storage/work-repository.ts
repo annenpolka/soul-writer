@@ -9,6 +9,8 @@ export interface Work {
   totalTokens: number;
   complianceScore: number | null;
   readerScore: number | null;
+  compliancePass: boolean | null;
+  verdictLevel: string | null;
   tone: string | null;
   status: string;
   createdAt: string;
@@ -23,6 +25,8 @@ export interface CreateWorkInput {
   totalTokens: number;
   complianceScore?: number;
   readerScore?: number;
+  compliancePass?: boolean;
+  verdictLevel?: string;
   tone?: string;
   status?: string;
 }
@@ -32,6 +36,8 @@ export interface UpdateWorkInput {
   content?: string;
   complianceScore?: number;
   readerScore?: number;
+  compliancePass?: boolean;
+  verdictLevel?: string;
   status?: string;
 }
 
@@ -44,6 +50,8 @@ type WorkRow = {
   total_tokens: number;
   compliance_score: number | null;
   reader_score: number | null;
+  compliance_pass: number | null;
+  verdict_level: string | null;
   tone: string | null;
   status: string;
   created_at: string;
@@ -60,6 +68,8 @@ function rowToWork(r: WorkRow): Work {
     totalTokens: r.total_tokens,
     complianceScore: r.compliance_score,
     readerScore: r.reader_score,
+    compliancePass: r.compliance_pass === null ? null : r.compliance_pass === 1,
+    verdictLevel: r.verdict_level,
     tone: r.tone,
     status: r.status,
     createdAt: r.created_at,
@@ -83,8 +93,8 @@ export function createWorkRepo(sqlite: Database.Database): WorkRepo {
       const now = new Date().toISOString();
 
       sqlite.prepare(`
-        INSERT INTO works (id, soul_id, title, content, total_chapters, total_tokens, compliance_score, reader_score, tone, status, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO works (id, soul_id, title, content, total_chapters, total_tokens, compliance_score, reader_score, compliance_pass, verdict_level, tone, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id,
         input.soulId,
@@ -94,6 +104,8 @@ export function createWorkRepo(sqlite: Database.Database): WorkRepo {
         input.totalTokens,
         input.complianceScore ?? null,
         input.readerScore ?? null,
+        input.compliancePass === undefined ? null : input.compliancePass ? 1 : 0,
+        input.verdictLevel ?? null,
         input.tone ?? null,
         input.status ?? 'completed',
         now,
@@ -109,6 +121,8 @@ export function createWorkRepo(sqlite: Database.Database): WorkRepo {
         totalTokens: input.totalTokens,
         complianceScore: input.complianceScore ?? null,
         readerScore: input.readerScore ?? null,
+        compliancePass: input.compliancePass ?? null,
+        verdictLevel: input.verdictLevel ?? null,
         tone: input.tone ?? null,
         status: input.status ?? 'completed',
         createdAt: now,
@@ -118,7 +132,7 @@ export function createWorkRepo(sqlite: Database.Database): WorkRepo {
 
     findById: async (id) => {
       const result = sqlite.prepare(`
-        SELECT id, soul_id, title, content, total_chapters, total_tokens, compliance_score, reader_score, tone, status, created_at, updated_at
+        SELECT id, soul_id, title, content, total_chapters, total_tokens, compliance_score, reader_score, compliance_pass, verdict_level, tone, status, created_at, updated_at
         FROM works WHERE id = ?
       `).get(id) as WorkRow | undefined;
 
@@ -128,7 +142,7 @@ export function createWorkRepo(sqlite: Database.Database): WorkRepo {
 
     findBySoulId: async (soulId) => {
       const results = sqlite.prepare(`
-        SELECT id, soul_id, title, content, total_chapters, total_tokens, compliance_score, reader_score, tone, status, created_at, updated_at
+        SELECT id, soul_id, title, content, total_chapters, total_tokens, compliance_score, reader_score, compliance_pass, verdict_level, tone, status, created_at, updated_at
         FROM works WHERE soul_id = ?
       `).all(soulId) as WorkRow[];
 
@@ -137,7 +151,7 @@ export function createWorkRepo(sqlite: Database.Database): WorkRepo {
 
     findRecentBySoulId: async (soulId, limit) => {
       const results = sqlite.prepare(`
-        SELECT id, soul_id, title, content, total_chapters, total_tokens, compliance_score, reader_score, tone, status, created_at, updated_at
+        SELECT id, soul_id, title, content, total_chapters, total_tokens, compliance_score, reader_score, compliance_pass, verdict_level, tone, status, created_at, updated_at
         FROM works WHERE soul_id = ? AND status = 'completed'
         ORDER BY created_at DESC LIMIT ?
       `).all(soulId, limit) as WorkRow[];
@@ -166,6 +180,14 @@ export function createWorkRepo(sqlite: Database.Database): WorkRepo {
         updates.push('reader_score = ?');
         values.push(input.readerScore);
       }
+      if (input.compliancePass !== undefined) {
+        updates.push('compliance_pass = ?');
+        values.push(input.compliancePass ? 1 : 0);
+      }
+      if (input.verdictLevel !== undefined) {
+        updates.push('verdict_level = ?');
+        values.push(input.verdictLevel);
+      }
       if (input.status !== undefined) {
         updates.push('status = ?');
         values.push(input.status);
@@ -179,7 +201,7 @@ export function createWorkRepo(sqlite: Database.Database): WorkRepo {
       `).run(...values);
 
       const result = sqlite.prepare(`
-        SELECT id, soul_id, title, content, total_chapters, total_tokens, compliance_score, reader_score, tone, status, created_at, updated_at
+        SELECT id, soul_id, title, content, total_chapters, total_tokens, compliance_score, reader_score, compliance_pass, verdict_level, tone, status, created_at, updated_at
         FROM works WHERE id = ?
       `).get(id) as WorkRow | undefined;
 
