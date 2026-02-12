@@ -60,6 +60,19 @@ system:
 
     - type: condition
       if:
+        has: characterDynamics
+      then:
+        - type: heading
+          heading: キャラクター人格力学
+        - type: text
+          text: "各キャラクターのdistortedFulfillment（歪んだ充足行動）がプロット上で衝突する場面を設計せよ。"
+        - type: each
+          each: characterDynamics
+          as: dyn
+          template: "- {{ dyn.name }}: 渇望「{{ dyn.craving }}」→ 充足行動「{{ dyn.distortedFulfillment }}」/ 関係性の非対称「{{ dyn.relationshipAsymmetry }}」"
+
+    - type: condition
+      if:
         has: technologyEntries
       then:
         - type: heading

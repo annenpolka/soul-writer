@@ -105,6 +105,23 @@ system:
 
     - type: condition
       if:
+        has: characterDynamicsExpectations
+      then:
+        - type: heading
+          heading: キャラクター人格力学チェック
+        - type: text
+          text: |
+            以下のキャラクターには人格力学（渇望・歪んだ充足行動・表層との矛盾）が設定されています。
+            本文中にこれらの力学が行動・台詞・選択として体現されているか確認してください。
+            力学が直接説明されている場合（「○○が欲しかった」等）は削除対象として報告すること。
+        - type: each
+          each: characterDynamicsExpectations
+          as: dynExp
+          template: |
+            - **{{ dynExp.name }}**: 渇望={{ dynExp.craving }}, 充足行動={{ dynExp.distortedFulfillment }}, 矛盾={{ dynExp.surfaceContradiction }}
+
+    - type: condition
+      if:
         has: crossChapterContext
       then:
         - type: heading

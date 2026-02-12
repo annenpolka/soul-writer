@@ -102,6 +102,12 @@ export function buildSynthesisAnalyzerContext(input: SynthesisAnalyzerContextInp
       expectedHabits: c.physicalHabits.map(h => h.habit),
       expectedStance: c.stance.type,
     }));
+    ctx.characterDynamicsExpectations = analyzerInput.enrichedCharacters.map(c => ({
+      name: c.name,
+      craving: c.dynamics.craving,
+      distortedFulfillment: c.dynamics.distortedFulfillment,
+      surfaceContradiction: c.dynamics.surfaceContradiction,
+    }));
   }
 
   // Cross-chapter state for multi-chapter synthesis awareness

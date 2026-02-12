@@ -2,12 +2,14 @@ import type { SoulText } from '../../soul/manager.js';
 import type { DevelopedCharacter } from '../../factory/character-developer.js';
 import type { EnrichedCharacterPhase1 } from '../../factory/character-enricher.js';
 import type { GeneratedTheme } from '../../schemas/generated-theme.js';
+import type { CharacterMacGuffin } from '../../schemas/macguffin.js';
 import type { Plot } from '../../schemas/plot.js';
 
 export interface Phase1ContextInput {
   soulText: SoulText;
   characters: DevelopedCharacter[];
   theme: GeneratedTheme;
+  macGuffins?: CharacterMacGuffin[];
 }
 
 export interface Phase2ContextInput {
@@ -22,7 +24,7 @@ export interface Phase2ContextInput {
  * Pure function — no side effects.
  */
 export function buildPhase1Context(input: Phase1ContextInput): Record<string, unknown> {
-  const { soulText, characters, theme } = input;
+  const { soulText, characters, theme, macGuffins } = input;
 
   const characterList = characters.map((c) => ({
     name: c.name,
@@ -49,6 +51,15 @@ export function buildPhase1Context(input: Phase1ContextInput): Record<string, un
     }
   }
 
+  // MacGuffin data for dynamics generation constraint
+  const characterMacGuffins = macGuffins
+    ? macGuffins.map((m) => ({
+        characterName: m.characterName,
+        secret: m.secret,
+        surfaceSigns: m.surfaceSigns,
+      }))
+    : [];
+
   return {
     characters: characterList,
     themeEmotion: theme.emotion,
@@ -56,6 +67,7 @@ export function buildPhase1Context(input: Phase1ContextInput): Record<string, un
     themeTone: theme.tone || '',
     referenceVoices,
     voiceFragments,
+    characterMacGuffins,
   };
 }
 
@@ -75,6 +87,8 @@ export function buildPhase2Context(input: Phase2ContextInput): Record<string, un
     stanceManifestation: c.stance.manifestation,
     stanceBlindSpot: c.stance.blindSpot,
     habits: c.physicalHabits.map((h) => h.habit).join('、'),
+    craving: c.dynamics.craving,
+    distortedFulfillment: c.dynamics.distortedFulfillment,
   }));
 
   // Plot summary for dialogue context

@@ -42,6 +42,17 @@ system:
               each: enrichedCharacterDetails
               as: cd
               template: "- {{ cd.name }}: {{ cd.habits }} [態度: {{ cd.stanceType }}（{{ cd.stanceManifestation }}）]"
+        - type: condition
+          if:
+            has: characterDynamics
+          then:
+            - type: heading
+              heading: 人格力学
+              level: 3
+            - type: each
+              each: characterDynamics
+              as: dyn
+              template: "- {{ dyn.name }}: 渇望「{{ dyn.craving }}」→ 充足行動「{{ dyn.distortedFulfillment }}」/ 表層矛盾「{{ dyn.surfaceContradiction }}」"
         - type: text
           text: "上記の人物を参考にしつつ、必要に応じて新しい人物を自由に追加してよい。既存人物の登場は必須ではない。ただし既存人物を使う場合はその性格・口調を尊重すること。"
       else:

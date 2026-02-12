@@ -198,9 +198,9 @@ export function createBatchRunner(
         const charResult = await characterDeveloper.develop(themeResult.theme, charMacGuffins);
         logger?.debug('Characters developed', charResult.developed);
 
-        // Enrich characters with physical habits and stance (Phase1)
+        // Enrich characters with personality dynamics, physical habits, and stance (Phase1)
         const enricher = createCharacterEnricher(deps.llmClient, deps.soulText);
-        const phase1Result = await enricher.enrichPhase1(charResult.developed.characters, themeResult.theme);
+        const phase1Result = await enricher.enrichPhase1(charResult.developed.characters, themeResult.theme, charMacGuffins);
         logger?.debug('Characters enriched (Phase1)', phase1Result.characters);
 
         // Generate plot MacGuffins

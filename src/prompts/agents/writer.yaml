@@ -145,6 +145,28 @@ system:
 
     - type: condition
       if:
+        has: characterDynamics
+      then:
+        - type: heading
+          heading: キャラクター人格力学（行動と台詞で体現せよ）
+        - type: text
+          text: |
+            以下の力学構造を直接説明するのではなく、行動・台詞・沈黙・選択で体現させよ。
+            「○○が欲しかった」「○○を渇望していた」等の地の文での直接記述は禁止。
+        - type: each
+          each: characterDynamics
+          as: dyn
+          sections:
+            - type: text
+              text: |
+                **{{ dyn.name }}**
+                - 渇望: {{ dyn.craving }}
+                - 表層との矛盾: {{ dyn.surfaceContradiction }}
+                - 歪んだ充足行動: {{ dyn.distortedFulfillment }}
+                - 関係性の非対称: {{ dyn.relationshipAsymmetry }}
+
+    - type: condition
+      if:
         has: toneDirective
       then:
         - type: heading
