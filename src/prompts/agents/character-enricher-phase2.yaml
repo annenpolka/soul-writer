@@ -26,6 +26,11 @@ system:
           - indifferent → 投げやり、関心の薄さ
           - direct → 正面からの言及
 
+        **人格力学の反映**:
+        - キャラクターの渇望（craving）と歪んだ充足行動（distortedFulfillment）が台詞の温度に反映されること
+        - ただし渇望を直接告白する台詞は禁止（「実は私は○○が欲しくて…」等はNG）
+        - 渇望は台詞の選択・言い回し・沈黙のタイミングに滲み出させる
+
         各台詞には:
         - line: 台詞本文（「」なしで記載）
         - situation: この台詞が発せられる状況
@@ -81,6 +86,8 @@ user:
             - テーマへの態度: {{ c.stanceType }}（{{ c.stanceManifestation }}）
             - 盲点: {{ c.stanceBlindSpot }}
             - 身体の癖: {{ c.habits }}
+            - 渇望: {{ c.craving }}
+            - 歪んだ充足行動: {{ c.distortedFulfillment }}
 
     - type: text
       text: |

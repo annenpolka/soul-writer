@@ -41,6 +41,15 @@ const samplePlot: Plot = {
   ],
 };
 
+const sampleDynamics = {
+  innerWound: '幼少期の見捨てられ体験による存在不安',
+  craving: '他者の人生に取り返しのつかない痕跡を残すこと',
+  surfaceContradiction: '温和な表層と破壊的な渇望の乖離',
+  distortedFulfillment: '偽造タグで他者の記録を書き換える行為で存在証明を得る',
+  fulfillmentCondition: '偽造した情報が他者の行動を実際に変えた瞬間',
+  relationshipAsymmetry: '一方的に他者の記録を操作する立場に固執する',
+};
+
 const validPhase1Response = {
   characters: [
     {
@@ -62,6 +71,7 @@ const validPhase1Response = {
         manifestation: 'テーマの深刻さを認識しつつ、笑いに変える',
         blindSpot: '自分の関与について決して言及しない',
       },
+      dynamics: sampleDynamics,
     },
   ],
 };
@@ -124,6 +134,8 @@ describe('createCharacterEnricher (FP)', () => {
       expect(char.physicalHabits[0].habit).toBe('話すとき必ず左手で右肘を掴む');
       expect(char.stance.type).toBe('oblique');
       expect(char.stance.manifestation).toContain('笑い');
+      expect(char.dynamics.craving).toContain('痕跡');
+      expect(char.dynamics.distortedFulfillment).toContain('偽造');
       expect(result.tokensUsed).toBe(0);
 
       // Zod validation should pass
@@ -162,6 +174,25 @@ describe('createCharacterEnricher (FP)', () => {
       expect(char.name).toBe('佐々木');
       expect(char.physicalHabits).toHaveLength(1);
       expect(char.stance.type).toBe('direct');
+      // Fallback dynamics should be defaults
+      expect(char.dynamics.innerWound).toBeDefined();
+      expect(char.dynamics.craving).toBeDefined();
+    });
+
+    it('should accept optional macGuffins parameter', async () => {
+      const llm = createMockLLMClientWithTools({
+        name: 'submit_character_enrichment',
+        arguments: validPhase1Response,
+      });
+      const soulText = createMockSoulText();
+      const fn = createCharacterEnricher(llm, soulText);
+      const macGuffins = [
+        { characterName: '佐々木', secret: '火災の原因', surfaceSigns: ['手が震える'], narrativeFunction: '告白シーンの伏線' },
+      ];
+      const result = await fn.enrichPhase1(sampleDeveloped, sampleTheme, macGuffins);
+
+      expect(result.characters).toHaveLength(1);
+      expect(result.characters[0].dynamics.craving).toContain('痕跡');
     });
   });
 
@@ -178,6 +209,7 @@ describe('createCharacterEnricher (FP)', () => {
         ...sampleDeveloped[0],
         physicalHabits: validPhase1Response.characters[0].physicalHabits,
         stance: validPhase1Response.characters[0].stance as { type: 'oblique'; manifestation: string; blindSpot: string },
+        dynamics: sampleDynamics,
       }];
 
       const result = await fn.enrichPhase2(phase1Chars, samplePlot, sampleTheme);
@@ -206,6 +238,7 @@ describe('createCharacterEnricher (FP)', () => {
         ...sampleDeveloped[0],
         physicalHabits: validPhase1Response.characters[0].physicalHabits,
         stance: validPhase1Response.characters[0].stance as { type: 'oblique'; manifestation: string; blindSpot: string },
+        dynamics: sampleDynamics,
       }];
 
       const result = await fn.enrichPhase2(phase1Chars, samplePlot, sampleTheme);

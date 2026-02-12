@@ -446,6 +446,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
           name: c.name, isNew: c.isNew, role: c.role,
           description: c.description, voice: c.voice,
           physicalHabits: c.physicalHabits, stance: c.stance,
+          dynamics: c.dynamics,
         }));
         const phase2Result = await enricher.enrichPhase2(phase1Chars, plot, config.theme!);
         enrichedCharacters = phase2Result.characters;
@@ -594,6 +595,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
           name: c.name, isNew: c.isNew, role: c.role,
           description: c.description, voice: c.voice,
           physicalHabits: c.physicalHabits, stance: c.stance,
+          dynamics: c.dynamics,
         }));
         const phase2Result = await enricher.enrichPhase2(phase1Chars, plot, config.theme!);
         enrichedCharacters = phase2Result.characters;

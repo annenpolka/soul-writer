@@ -36,6 +36,12 @@ export function buildPlotterContext(input: PlotterContextInput): Record<string, 
       stanceManifestation: c.stance.manifestation,
       stanceBlindSpot: c.stance.blindSpot,
     }));
+    ctx.characterDynamics = config.enrichedCharacters.map(c => ({
+      name: c.name,
+      craving: c.dynamics.craving,
+      distortedFulfillment: c.dynamics.distortedFulfillment,
+      relationshipAsymmetry: c.dynamics.relationshipAsymmetry,
+    }));
   } else if (config.developedCharacters && config.developedCharacters.length > 0) {
     ctx.developedCharacters = config.developedCharacters.map(c => ({
       ...c,

@@ -64,6 +64,14 @@ export function buildWriterContext(input: WriterContextInput): Record<string, un
       stanceType: c.stance.type,
       stanceManifestation: c.stance.manifestation,
     }));
+    // Inject personality dynamics for Writer
+    ctx.characterDynamics = input.enrichedCharacters.map(c => ({
+      name: c.name,
+      craving: c.dynamics.craving,
+      distortedFulfillment: c.dynamics.distortedFulfillment,
+      surfaceContradiction: c.dynamics.surfaceContradiction,
+      relationshipAsymmetry: c.dynamics.relationshipAsymmetry,
+    }));
   } else if (developedCharacters && developedCharacters.length > 0) {
     ctx.developedCharacters = developedCharacters.map(c => ({
       ...c,

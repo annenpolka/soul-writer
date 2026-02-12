@@ -29,6 +29,15 @@ const sampleDeveloped: DevelopedCharacter[] = [
   },
 ];
 
+const sampleDynamics = {
+  innerWound: '幼少期の見捨てられ体験による存在不安',
+  craving: '他者の人生に取り返しのつかない痕跡を残すこと',
+  surfaceContradiction: '温和な表層と破壊的な渇望の乖離',
+  distortedFulfillment: '偽造タグで他者の記録を書き換える行為で存在証明を得る',
+  fulfillmentCondition: '偽造した情報が他者の行動を実際に変えた瞬間',
+  relationshipAsymmetry: '一方的に他者の記録を操作する立場に固執する',
+};
+
 const samplePhase1Chars: EnrichedCharacterPhase1[] = [
   {
     ...sampleDeveloped[0],
@@ -36,6 +45,7 @@ const samplePhase1Chars: EnrichedCharacterPhase1[] = [
       { habit: '左手で右肘を掴む', trigger: '目が合うとき', sensoryDetail: '指が白くなる' },
     ],
     stance: { type: 'oblique', manifestation: '笑いに変える', blindSpot: '自分の関与' },
+    dynamics: sampleDynamics,
   },
 ];
 
@@ -191,6 +201,77 @@ describe('parsePhase1Response', () => {
     const result = parsePhase1Response(response, sampleDeveloped);
     expect(result.tokensUsed).toBe(80);
   });
+
+  it('should parse dynamics from Phase1 response', () => {
+    const response = makeToolResponse('submit_character_enrichment', {
+      characters: [
+        {
+          name: '佐々木',
+          physicalHabits: [{ habit: '肘掴み', trigger: '対話中', sensoryDetail: '白い指' }],
+          stance: { type: 'oblique', manifestation: '笑いに変換', blindSpot: '関与' },
+          dynamics: sampleDynamics,
+        },
+      ],
+    });
+
+    const result = parsePhase1Response(response, sampleDeveloped);
+    const char = result.characters[0];
+    expect(char.dynamics.innerWound).toContain('見捨てられ');
+    expect(char.dynamics.craving).toContain('痕跡');
+    expect(char.dynamics.surfaceContradiction).toContain('温和');
+    expect(char.dynamics.distortedFulfillment).toContain('偽造');
+    expect(char.dynamics.fulfillmentCondition).toContain('行動を実際に変えた');
+    expect(char.dynamics.relationshipAsymmetry).toContain('操作');
+  });
+
+  it('should use default dynamics when dynamics is missing from response', () => {
+    const response = makeToolResponse('submit_character_enrichment', {
+      characters: [
+        {
+          name: '佐々木',
+          physicalHabits: [{ habit: '肘掴み', trigger: '対話中', sensoryDetail: '白い指' }],
+          stance: { type: 'oblique', manifestation: '笑いに変換', blindSpot: '関与' },
+          // no dynamics field
+        },
+      ],
+    });
+
+    const result = parsePhase1Response(response, sampleDeveloped);
+    const char = result.characters[0];
+    // Should fall back to defaults
+    expect(char.dynamics.innerWound).toBeDefined();
+    expect(char.dynamics.craving).toBeDefined();
+    expect(char.dynamics.distortedFulfillment).toBeDefined();
+  });
+
+  it('should use default for individual dynamics fields that are too short', () => {
+    const response = makeToolResponse('submit_character_enrichment', {
+      characters: [
+        {
+          name: '佐々木',
+          physicalHabits: [{ habit: '肘掴み', trigger: '対話中', sensoryDetail: '白い指' }],
+          stance: { type: 'oblique', manifestation: '笑いに変換', blindSpot: '関与' },
+          dynamics: {
+            innerWound: '短い', // too short (< 10)
+            craving: '他者の人生に取り返しのつかない痕跡を残すこと',
+            surfaceContradiction: '温和な表層と破壊的な渇望の乖離',
+            distortedFulfillment: '短い', // too short
+            fulfillmentCondition: '偽造した情報が他者の行動を実際に変えた瞬間',
+            relationshipAsymmetry: '一方的に他者の記録を操作する立場に固執する',
+          },
+        },
+      ],
+    });
+
+    const result = parsePhase1Response(response, sampleDeveloped);
+    const char = result.characters[0];
+    // Short fields should fall back to defaults
+    expect(char.dynamics.innerWound).not.toBe('短い');
+    expect(char.dynamics.distortedFulfillment).not.toBe('短い');
+    // Valid fields should be preserved
+    expect(char.dynamics.craving).toContain('痕跡');
+    expect(char.dynamics.surfaceContradiction).toContain('温和');
+  });
 });
 
 describe('parsePhase2Response', () => {
@@ -279,6 +360,7 @@ describe('parsePhase2Response', () => {
         voice: '砕けた口調',
         physicalHabits: [{ habit: 'メモ', trigger: '常に', sensoryDetail: 'ペン音' }],
         stance: { type: 'indifferent', manifestation: '傍観', blindSpot: '感情移入' },
+        dynamics: sampleDynamics,
       },
     ];
 

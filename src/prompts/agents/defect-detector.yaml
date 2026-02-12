@@ -139,6 +139,38 @@ system:
 
     - type: condition
       if:
+        has: enrichedCharacters
+      then:
+        - type: heading
+          heading: 人格力学欠陥の検出基準
+
+        - type: text
+          text: |
+            dynamics_unused（力学未反映）の検出基準:
+            - キャラクターの渇望・充足行動が行動や台詞に全く体現されていない: major
+            - 渇望と矛盾しない行動しかとっていない（表層と中層の乖離がない）: major
+
+            craving_explicit（渇望の直接説明）の検出基準:
+            - 「○○が欲しかった」「○○を渇望していた」等の地の文での直接記述: major
+            - 内面の傷を説明的に語る回想（「あのとき○○が壊れた」等の直接告白）: major
+
+            fulfillment_cliche（充足行動のテンプレ化）の検出基準:
+            - 充足行動が渇望から直線的に導かれる（「孤独→人に近づく」のような予測可能な行動）: minor
+            - 充足行動が一般的すぎる（「静かに微笑む」「黙って見つめる」等の非固有行動）: minor
+
+        - type: text
+          text: "**期待される人格力学（dynamics参照）:**"
+
+        - type: loop
+          over: enrichedCharacters
+          as: ec
+          body:
+            - type: text
+              text: |
+                - **{{ ec.name }}**: 渇望「{{ ec.craving }}」→ 充足行動「{{ ec.distortedFulfillment }}」/ 表層矛盾「{{ ec.surfaceContradiction }}」
+
+    - type: condition
+      if:
         has: toneDirective
       then:
         - type: heading

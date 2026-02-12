@@ -37,6 +37,15 @@ const samplePlot: Plot = {
   ],
 };
 
+const sampleDynamics = {
+  innerWound: '幼少期の見捨てられ体験による存在不安',
+  craving: '他者の人生に取り返しのつかない痕跡を残すこと',
+  surfaceContradiction: '温和な表層と破壊的な渇望の乖離',
+  distortedFulfillment: '偽造タグで他者の記録を書き換える行為で存在証明を得る',
+  fulfillmentCondition: '偽造した情報が他者の行動を実際に変えた瞬間',
+  relationshipAsymmetry: '一方的に他者の記録を操作する立場に固執する',
+};
+
 const samplePhase1Chars: EnrichedCharacterPhase1[] = [
   {
     ...sampleDeveloped[0],
@@ -44,6 +53,7 @@ const samplePhase1Chars: EnrichedCharacterPhase1[] = [
       { habit: '左手で右肘を掴む', trigger: '目が合うとき', sensoryDetail: '指が白くなる' },
     ],
     stance: { type: 'oblique', manifestation: '笑いに変える', blindSpot: '自分の関与' },
+    dynamics: sampleDynamics,
   },
 ];
 
@@ -131,6 +141,19 @@ describe('buildPhase2Context', () => {
     expect(ctx.plotSummary).toBeDefined();
   });
 
+  it('should include dynamics in character list', () => {
+    const soulText = createMockSoulText();
+    const ctx = buildPhase2Context({
+      soulText,
+      characters: samplePhase1Chars,
+      plot: samplePlot,
+      theme: sampleTheme,
+    });
+    const chars = ctx.characters as Array<{ name: string; craving: string; distortedFulfillment: string }>;
+    expect(chars[0].craving).toContain('痕跡');
+    expect(chars[0].distortedFulfillment).toContain('偽造');
+  });
+
   it('should be a pure function (no side effects)', () => {
     const soulText = createMockSoulText();
     const input = {
@@ -142,5 +165,35 @@ describe('buildPhase2Context', () => {
     const ctx1 = buildPhase2Context(input);
     const ctx2 = buildPhase2Context(input);
     expect(ctx1).toEqual(ctx2);
+  });
+});
+
+describe('buildPhase1Context with MacGuffins', () => {
+  it('should include characterMacGuffins when provided', () => {
+    const soulText = createMockSoulText();
+    const macGuffins = [
+      { characterName: '佐々木', secret: '火災の原因を知っている', surfaceSigns: ['手が震える', '目を逸らす'], narrativeFunction: '物語後半での告白シーンの伏線' },
+    ];
+    const ctx = buildPhase1Context({
+      soulText,
+      characters: sampleDeveloped,
+      theme: sampleTheme,
+      macGuffins,
+    });
+    expect(ctx.characterMacGuffins).toBeDefined();
+    const mgs = ctx.characterMacGuffins as Array<{ characterName: string; secret: string }>;
+    expect(mgs[0].characterName).toBe('佐々木');
+    expect(mgs[0].secret).toBe('火災の原因を知っている');
+  });
+
+  it('should return empty characterMacGuffins when not provided', () => {
+    const soulText = createMockSoulText();
+    const ctx = buildPhase1Context({
+      soulText,
+      characters: sampleDeveloped,
+      theme: sampleTheme,
+    });
+    const mgs = ctx.characterMacGuffins as Array<unknown>;
+    expect(mgs).toEqual([]);
   });
 });

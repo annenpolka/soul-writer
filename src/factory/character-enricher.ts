@@ -4,6 +4,7 @@ import { assertToolCallingClient } from '../llm/tooling.js';
 import type { SoulText } from '../soul/manager.js';
 import type { GeneratedTheme } from '../schemas/generated-theme.js';
 import type { Plot } from '../schemas/plot.js';
+import type { CharacterMacGuffin } from '../schemas/macguffin.js';
 import type { DevelopedCharacter } from './character-developer.js';
 import { buildPhase1Context, buildPhase2Context } from '../agents/context/character-enricher-context.js';
 import { parsePhase1Response, parsePhase2Response } from '../agents/parsers/character-enricher-parser.js';
@@ -25,6 +26,15 @@ export const StanceSchema = z.object({
   blindSpot: z.string().min(1),
 });
 
+export const PersonalityDynamicsSchema = z.object({
+  innerWound: z.string().min(10),
+  craving: z.string().min(10),
+  surfaceContradiction: z.string().min(10),
+  distortedFulfillment: z.string().min(10),
+  fulfillmentCondition: z.string().min(10),
+  relationshipAsymmetry: z.string().min(10),
+});
+
 export const DialogueSampleSchema = z.object({
   line: z.string().min(1),
   situation: z.string().min(1),
@@ -39,6 +49,7 @@ export const EnrichedCharacterPhase1Schema = z.object({
   voice: z.string(),
   physicalHabits: z.array(PhysicalHabitSchema).min(1).max(3),
   stance: StanceSchema,
+  dynamics: PersonalityDynamicsSchema,
 });
 
 export const EnrichedCharacterSchema = EnrichedCharacterPhase1Schema.extend({
@@ -51,6 +62,7 @@ export const EnrichedCharacterSchema = EnrichedCharacterPhase1Schema.extend({
 
 export type PhysicalHabit = z.infer<typeof PhysicalHabitSchema>;
 export type Stance = z.infer<typeof StanceSchema>;
+export type PersonalityDynamics = z.infer<typeof PersonalityDynamicsSchema>;
 export type DialogueSample = z.infer<typeof DialogueSampleSchema>;
 export type EnrichedCharacterPhase1 = z.infer<typeof EnrichedCharacterPhase1Schema>;
 export type EnrichedCharacter = z.infer<typeof EnrichedCharacterSchema>;
@@ -77,6 +89,7 @@ export interface CharacterEnricherFn {
   enrichPhase1: (
     characters: DevelopedCharacter[],
     theme: GeneratedTheme,
+    macGuffins?: CharacterMacGuffin[],
   ) => Promise<CharacterEnrichPhase1Result>;
 
   enrichPhase2: (
@@ -94,7 +107,7 @@ const SUBMIT_CHARACTER_ENRICHMENT_TOOL: ToolDefinition = {
   type: 'function',
   function: {
     name: 'submit_character_enrichment',
-    description: 'キャラクターの身体の癖とテーマへの態度を提出する',
+    description: 'キャラクターの人格力学・身体の癖・テーマへの態度を提出する',
     parameters: {
       type: 'object',
       properties: {
@@ -127,8 +140,21 @@ const SUBMIT_CHARACTER_ENRICHMENT_TOOL: ToolDefinition = {
                 required: ['type', 'manifestation', 'blindSpot'],
                 additionalProperties: false,
               },
+              dynamics: {
+                type: 'object',
+                properties: {
+                  innerWound: { type: 'string' },
+                  craving: { type: 'string' },
+                  surfaceContradiction: { type: 'string' },
+                  distortedFulfillment: { type: 'string' },
+                  fulfillmentCondition: { type: 'string' },
+                  relationshipAsymmetry: { type: 'string' },
+                },
+                required: ['innerWound', 'craving', 'surfaceContradiction', 'distortedFulfillment', 'fulfillmentCondition', 'relationshipAsymmetry'],
+                additionalProperties: false,
+              },
             },
-            required: ['name', 'physicalHabits', 'stance'],
+            required: ['name', 'physicalHabits', 'stance', 'dynamics'],
             additionalProperties: false,
           },
         },
@@ -189,10 +215,10 @@ export function createCharacterEnricher(
   soulText: SoulText,
 ): CharacterEnricherFn {
   return {
-    enrichPhase1: async (characters, theme) => {
+    enrichPhase1: async (characters, theme, macGuffins) => {
       const tokensBefore = llmClient.getTotalTokens();
 
-      const context = buildPhase1Context({ soulText, characters, theme });
+      const context = buildPhase1Context({ soulText, characters, theme, macGuffins });
       const { system: systemPrompt, user: userPrompt } = buildPrompt('character-enricher-phase1', context);
 
       assertToolCallingClient(llmClient);

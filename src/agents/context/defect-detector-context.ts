@@ -35,6 +35,9 @@ const DEFECT_CATEGORIES = [
   { name: 'motif_exhaustion', description: '摩耗度が高いモチーフのそのままの再利用（変奏・記号化なし）' },
   { name: 'variation_axis_violation', description: '指定された変奏軸の方向に変化していない（前章と同一パターンの反復）' },
   { name: 'cross_chapter_repetition', description: '前章と同一の台詞・描写・感情パターンのコピペ' },
+  { name: 'dynamics_unused', description: 'キャラクターの人格力学（渇望・充足行動）が文章に反映されていない' },
+  { name: 'craving_explicit', description: '渇望や内面の傷が地の文で直接説明されている（show don\'t tell違反）' },
+  { name: 'fulfillment_cliche', description: '歪んだ充足行動がテンプレ的（渇望から直線的に導かれる予測可能な行動）' },
 ];
 
 /**
@@ -77,6 +80,9 @@ export function buildDefectDetectorContext(input: DefectDetectorContextInput): R
     stanceManifestation: c.stance.manifestation,
     blindSpot: c.stance.blindSpot,
     habits: c.physicalHabits.map(h => `${h.habit}（${h.trigger}、${h.sensoryDetail}）`).join('\n  '),
+    craving: c.dynamics.craving,
+    distortedFulfillment: c.dynamics.distortedFulfillment,
+    surfaceContradiction: c.dynamics.surfaceContradiction,
   }));
 
   // Cross-chapter state for multi-chapter quality checks
