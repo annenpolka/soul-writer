@@ -11,6 +11,8 @@ export interface SynthesisAnalyzerContextInput {
   narrativeRules: NarrativeRules;
   themeContext?: ThemeContext;
   macGuffinContext?: MacGuffinContext;
+  /** LLM reasoning from Judge — propagated as authoritative context */
+  judgeReasoning?: string | null;
 }
 
 /**
@@ -25,7 +27,7 @@ export interface SynthesisAnalyzerContextInput {
  * - championId
  */
 export function buildSynthesisAnalyzerContext(input: SynthesisAnalyzerContextInput): Record<string, unknown> {
-  const { soulText, input: analyzerInput, narrativeRules, themeContext, macGuffinContext } = input;
+  const { soulText, input: analyzerInput, narrativeRules, themeContext, macGuffinContext, judgeReasoning } = input;
 
   // All generation texts with champion flag
   const allTexts = analyzerInput.allGenerations.map(g => ({
@@ -144,6 +146,11 @@ export function buildSynthesisAnalyzerContext(input: SynthesisAnalyzerContextInp
     if (Object.keys(crossChapterContext).length > 0) {
       ctx.crossChapterContext = crossChapterContext;
     }
+  }
+
+  // Judge LLM reasoning (authoritative reference for synthesis)
+  if (judgeReasoning) {
+    ctx.judgeReasoning = judgeReasoning;
   }
 
   return ctx;

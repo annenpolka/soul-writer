@@ -172,6 +172,17 @@ system:
                 **変奏ヒント**: {{ crossChapterContext.variationHint }}
                 この方向に変化が反映されているか確認し、不足していればchapter_variationアクションに含めてください。
 
+    - type: condition
+      if:
+        has: judgeReasoning
+      then:
+        - type: heading
+          heading: 先行分析の推論プロセス（確定的参照）
+        - type: text
+          text: |
+            以下はJudgeによる品質分析の推論過程です。この分析に基づき改善計画を策定してください。
+            {{ judgeReasoning }}
+
     - type: heading
       heading: 改善アクションの種別
 

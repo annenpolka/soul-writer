@@ -1,8 +1,9 @@
-import type { LLMClient } from '../llm/types.js';
+import type { LLMClient, LLMMessage } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import type { WriterConfig, ThemeContext, MacGuffinContext } from '../agents/types.js';
 import type { EnrichedCharacter } from '../factory/character-enricher.js';
-import { COLLABORATION_TOOLS, parseToolCallToAction } from './tools.js';
+import { parseStructuredAction } from './tools.js';
+import { CollaborationActionResponseSchema } from '../schemas/collaboration-action.js';
 import type { CollaborationAction, CollaborationState } from './types.js';
 
 // --- FP interface ---
@@ -106,11 +107,16 @@ function buildSystemPrompt(deps: CollaborativeWriterDeps, writerName: string, st
 
   lines.push(`\n## 現在のフェーズ: ${state.currentPhase}`);
   lines.push('\n## 利用可能なアクション');
-  lines.push('- submit_proposal: セクションの方向性を提案');
-  lines.push('- give_feedback: 他Writerの提案や草稿にフィードバック');
-  lines.push('- submit_draft: 担当セクションの草稿を提出');
-  lines.push('- volunteer_section: セクション担当に立候補');
-  lines.push('\n必ずツールを使ってアクションを返してください。');
+  lines.push('- proposal: セクションの方向性を提案');
+  lines.push('- feedback: 他Writerの提案や草稿にフィードバック');
+  lines.push('- draft: 担当セクションの草稿を提出');
+  lines.push('- volunteer: セクション担当に立候補');
+
+  if (state.currentPhase === 'drafting') {
+    lines.push('\n【重要】draftingフェーズでは必ず action: "draft" を使用してください。');
+  }
+
+  lines.push('\nJSONで1つのアクションを返してください。');
 
   return lines.join('\n');
 }
@@ -148,7 +154,7 @@ function buildUserPrompt(state: CollaborationState, prompt: string): string {
     }
   }
 
-  lines.push(`\nフェーズ「${state.currentPhase}」として適切なアクションをツールで実行してください。`);
+  lines.push(`\nフェーズ「${state.currentPhase}」として適切なアクションをJSONで実行してください。`);
 
   return lines.join('\n');
 }
@@ -159,38 +165,45 @@ export function createCollaborativeWriter(deps: CollaborativeWriterDeps): Collab
   const { llmClient, config } = deps;
   const writerName = config.personaName ?? config.id;
 
-  const participate = async (state: CollaborationState, prompt: string): Promise<CollaborationAction[]> => {
-    if (!llmClient.completeWithTools) {
-      throw new Error('LLMClient does not support tool calling');
-    }
+  // Multi-turn conversation state: accumulates across participate() calls
+  let conversationMessages: LLMMessage[] = [];
+  let initialized = false;
 
+  const participate = async (state: CollaborationState, prompt: string): Promise<CollaborationAction[]> => {
     const systemPrompt = buildSystemPrompt(deps, writerName, state);
     const userPrompt = buildUserPrompt(state, prompt);
 
-    // draftingフェーズではsubmit_draftのみに制限して確実に草稿を生成させる
-    const tools = state.currentPhase === 'drafting'
-      ? COLLABORATION_TOOLS.filter((t) => t.function.name === 'submit_draft')
-      : COLLABORATION_TOOLS;
+    if (!initialized) {
+      // First call: initialize conversation
+      conversationMessages = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ];
+      initialized = true;
+    } else {
+      // Subsequent calls: append new user message to accumulated conversation
+      conversationMessages.push({ role: 'user', content: userPrompt });
+    }
 
     for (let attempt = 0; attempt <= PARTICIPATE_MAX_RETRIES; attempt++) {
       try {
-        const response = await llmClient.completeWithTools(
-          systemPrompt,
-          userPrompt,
-          tools,
-          {
-            toolChoice: 'required',
-            temperature: config.temperature,
-            topP: config.topP,
-          },
+        const response = await llmClient.completeStructured!(
+          [...conversationMessages],
+          CollaborationActionResponseSchema,
+          { temperature: 1.0 },
         );
 
-        return response.toolCalls.map((tc) =>
-          parseToolCallToAction(config.id, tc.function.name, tc.function.arguments),
-        );
+        // Add assistant response to conversation for future multi-turn reference
+        const assistantMessage: LLMMessage = {
+          role: 'assistant',
+          content: JSON.stringify(response.data),
+          ...(response.reasoning ? { reasoning: response.reasoning } : {}),
+        };
+        conversationMessages.push(assistantMessage);
+
+        return [parseStructuredAction(config.id, response.data)];
       } catch {
         if (attempt === PARTICIPATE_MAX_RETRIES) {
-          // フォールバック: セッションを殺さないよう空の提案を返す
           return [{
             type: 'proposal' as const,
             writerId: config.id,
@@ -211,4 +224,3 @@ export function createCollaborativeWriter(deps: CollaborativeWriterDeps): Collab
     focusCategories: config.focusCategories,
   };
 }
-

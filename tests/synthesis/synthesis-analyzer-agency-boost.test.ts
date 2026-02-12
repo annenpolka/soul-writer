@@ -1,67 +1,48 @@
 import { describe, it, expect, vi } from 'vitest';
+import type { ImprovementPlanRaw } from '../../src/schemas/improvement-plan.js';
+import { ImprovementPlanSchema } from '../../src/schemas/improvement-plan.js';
 
 /**
- * Test that SUBMIT_IMPROVEMENT_PLAN_TOOL includes 'agency_boost' in enum.
- * We access the tool schema indirectly through createSynthesisAnalyzer and the
- * mock LLM to verify the tool definition contains the expected enum value.
+ * Test that ImprovementPlanSchema includes 'agency_boost' in action type enum.
  */
 
-describe('SUBMIT_IMPROVEMENT_PLAN_TOOL - agency_boost enum', () => {
-  it('should include agency_boost in the actions type enum', async () => {
-    // Dynamically import to get the module with the tool definition
-    const mod = await import('../../src/synthesis/synthesis-analyzer.js');
-    const deps = {
-      llmClient: {
-        complete: vi.fn(),
-        completeWithTools: vi.fn().mockResolvedValue({
-          toolCalls: [{
-            function: {
-              name: 'submit_improvement_plan',
-              arguments: JSON.stringify({
-                championAssessment: 'test',
-                preserveElements: [],
-                actions: [],
-                expressionSources: [],
-              }),
-            },
-          }],
-        }),
-        getTotalTokens: vi.fn().mockReturnValue(0),
-        isToolCallingClient: true,
-      },
-      soulText: (await import('../helpers/mock-soul-text.js')).createMockSoulText(),
+describe('ImprovementPlanSchema - agency_boost enum', () => {
+  it('should include agency_boost in the actions type enum', () => {
+    // Verify that agency_boost is a valid action type by parsing a plan with it
+    const planWithAgencyBoost: ImprovementPlanRaw = {
+      championAssessment: 'test',
+      preserveElements: [],
+      actions: [
+        {
+          section: 'test',
+          type: 'agency_boost',
+          description: 'Add character agency',
+          source: 'writer_1',
+          priority: 'high',
+        },
+      ],
+      expressionSources: [],
     };
 
-    const analyzer = mod.createSynthesisAnalyzer(deps as any);
-    await analyzer.analyze({
-      championText: 'test',
-      championId: 'writer_1',
-      allGenerations: [
-        { writerId: 'writer_1', text: 'test1', tokensUsed: 10 },
-        { writerId: 'writer_2', text: 'test2', tokensUsed: 10 },
+    const result = ImprovementPlanSchema.safeParse(planWithAgencyBoost);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.actions[0].type).toBe('agency_boost');
+    }
+  });
+
+  it('should also include chapter_variation and repetition_elimination', () => {
+    const testData: ImprovementPlanRaw = {
+      championAssessment: 'test',
+      preserveElements: [],
+      actions: [
+        { section: 's', type: 'chapter_variation', description: 'd', source: 'w', priority: 'medium' },
+        { section: 's', type: 'repetition_elimination', description: 'd', source: 'w', priority: 'low' },
       ],
-      rounds: [{
-        matchName: 'semi_1',
-        contestantA: 'writer_1',
-        contestantB: 'writer_2',
-        winner: 'writer_1',
-        judgeResult: {
-          winner: 'A' as const,
-          reasoning: 'test',
-          scores: {
-            A: { style: 0.8, compliance: 0.9, overall: 0.85 },
-            B: { style: 0.6, compliance: 0.7, overall: 0.65 },
-          },
-        },
-      }],
-    });
+      expressionSources: [],
+    };
 
-    // Extract the tool definition from the completeWithTools call
-    const call = (deps.llmClient.completeWithTools as ReturnType<typeof vi.fn>).mock.calls[0];
-    const tools = call[2] as Array<{ type: string; function: { parameters: any } }>;
-    const toolParams = tools[0].function.parameters;
-    const actionTypeEnum = toolParams.properties.actions.items.properties.type.enum as string[];
-
-    expect(actionTypeEnum).toContain('agency_boost');
+    const result = ImprovementPlanSchema.safeParse(testData);
+    expect(result.success).toBe(true);
   });
 });

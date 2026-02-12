@@ -1,6 +1,6 @@
-import type { ToolDefinition } from '../llm/types.js';
-import { assertToolCallingClient } from '../llm/tooling.js';
 import type { Plot } from '../schemas/plot.js';
+import type { LLMMessage } from '../llm/types.js';
+import { PlotSkeletonSchema } from '../schemas/plot.js';
 import {
   type PlotterConfig,
   type PlotResult,
@@ -9,181 +9,65 @@ import {
 } from './types.js';
 import { buildPrompt } from '../template/composer.js';
 import { buildPlotterContext, buildChapterConstraintContext } from './context/plotter-context.js';
-import { parsePlotSkeletonResponse, parseChapterConstraintsResponse } from './parsers/plotter-parser.js';
+import { parsePlotSkeletonResponse, parseChapterConstraintsResponse, BatchChapterConstraintsSchema } from './parsers/plotter-parser.js';
 
 export { type PlotterConfig, type PlotResult };
 
 /**
- * Phase 1 tool: submit plot skeleton (title, theme, chapters basics)
- */
-const SUBMIT_PLOT_SKELETON_TOOL: ToolDefinition = {
-  type: 'function',
-  function: {
-    name: 'submit_plot_skeleton',
-    description: '物語のプロット骨格を提出する（章の基本情報のみ）',
-    parameters: {
-      type: 'object',
-      properties: {
-        title: { type: 'string' },
-        theme: { type: 'string' },
-        chapters: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              index: { type: 'number' },
-              title: { type: 'string' },
-              summary: { type: 'string' },
-              key_events: { type: 'array', items: { type: 'string' } },
-              target_length: { type: 'number' },
-              dramaturgy: { type: 'string' },
-              arc_role: { type: 'string' },
-              decision_point: {
-                type: 'object',
-                properties: {
-                  action: { type: 'string' },
-                  stakes: { type: 'string' },
-                  irreversibility: { type: 'string' },
-                },
-                required: ['action', 'stakes', 'irreversibility'],
-                additionalProperties: false,
-              },
-              variation_axis: {
-                type: 'object',
-                description: '章の変奏軸 — この章で何が意味論的に変化するか',
-                properties: {
-                  curve_type: { type: 'string', description: '劇的曲線の型（escalation, descent_plateau, oscillation, sustained_tension, release等）' },
-                  intensity_target: { type: 'number', description: '劇的強度の目標（1-5）' },
-                  differentiation_technique: { type: 'string', description: '前後の章と差別化する具体的技法' },
-                  internal_beats: { type: 'array', items: { type: 'string' }, description: '章内の変化ポイント（単一章でも使用）' },
-                },
-                required: ['curve_type', 'intensity_target', 'differentiation_technique', 'internal_beats'],
-                additionalProperties: false,
-              },
-            },
-            required: ['index', 'title', 'summary', 'key_events', 'target_length', 'dramaturgy', 'arc_role', 'decision_point', 'variation_axis'],
-            additionalProperties: false,
-          },
-        },
-      },
-      required: ['title', 'theme', 'chapters'],
-      additionalProperties: false,
-    },
-    strict: true,
-  },
-};
-
-/**
- * Phase 2 tool: submit chapter constraints (variation + epistemic)
- */
-const SUBMIT_CHAPTER_CONSTRAINTS_TOOL: ToolDefinition = {
-  type: 'function',
-  function: {
-    name: 'submit_chapter_constraints',
-    description: '各章の変奏制約と認識制約を提出する',
-    parameters: {
-      type: 'object',
-      properties: {
-        chapters: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              index: { type: 'number' },
-              variation_constraints: {
-                type: 'object',
-                properties: {
-                  structure_type: { type: 'string' },
-                  emotional_arc: { type: 'string' },
-                  pacing: { type: 'string' },
-                  deviation_from_previous: { type: 'string' },
-                  motif_budget: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        motif: { type: 'string' },
-                        max_uses: { type: 'number' },
-                      },
-                      required: ['motif', 'max_uses'],
-                      additionalProperties: false,
-                    },
-                  },
-                  emotional_beats: { type: 'array', items: { type: 'string' } },
-                  forbidden_patterns: { type: 'array', items: { type: 'string' } },
-                },
-                required: ['structure_type', 'emotional_arc', 'pacing', 'deviation_from_previous', 'motif_budget', 'emotional_beats', 'forbidden_patterns'],
-                additionalProperties: false,
-              },
-              epistemic_constraints: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    perspective: { type: 'string' },
-                    constraints: { type: 'array', items: { type: 'string' } },
-                  },
-                  required: ['perspective', 'constraints'],
-                  additionalProperties: false,
-                },
-              },
-            },
-            required: ['index', 'variation_constraints', 'epistemic_constraints'],
-            additionalProperties: false,
-          },
-        },
-      },
-      required: ['chapters'],
-      additionalProperties: false,
-    },
-    strict: true,
-  },
-};
-
-/**
  * Create a functional Plotter from dependencies.
- * Internally uses 2-phase generation:
+ * Internally uses 2-phase generation as a multi-turn conversation:
  *   Phase 1: plot skeleton (title, theme, chapter basics)
- *   Phase 2: chapter constraints (variation + epistemic)
+ *   Phase 2: chapter constraints (variation + epistemic) — includes Phase 1 context
  */
 export function createPlotter(deps: PlotterDeps): Plotter {
   const { llmClient, soulText, config } = deps;
 
   return {
     generatePlot: async (): Promise<Plot> => {
-      assertToolCallingClient(llmClient);
-
       // Phase 1: Generate plot skeleton
       const skeletonContext = buildPlotterContext({ soulText, config });
       const { system: skeletonSystem, user: skeletonUser } = buildPrompt('plotter', skeletonContext);
 
-      const skeletonResponse = await llmClient.completeWithTools(
-        skeletonSystem,
-        skeletonUser,
-        [SUBMIT_PLOT_SKELETON_TOOL],
-        {
-          toolChoice: { type: 'function', function: { name: 'submit_plot_skeleton' } },
-          temperature: config.temperature,
-        },
+      const phase1Messages: LLMMessage[] = [
+        { role: 'system', content: skeletonSystem },
+        { role: 'user', content: skeletonUser },
+      ];
+
+      const skeletonResponse = await llmClient.completeStructured!(
+        phase1Messages,
+        PlotSkeletonSchema,
+        { temperature: 1.0 },
       );
 
       const skeleton = parsePlotSkeletonResponse(skeletonResponse);
 
-      // Phase 2: Generate chapter constraints
+      // Phase 2: Generate chapter constraints (multi-turn conversation continuation)
       const constraintContext = buildChapterConstraintContext({ skeleton, config });
-      const { system: constraintSystem, user: constraintUser } = buildPrompt('plotter-constraints', constraintContext);
+      const { user: constraintUser } = buildPrompt('plotter-constraints', constraintContext);
 
-      const constraintResponse = await llmClient.completeWithTools(
-        constraintSystem,
-        constraintUser,
-        [SUBMIT_CHAPTER_CONSTRAINTS_TOOL],
+      // Build Phase 2 messages as continuation of Phase 1 conversation
+      const phase2Messages: LLMMessage[] = [
+        ...phase1Messages,
         {
-          toolChoice: { type: 'function', function: { name: 'submit_chapter_constraints' } },
-          temperature: config.temperature,
+          role: 'assistant' as const,
+          content: JSON.stringify(skeletonResponse.data),
+          ...(skeletonResponse.reasoning ? { reasoning: skeletonResponse.reasoning } : {}),
         },
-      );
+        { role: 'user', content: constraintUser },
+      ];
 
-      const batchConstraints = parseChapterConstraintsResponse(constraintResponse);
+      let batchConstraints;
+      try {
+        const constraintResponse = await llmClient.completeStructured!(
+          phase2Messages,
+          BatchChapterConstraintsSchema,
+          { temperature: 1.0 },
+        );
+        batchConstraints = parseChapterConstraintsResponse(constraintResponse);
+      } catch (e) {
+        console.warn('[plotter] Phase 2 constraints failed, using empty constraints:', e instanceof Error ? e.message : e);
+        batchConstraints = { chapters: [] };
+      }
 
       // Merge skeleton + constraints into final Plot
       const constraintMap = new Map(

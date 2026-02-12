@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { LLMClient } from '../../src/llm/types.js';
+import type { LLMClient, StructuredResponse } from '../../src/llm/types.js';
 import type { AgentDeps, CorrectorDeps, WriterDeps, ThemeContext } from '../../src/agents/types.js';
 import { createMockSoulText } from './mock-soul-text.js';
 
@@ -10,6 +10,11 @@ import { createMockSoulText } from './mock-soul-text.js';
 export function createMockLLMClient(response: string = 'mock response', tokenCount: number = 100): LLMClient {
   return {
     complete: vi.fn().mockResolvedValue(response),
+    completeStructured: vi.fn().mockResolvedValue({
+      data: {},
+      reasoning: null,
+      tokensUsed: tokenCount,
+    } satisfies StructuredResponse<unknown>),
     getTotalTokens: vi.fn().mockReturnValue(tokenCount),
   };
 }
@@ -36,7 +41,32 @@ export function createMockLLMClientWithTools(
       ],
       content: null,
       tokensUsed: tokenCount,
+      reasoning: null,
     }),
+    completeStructured: vi.fn().mockResolvedValue({
+      data: {},
+      reasoning: null,
+      tokensUsed: tokenCount,
+    } satisfies StructuredResponse<unknown>),
+    getTotalTokens: vi.fn().mockReturnValue(tokenCount),
+  };
+}
+
+/**
+ * Creates a mock LLMClient with structured output support.
+ */
+export function createMockLLMClientWithStructured<T>(
+  data: T,
+  options?: { reasoning?: string | null; tokenCount?: number },
+): LLMClient {
+  const tokenCount = options?.tokenCount ?? 100;
+  return {
+    complete: vi.fn().mockResolvedValue(''),
+    completeStructured: vi.fn().mockResolvedValue({
+      data,
+      reasoning: options?.reasoning ?? null,
+      tokensUsed: tokenCount,
+    } satisfies StructuredResponse<T>),
     getTotalTokens: vi.fn().mockReturnValue(tokenCount),
   };
 }

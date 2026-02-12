@@ -8,13 +8,15 @@ export interface RetakeSystemPromptInput {
   narrativeRules: NarrativeRules;
   themeContext?: ThemeContext;
   defectCategories?: string[];
+  /** LLM reasoning from DefectDetector — reference context for retake */
+  detectorReasoning?: string | null;
 }
 
 /**
  * Pure function: build the system prompt for retake.
  */
 export function buildRetakeSystemPrompt(input: RetakeSystemPromptInput): string {
-  const { soulText, narrativeRules, themeContext, defectCategories } = input;
+  const { soulText, narrativeRules, themeContext, defectCategories, detectorReasoning } = input;
   const constitution = soulText.constitution;
   const parts: string[] = [];
 
@@ -78,6 +80,14 @@ export function buildRetakeSystemPrompt(input: RetakeSystemPromptInput): string 
     for (const pattern of antiSoulPatterns) {
       parts.push(`- [${pattern.category}] 「${pattern.text.slice(0, 100)}」 — ${pattern.reason}`);
     }
+    parts.push('');
+  }
+
+  // DefectDetector LLM reasoning reference
+  if (detectorReasoning) {
+    parts.push('## 参考: 品質検査の推論過程');
+    parts.push('以下はDefectDetectorの推論です。この分析を参考に修正してください。');
+    parts.push(detectorReasoning);
     parts.push('');
   }
 

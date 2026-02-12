@@ -10,6 +10,12 @@ import { createWorkRepo } from '../storage/work-repository.js';
 import { createCheckpointRepo } from '../storage/checkpoint-repository.js';
 import { createCheckpointManager } from '../storage/checkpoint-manager.js';
 import { createSoulCandidateRepo } from '../storage/soul-candidate-repository.js';
+import { createJudgeSessionRepo } from '../storage/judge-session-repository.js';
+import { createChapterEvalRepo } from '../storage/chapter-evaluation-repository.js';
+import { createSynthesisPlanRepo } from '../storage/synthesis-plan-repository.js';
+import { createCorrectionHistoryRepo } from '../storage/correction-history-repository.js';
+import { createCrossChapterStateRepo } from '../storage/cross-chapter-state-repository.js';
+import { createPhaseMetricsRepo } from '../storage/phase-metrics-repository.js';
 import { createThemeGenerator } from '../factory/theme-generator.js';
 import { createCharacterDeveloper } from '../factory/character-developer.js';
 import { createCharacterMacGuffinAgent } from '../factory/character-macguffin.js';
@@ -50,7 +56,7 @@ export async function generate(options: GenerateOptions): Promise<void> {
 
   // Check environment
   const apiKey = process.env.CEREBRAS_API_KEY;
-  const model = process.env.CEREBRAS_MODEL || 'llama-3.3-70b';
+  const model = process.env.CEREBRAS_MODEL || 'zai-glm-4.7';
 
   if (!apiKey) {
     console.error('Error: CEREBRAS_API_KEY environment variable is not set');
@@ -202,6 +208,14 @@ async function runFullMode(
       storyPrompt = opts.prompt!;
     }
 
+    // Create analytics repositories
+    const judgeSessionRepo = createJudgeSessionRepo(sqlite);
+    const chapterEvalRepo = createChapterEvalRepo(sqlite);
+    const synthesisPlanRepo = createSynthesisPlanRepo(sqlite);
+    const correctionHistoryRepo = createCorrectionHistoryRepo(sqlite);
+    const crossChapterStateRepo = createCrossChapterStateRepo(sqlite);
+    const phaseMetricsRepo = createPhaseMetricsRepo(sqlite);
+
     // Create FullPipeline
     const pipeline = createFullPipeline({
       llmClient,
@@ -221,6 +235,12 @@ async function runFullMode(
         mode: opts.mode,
       },
       logger,
+      judgeSessionRepo,
+      chapterEvalRepo,
+      synthesisPlanRepo,
+      correctionHistoryRepo,
+      crossChapterStateRepo,
+      phaseMetricsRepo,
     });
 
     console.log('Starting story generation...');

@@ -1,41 +1,39 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createSynthesisAnalyzer } from '../../src/synthesis/synthesis-analyzer.js';
 import type { SynthesisAnalyzerDeps, SynthesisAnalyzerInput } from '../../src/agents/types.js';
-import { createMockLLMClientWithTools } from '../helpers/mock-deps.js';
+import type { ImprovementPlanRaw } from '../../src/schemas/improvement-plan.js';
+import { createMockLLMClientWithStructured } from '../helpers/mock-deps.js';
 import { createMockSoulText } from '../helpers/mock-soul-text.js';
 
 function createMockAnalyzerDeps(overrides?: {
-  toolResponse?: { name: string; arguments: Record<string, unknown> };
+  structuredData?: ImprovementPlanRaw;
   tokenCount?: number;
 }): SynthesisAnalyzerDeps {
-  const defaultToolResponse = {
-    name: 'submit_improvement_plan',
-    arguments: {
-      championAssessment: '勝者テキストの文体が安定',
-      preserveElements: ['冒頭の比喩', '内面描写'],
-      actions: [
-        {
-          section: '展開',
-          type: 'expression_upgrade',
-          description: 'writer_2の比喩を取り入れ',
-          source: 'writer_2',
-          priority: 'high',
-        },
-      ],
-      expressionSources: [
-        {
-          writerId: 'writer_2',
-          expressions: ['月光が砕けた'],
-          context: '情景描写',
-        },
-      ],
-    },
+  const defaultData: ImprovementPlanRaw = {
+    championAssessment: '勝者テキストの文体が安定',
+    preserveElements: ['冒頭の比喩', '内面描写'],
+    actions: [
+      {
+        section: '展開',
+        type: 'expression_upgrade',
+        description: 'writer_2の比喩を取り入れ',
+        source: 'writer_2',
+        priority: 'high',
+      },
+    ],
+    expressionSources: [
+      {
+        writerId: 'writer_2',
+        expressions: ['月光が砕けた'],
+        context: '情景描写',
+      },
+    ],
   };
 
   return {
-    llmClient: createMockLLMClientWithTools(
-      overrides?.toolResponse ?? defaultToolResponse,
-      overrides?.tokenCount ?? 200,
+    llmClient: createMockLLMClientWithStructured(
+      overrides?.structuredData ?? defaultData,
+      { tokenCount: overrides?.tokenCount ?? 200 },
     ),
     soulText: createMockSoulText(),
   };
@@ -82,11 +80,11 @@ describe('createSynthesisAnalyzer', () => {
     expect(analyzer.analyze).toBeInstanceOf(Function);
   });
 
-  it('analyze() should call completeWithTools', async () => {
+  it('analyze() should call completeStructured', async () => {
     const deps = createMockAnalyzerDeps();
     const analyzer = createSynthesisAnalyzer(deps);
     await analyzer.analyze(createMockInput());
-    expect(deps.llmClient.completeWithTools).toHaveBeenCalledTimes(1);
+    expect(deps.llmClient.completeStructured).toHaveBeenCalledTimes(1);
   });
 
   it('analyze() should return an ImprovementPlan', async () => {
@@ -122,28 +120,56 @@ describe('createSynthesisAnalyzer', () => {
 
     expect(result.plan.actions).toHaveLength(0);
     expect(result.tokensUsed).toBe(0);
-    expect(deps.llmClient.completeWithTools).not.toHaveBeenCalled();
+    expect(deps.llmClient.completeStructured).not.toHaveBeenCalled();
   });
 
-  it('analyze() should use submit_improvement_plan tool with strict mode', async () => {
+  it('analyze() should use temperature 1.0', async () => {
     const deps = createMockAnalyzerDeps();
     const analyzer = createSynthesisAnalyzer(deps);
     await analyzer.analyze(createMockInput());
 
-    const call = (deps.llmClient.completeWithTools as ReturnType<typeof vi.fn>).mock.calls[0];
-    const tools = call[2] as Array<{ type: string; function: { name: string; strict?: boolean } }>;
-    expect(tools).toHaveLength(1);
-    expect(tools[0].function.name).toBe('submit_improvement_plan');
-    expect(tools[0].function.strict).toBe(true);
+    const call = (deps.llmClient.completeStructured as ReturnType<typeof vi.fn>).mock.calls[0];
+    const options = call[2] as { temperature?: number };
+    expect(options.temperature).toBe(1.0);
   });
 
-  it('analyze() should use temperature 0.4', async () => {
+  it('analyze() should capture reasoning from LLM response', async () => {
+    const defaultData: ImprovementPlanRaw = {
+      championAssessment: '勝者テキストの文体が安定',
+      preserveElements: ['冒頭の比喩'],
+      actions: [],
+      expressionSources: [],
+    };
+    const deps: SynthesisAnalyzerDeps = {
+      llmClient: createMockLLMClientWithStructured(defaultData, {
+        reasoning: 'SynthesisAnalyzer推論: 表現の統合が必要',
+        tokenCount: 200,
+      }),
+      soulText: createMockSoulText(),
+    };
+    const analyzer = createSynthesisAnalyzer(deps);
+    const result = await analyzer.analyze(createMockInput());
+
+    expect(result.reasoning).toBe('SynthesisAnalyzer推論: 表現の統合が必要');
+  });
+
+  it('analyze() should return null reasoning when LLM response has no reasoning', async () => {
     const deps = createMockAnalyzerDeps();
     const analyzer = createSynthesisAnalyzer(deps);
-    await analyzer.analyze(createMockInput());
+    const result = await analyzer.analyze(createMockInput());
 
-    const call = (deps.llmClient.completeWithTools as ReturnType<typeof vi.fn>).mock.calls[0];
-    const options = call[3] as { temperature?: number };
-    expect(options.temperature).toBe(0.4);
+    expect(result.reasoning).toBeNull();
+  });
+
+  it('analyze() should return null reasoning on early return (no losers)', async () => {
+    const deps = createMockAnalyzerDeps();
+    const analyzer = createSynthesisAnalyzer(deps);
+    const input = createMockInput({
+      allGenerations: [{ writerId: 'writer_1', text: '勝者テキスト', tokensUsed: 100 }],
+    });
+
+    const result = await analyzer.analyze(input);
+
+    expect(result.reasoning).toBeNull();
   });
 });

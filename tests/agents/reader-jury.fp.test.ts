@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createReaderJury } from '../../src/agents/reader-jury.js';
 import type { ReaderJuryDeps } from '../../src/agents/types.js';
 import type { ReaderPersona } from '../../src/schemas/reader-personas.js';
-import { createMockLLMClientWithTools } from '../helpers/mock-deps.js';
+import { createMockLLMClientWithStructured } from '../helpers/mock-deps.js';
 import { createMockSoulText } from '../helpers/mock-soul-text.js';
+import type { ReaderEvaluationRawResponse } from '../../src/schemas/reader-evaluation-response.js';
 
 function createMockPersonas(): ReaderPersona[] {
   return [
@@ -28,15 +29,12 @@ function createMockReaderJuryDeps(overrides?: {
   tokenCount?: number;
   personas?: ReaderPersona[];
 }): ReaderJuryDeps {
-  const toolResponse = {
-    name: 'submit_reader_evaluation',
-    arguments: {
-      categoryScores: { style: 0.9, plot: 0.9, character: 0.9, worldbuilding: 0.9, readability: 0.9 },
-      feedback: { strengths: 'Excellent', weaknesses: 'Minor issues', suggestion: 'Keep it up' },
-    },
+  const structuredData: ReaderEvaluationRawResponse = {
+    categoryScores: { style: 0.9, plot: 0.9, character: 0.9, worldbuilding: 0.9, readability: 0.9 },
+    feedback: { strengths: 'Excellent', weaknesses: 'Minor issues', suggestion: 'Keep it up' },
   };
   return {
-    llmClient: createMockLLMClientWithTools(toolResponse, overrides?.tokenCount),
+    llmClient: createMockLLMClientWithStructured(structuredData, { tokenCount: overrides?.tokenCount }),
     soulText: createMockSoulText(),
     personas: overrides?.personas ?? createMockPersonas(),
   };
@@ -93,15 +91,12 @@ describe('createReaderJury (FP)', () => {
 
   it('should use soulText personas when none provided in deps', async () => {
     const soulText = createMockSoulText();
-    const toolResponse = {
-      name: 'submit_reader_evaluation',
-      arguments: {
-        categoryScores: { style: 0.9, plot: 0.9, character: 0.9, worldbuilding: 0.9, readability: 0.9 },
-        feedback: { strengths: 'Good', weaknesses: 'None', suggestion: 'Keep going' },
-      },
+    const structuredData: ReaderEvaluationRawResponse = {
+      categoryScores: { style: 0.9, plot: 0.9, character: 0.9, worldbuilding: 0.9, readability: 0.9 },
+      feedback: { strengths: 'Good', weaknesses: 'None', suggestion: 'Keep going' },
     };
     const deps: ReaderJuryDeps = {
-      llmClient: createMockLLMClientWithTools(toolResponse),
+      llmClient: createMockLLMClientWithStructured(structuredData),
       soulText,
       // no personas - should fall back to soulText.readerPersonas.personas
     };

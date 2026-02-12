@@ -1,4 +1,5 @@
 import type { CorrectionLoopResult, Violation, ChapterContext, Corrector, ComplianceResult } from '../agents/types.js';
+import type { LLMClient, LLMMessage } from '../llm/types.js';
 
 const DEFAULT_MAX_ATTEMPTS = 3;
 
@@ -17,6 +18,8 @@ export interface CorrectionLoopDeps {
   corrector: Corrector;
   checker: CorrectionChecker;
   maxAttempts?: number;
+  /** Optional LLMClient for multi-turn correction (message accumulation across attempts) */
+  llmClient?: LLMClient;
 }
 
 /**
@@ -27,10 +30,24 @@ export interface CorrectionRunner {
 }
 
 /**
- * Create a functional CorrectionLoop from dependencies
+ * Format violations for inclusion in user messages
+ */
+function formatViolations(violations: Violation[]): string {
+  return violations
+    .map(
+      (v, i) =>
+        `${i + 1}. [${v.type}] "${v.context}" - ${v.rule} (severity: ${v.severity})`
+    )
+    .join('\n');
+}
+
+/**
+ * Create a functional CorrectionLoop from dependencies.
+ * When llmClient is provided, uses multi-turn message accumulation
+ * so the model can reference its own previous corrections.
  */
 export function createCorrectionLoop(deps: CorrectionLoopDeps): CorrectionRunner {
-  const { corrector, checker, maxAttempts = DEFAULT_MAX_ATTEMPTS } = deps;
+  const { corrector, checker, maxAttempts = DEFAULT_MAX_ATTEMPTS, llmClient } = deps;
 
   async function checkText(text: string, chapterContext?: ChapterContext): Promise<ComplianceResult> {
     if (chapterContext) {
@@ -62,12 +79,51 @@ export function createCorrectionLoop(deps: CorrectionLoopDeps): CorrectionRunner
       let attempts = 0;
       let totalTokensUsed = 0;
 
+      // Multi-turn message accumulation state
+      let conversationMessages: LLMMessage[] | undefined;
+
       while (attempts < maxAttempts) {
         attempts++;
 
-        const correctionResult = await corrector.correct(currentText, currentViolations);
-        totalTokensUsed += correctionResult.tokensUsed;
-        currentText = correctionResult.correctedText;
+        if (attempts === 1 || !llmClient) {
+          // First attempt always uses corrector (or all attempts if no llmClient)
+          const correctionResult = await corrector.correct(currentText, currentViolations);
+          totalTokensUsed += correctionResult.tokensUsed;
+          currentText = correctionResult.correctedText;
+
+          // Initialize conversation messages for subsequent multi-turn calls
+          if (llmClient && attempts === 1) {
+            conversationMessages = [
+              {
+                role: 'system',
+                content: 'あなたはテキスト矯正エージェントです。指摘された違反を修正し、修正後のテキスト全文のみを出力してください。',
+              },
+              {
+                role: 'user',
+                content: `以下のテキストに違反があります。修正してください。\n\n## 違反リスト\n${formatViolations(currentViolations)}\n\n## 対象テキスト\n${text}`,
+              },
+              {
+                role: 'assistant',
+                content: correctionResult.correctedText,
+              },
+            ];
+          }
+        } else {
+          // Subsequent attempts: use accumulated messages
+          conversationMessages!.push({
+            role: 'user',
+            content: `まだ以下の違反があります:\n${formatViolations(currentViolations)}\n\n上記の違反を修正してください。修正後のテキスト全文のみを出力してください。`,
+          });
+
+          const tokensBefore = llmClient.getTotalTokens();
+          currentText = await llmClient.complete(conversationMessages!, { temperature: 1.0 });
+          totalTokensUsed += llmClient.getTotalTokens() - tokensBefore;
+
+          conversationMessages!.push({
+            role: 'assistant',
+            content: currentText,
+          });
+        }
 
         const checkResult = await checkText(currentText, chapterContext);
 

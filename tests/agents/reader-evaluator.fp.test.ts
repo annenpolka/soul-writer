@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createReaderEvaluator } from '../../src/agents/reader-evaluator.js';
 import type { ReaderEvaluatorDeps } from '../../src/agents/types.js';
 import type { ReaderPersona } from '../../src/schemas/reader-personas.js';
-import { createMockLLMClientWithTools } from '../helpers/mock-deps.js';
+import type { ReaderEvaluationRawResponse } from '../../src/schemas/reader-evaluation-response.js';
+import { createMockLLMClientWithStructured } from '../helpers/mock-deps.js';
 import { createMockSoulText } from '../helpers/mock-soul-text.js';
 
 function createMockPersona(overrides?: Partial<ReaderPersona>): ReaderPersona {
@@ -17,19 +18,19 @@ function createMockPersona(overrides?: Partial<ReaderPersona>): ReaderPersona {
 }
 
 function createMockReaderEvalDeps(overrides?: {
-  toolResponse?: { name: string; arguments: Record<string, unknown> };
+  structuredData?: ReaderEvaluationRawResponse;
   tokenCount?: number;
   persona?: ReaderPersona;
 }): ReaderEvaluatorDeps {
-  const toolResponse = overrides?.toolResponse ?? {
-    name: 'submit_reader_evaluation',
-    arguments: {
-      categoryScores: { style: 0.8, plot: 0.7, character: 0.9, worldbuilding: 0.6, readability: 0.85 },
-      feedback: { strengths: 'Good style', weaknesses: 'Weak plot', suggestion: 'Add more plot' },
-    },
+  const defaultData: ReaderEvaluationRawResponse = {
+    categoryScores: { style: 0.8, plot: 0.7, character: 0.9, worldbuilding: 0.6, readability: 0.85 },
+    feedback: { strengths: 'Good style', weaknesses: 'Weak plot', suggestion: 'Add more plot' },
   };
   return {
-    llmClient: createMockLLMClientWithTools(toolResponse, overrides?.tokenCount),
+    llmClient: createMockLLMClientWithStructured(
+      overrides?.structuredData ?? defaultData,
+      { tokenCount: overrides?.tokenCount },
+    ),
     soulText: createMockSoulText(),
     persona: overrides?.persona ?? createMockPersona(),
   };
@@ -46,12 +47,12 @@ describe('createReaderEvaluator (FP)', () => {
     expect(evaluator.evaluate).toBeInstanceOf(Function);
   });
 
-  it('should call completeWithTools on the llmClient', async () => {
+  it('should call completeStructured on the llmClient', async () => {
     const deps = createMockReaderEvalDeps();
     const evaluator = createReaderEvaluator(deps);
 
     await evaluator.evaluate('test text');
-    expect(deps.llmClient.completeWithTools).toHaveBeenCalledTimes(1);
+    expect(deps.llmClient.completeStructured).toHaveBeenCalledTimes(1);
   });
 
   it('should return PersonaEvaluation with correct personaId and name', async () => {
@@ -64,7 +65,7 @@ describe('createReaderEvaluator (FP)', () => {
     expect(result.personaName).toBe('Custom Name');
   });
 
-  it('should parse category scores from tool response', async () => {
+  it('should parse category scores from structured response', async () => {
     const deps = createMockReaderEvalDeps();
     const evaluator = createReaderEvaluator(deps);
 
@@ -76,7 +77,7 @@ describe('createReaderEvaluator (FP)', () => {
     expect(result.categoryScores.readability).toBe(0.85);
   });
 
-  it('should parse feedback from tool response', async () => {
+  it('should parse feedback from structured response', async () => {
     const deps = createMockReaderEvalDeps();
     const evaluator = createReaderEvaluator(deps);
 
@@ -92,12 +93,9 @@ describe('createReaderEvaluator (FP)', () => {
     });
     const deps = createMockReaderEvalDeps({
       persona,
-      toolResponse: {
-        name: 'submit_reader_evaluation',
-        arguments: {
-          categoryScores: { style: 1.0, plot: 0.0, character: 0.0, worldbuilding: 0.0, readability: 0.0 },
-          feedback: { strengths: 'a', weaknesses: 'b', suggestion: 'c' },
-        },
+      structuredData: {
+        categoryScores: { style: 1.0, plot: 0.0, character: 0.0, worldbuilding: 0.0, readability: 0.0 },
+        feedback: { strengths: 'a', weaknesses: 'b', suggestion: 'c' },
       },
     });
     const evaluator = createReaderEvaluator(deps);
@@ -120,21 +118,19 @@ describe('createReaderEvaluator (FP)', () => {
     };
 
     await evaluator.evaluate('test text', previousEvaluation);
-    expect(deps.llmClient.completeWithTools).toHaveBeenCalledTimes(1);
+    expect(deps.llmClient.completeStructured).toHaveBeenCalledTimes(1);
   });
 
-  it('should handle malformed tool response gracefully', async () => {
-    const deps = createMockReaderEvalDeps({
-      toolResponse: {
-        name: 'wrong_tool_name',
-        arguments: {},
-      },
-    });
+  it('should handle completeStructured failure gracefully', async () => {
+    const deps = createMockReaderEvalDeps();
+    (deps.llmClient.completeStructured as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('LLM error'));
     const evaluator = createReaderEvaluator(deps);
 
     const result = await evaluator.evaluate('test text');
     // Should fall back to defaults
     expect(result.categoryScores).toBeDefined();
+    expect(result.categoryScores.style).toBe(0.5);
     expect(result.feedback).toBeDefined();
+    expect(result.feedback.weaknesses).toContain('structured output');
   });
 });

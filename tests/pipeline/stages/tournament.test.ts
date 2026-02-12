@@ -60,10 +60,10 @@ describe('createTournamentStage', () => {
     );
 
     const writerConfigs: WriterConfig[] = [
-      { id: 'writer_1', temperature: 0.7, topP: 0.9, style: 'balanced' },
-      { id: 'writer_2', temperature: 0.9, topP: 0.95, style: 'creative' },
-      { id: 'writer_3', temperature: 0.5, topP: 0.8, style: 'conservative' },
-      { id: 'writer_4', temperature: 0.8, topP: 0.85, style: 'moderate' },
+      { id: 'writer_1', temperature: 1.0, topP: 0.9, style: 'balanced' },
+      { id: 'writer_2', temperature: 1.0, topP: 0.95, style: 'creative' },
+      { id: 'writer_3', temperature: 1.0, topP: 0.8, style: 'conservative' },
+      { id: 'writer_4', temperature: 1.0, topP: 0.85, style: 'moderate' },
     ];
 
     const stage = createTournamentStage(writerConfigs);
@@ -94,10 +94,10 @@ describe('createTournamentStage', () => {
     );
 
     const writerConfigs: WriterConfig[] = [
-      { id: 'w1', temperature: 0.7, topP: 0.9, style: 'balanced' },
-      { id: 'w2', temperature: 0.9, topP: 0.95, style: 'creative' },
-      { id: 'w3', temperature: 0.5, topP: 0.8, style: 'conservative' },
-      { id: 'w4', temperature: 0.8, topP: 0.85, style: 'moderate' },
+      { id: 'w1', temperature: 1.0, topP: 0.9, style: 'balanced' },
+      { id: 'w2', temperature: 1.0, topP: 0.95, style: 'creative' },
+      { id: 'w3', temperature: 1.0, topP: 0.8, style: 'conservative' },
+      { id: 'w4', temperature: 1.0, topP: 0.85, style: 'moderate' },
     ];
 
     const stage = createTournamentStage(writerConfigs);
@@ -139,10 +139,10 @@ describe('createTournamentStage', () => {
     });
 
     const writerConfigs: WriterConfig[] = [
-      { id: 'w1', temperature: 0.7, topP: 0.9, style: 'balanced' },
-      { id: 'w2', temperature: 0.9, topP: 0.95, style: 'creative' },
-      { id: 'w3', temperature: 0.5, topP: 0.8, style: 'conservative' },
-      { id: 'w4', temperature: 0.8, topP: 0.85, style: 'moderate' },
+      { id: 'w1', temperature: 1.0, topP: 0.9, style: 'balanced' },
+      { id: 'w2', temperature: 1.0, topP: 0.95, style: 'creative' },
+      { id: 'w3', temperature: 1.0, topP: 0.8, style: 'conservative' },
+      { id: 'w4', temperature: 1.0, topP: 0.85, style: 'moderate' },
     ];
 
     const stage = createTournamentStage(writerConfigs);
@@ -178,10 +178,10 @@ describe('createTournamentStage', () => {
     );
 
     const writerConfigs: WriterConfig[] = [
-      { id: 'w1', temperature: 0.7, topP: 0.9, style: 'balanced' },
-      { id: 'w2', temperature: 0.9, topP: 0.95, style: 'creative' },
-      { id: 'w3', temperature: 0.5, topP: 0.8, style: 'conservative' },
-      { id: 'w4', temperature: 0.8, topP: 0.85, style: 'moderate' },
+      { id: 'w1', temperature: 1.0, topP: 0.9, style: 'balanced' },
+      { id: 'w2', temperature: 1.0, topP: 0.95, style: 'creative' },
+      { id: 'w3', temperature: 1.0, topP: 0.8, style: 'conservative' },
+      { id: 'w4', temperature: 1.0, topP: 0.85, style: 'moderate' },
     ];
 
     const stage = createTournamentStage(writerConfigs);

@@ -14,6 +14,8 @@ export interface DefectDetectorContextInput {
   judgeWeaknesses?: TextWeakness[];
   judgeAxisComments?: AxisComment[];
   complianceWarnings?: Violation[];
+  /** LLM reasoning from Judge — propagated as reference context */
+  judgeReasoning?: string | null;
 }
 
 /**
@@ -155,5 +157,6 @@ export function buildDefectDetectorContext(input: DefectDetectorContextInput): R
     ...(Object.keys(crossChapterContext).length > 0 ? { crossChapterContext } : {}),
     ...(judgeAnalysis ? { judgeAnalysis } : {}),
     ...(complianceWarnings ? { complianceWarnings } : {}),
+    ...(input.judgeReasoning ? { judgeReasoning: input.judgeReasoning } : {}),
   };
 }

@@ -76,7 +76,7 @@ describe('createSynthesisExecutor', () => {
     expect(typeof result.tokensUsed).toBe('number');
   });
 
-  it('execute() should use temperature 0.6', async () => {
+  it('execute() should use temperature 1.0', async () => {
     const deps = createMockExecutorDeps();
     const executor = createSynthesisExecutor(deps);
     await executor.execute('勝者テキスト', createMockPlan());
@@ -84,7 +84,7 @@ describe('createSynthesisExecutor', () => {
     const call = (deps.llmClient.complete as ReturnType<typeof vi.fn>).mock.calls[0];
     // call[2] is the options
     const options = call[2] as { temperature?: number };
-    expect(options.temperature).toBe(0.6);
+    expect(options.temperature).toBe(1.0);
   });
 
   it('execute() should include champion text in user prompt', async () => {
@@ -95,5 +95,45 @@ describe('createSynthesisExecutor', () => {
     const call = (deps.llmClient.complete as ReturnType<typeof vi.fn>).mock.calls[0];
     // call[1] is the user prompt
     expect(call[1]).toContain('わたしの勝者テキスト本文');
+  });
+
+  describe('multi-turn: analyzer reasoning propagation', () => {
+    it('execute() should use messages-based complete() with analyzer reasoning', async () => {
+      const deps = createMockExecutorDeps();
+      const executor = createSynthesisExecutor(deps);
+      await executor.execute('勝者テキスト', createMockPlan(), 'Analyzerの推論プロセス');
+
+      const call = (deps.llmClient.complete as ReturnType<typeof vi.fn>).mock.calls[0];
+      // When analyzerReasoning is provided, should use messages-based API
+      const messages = call[0];
+      expect(Array.isArray(messages)).toBe(true);
+      // Messages: system + user (analyzer context) + assistant (plan + reasoning) + user (executor prompt)
+      expect(messages).toHaveLength(4);
+      expect(messages[0].role).toBe('system');
+      expect(messages[1].role).toBe('user');
+      expect(messages[2].role).toBe('assistant');
+      expect(messages[2].reasoning).toBe('Analyzerの推論プロセス');
+      expect(messages[3].role).toBe('user');
+    });
+
+    it('execute() should fall back to string-based complete() without analyzer reasoning', async () => {
+      const deps = createMockExecutorDeps();
+      const executor = createSynthesisExecutor(deps);
+      await executor.execute('勝者テキスト', createMockPlan());
+
+      const call = (deps.llmClient.complete as ReturnType<typeof vi.fn>).mock.calls[0];
+      // Without analyzerReasoning, should use legacy string-based API
+      expect(typeof call[0]).toBe('string');
+    });
+
+    it('execute() should omit reasoning field when analyzer reasoning is null', async () => {
+      const deps = createMockExecutorDeps();
+      const executor = createSynthesisExecutor(deps);
+      await executor.execute('勝者テキスト', createMockPlan(), null);
+
+      const call = (deps.llmClient.complete as ReturnType<typeof vi.fn>).mock.calls[0];
+      // null reasoning: should use legacy string-based API
+      expect(typeof call[0]).toBe('string');
+    });
   });
 });

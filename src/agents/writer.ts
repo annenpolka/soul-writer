@@ -9,13 +9,13 @@ export { DEFAULT_WRITERS, type WriterConfig };
  * Create a functional Writer from dependencies
  */
 export function createWriter(deps: WriterDeps): Writer {
-  const { llmClient, soulText, config, developedCharacters, enrichedCharacters, themeContext, macGuffinContext } = deps;
+  const { llmClient, soulText, config, developedCharacters, enrichedCharacters, themeContext, macGuffinContext, previousChapterReasoning } = deps;
   const narrativeRules = deps.narrativeRules ?? resolveNarrativeRules();
 
   return {
     generate: async (prompt: string): Promise<string> => {
       const context = buildWriterContext({
-        prompt, soulText, config, narrativeRules, developedCharacters, enrichedCharacters, themeContext, macGuffinContext,
+        prompt, soulText, config, narrativeRules, developedCharacters, enrichedCharacters, themeContext, macGuffinContext, previousChapterReasoning,
       });
       const { system: systemPrompt, user: userPrompt } = buildPrompt('writer', context);
       return llmClient.complete(systemPrompt, userPrompt, {
@@ -27,7 +27,7 @@ export function createWriter(deps: WriterDeps): Writer {
     generateWithMetadata: async (prompt: string): Promise<GenerationResult> => {
       const tokensBefore = llmClient.getTotalTokens();
       const context = buildWriterContext({
-        prompt, soulText, config, narrativeRules, developedCharacters, enrichedCharacters, themeContext, macGuffinContext,
+        prompt, soulText, config, narrativeRules, developedCharacters, enrichedCharacters, themeContext, macGuffinContext, previousChapterReasoning,
       });
       const { system: systemPrompt, user: userPrompt } = buildPrompt('writer', context);
       const text = await llmClient.complete(systemPrompt, userPrompt, {

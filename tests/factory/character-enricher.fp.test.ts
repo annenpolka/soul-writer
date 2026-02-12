@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { createCharacterEnricher, type CharacterEnricherFn, EnrichedCharacterPhase1Schema, EnrichedCharacterSchema } from '../../src/factory/character-enricher.js';
-import { createMockLLMClientWithTools } from '../helpers/mock-deps.js';
+import { createMockLLMClientWithStructured } from '../helpers/mock-deps.js';
 import { createMockSoulText } from '../helpers/mock-soul-text.js';
 import type { GeneratedTheme } from '../../src/schemas/generated-theme.js';
 import type { DevelopedCharacter } from '../../src/factory/character-developer.js';
@@ -103,10 +103,7 @@ const validPhase2Response = {
 
 describe('createCharacterEnricher (FP)', () => {
   it('should return a CharacterEnricherFn with enrichPhase1 and enrichPhase2 methods', () => {
-    const llm = createMockLLMClientWithTools({
-      name: 'submit_character_enrichment',
-      arguments: validPhase1Response,
-    });
+    const llm = createMockLLMClientWithStructured(validPhase1Response);
     const soulText = createMockSoulText();
     const fn: CharacterEnricherFn = createCharacterEnricher(llm, soulText);
     expect(typeof fn.enrichPhase1).toBe('function');
@@ -115,10 +112,7 @@ describe('createCharacterEnricher (FP)', () => {
 
   describe('Phase 1: stance + physical habits', () => {
     it('should enrich DevelopedCharacters with physicalHabits and stance', async () => {
-      const llm = createMockLLMClientWithTools({
-        name: 'submit_character_enrichment',
-        arguments: validPhase1Response,
-      });
+      const llm = createMockLLMClientWithStructured(validPhase1Response);
       const soulText = createMockSoulText();
       const fn = createCharacterEnricher(llm, soulText);
       const result = await fn.enrichPhase1(sampleDeveloped, sampleTheme);
@@ -136,7 +130,6 @@ describe('createCharacterEnricher (FP)', () => {
       expect(char.stance.manifestation).toContain('笑い');
       expect(char.dynamics.craving).toContain('痕跡');
       expect(char.dynamics.distortedFulfillment).toContain('偽造');
-      expect(result.tokensUsed).toBe(0);
 
       // Zod validation should pass
       const parsed = EnrichedCharacterPhase1Schema.safeParse(char);
@@ -144,10 +137,7 @@ describe('createCharacterEnricher (FP)', () => {
     });
 
     it('should preserve all original DevelopedCharacter fields', async () => {
-      const llm = createMockLLMClientWithTools({
-        name: 'submit_character_enrichment',
-        arguments: validPhase1Response,
-      });
+      const llm = createMockLLMClientWithStructured(validPhase1Response);
       const soulText = createMockSoulText();
       const fn = createCharacterEnricher(llm, soulText);
       const result = await fn.enrichPhase1(sampleDeveloped, sampleTheme);
@@ -160,11 +150,8 @@ describe('createCharacterEnricher (FP)', () => {
       expect(char.voice).toBe(sampleDeveloped[0].voice);
     });
 
-    it('should fallback to default values on Phase1 failure', async () => {
-      const llm = createMockLLMClientWithTools({
-        name: 'wrong_tool',
-        arguments: {},
-      });
+    it('should fallback to default values when characters array is empty', async () => {
+      const llm = createMockLLMClientWithStructured({ characters: [] });
       const soulText = createMockSoulText();
       const fn = createCharacterEnricher(llm, soulText);
       const result = await fn.enrichPhase1(sampleDeveloped, sampleTheme);
@@ -180,10 +167,7 @@ describe('createCharacterEnricher (FP)', () => {
     });
 
     it('should accept optional macGuffins parameter', async () => {
-      const llm = createMockLLMClientWithTools({
-        name: 'submit_character_enrichment',
-        arguments: validPhase1Response,
-      });
+      const llm = createMockLLMClientWithStructured(validPhase1Response);
       const soulText = createMockSoulText();
       const fn = createCharacterEnricher(llm, soulText);
       const macGuffins = [
@@ -198,10 +182,7 @@ describe('createCharacterEnricher (FP)', () => {
 
   describe('Phase 2: dialogue samples', () => {
     it('should add dialogueSamples to Phase1 characters', async () => {
-      const llm = createMockLLMClientWithTools({
-        name: 'submit_dialogue_samples',
-        arguments: validPhase2Response,
-      });
+      const llm = createMockLLMClientWithStructured(validPhase2Response);
       const soulText = createMockSoulText();
       const fn = createCharacterEnricher(llm, soulText);
 
@@ -219,18 +200,14 @@ describe('createCharacterEnricher (FP)', () => {
       expect(char.dialogueSamples).toHaveLength(3);
       expect(char.dialogueSamples[0].line).toBe('今日は天気がいいですね');
       expect(char.dialogueSamples[0].situation).toContain('朝');
-      expect(result.tokensUsed).toBe(0);
 
       // Zod validation should pass for full EnrichedCharacter
       const parsed = EnrichedCharacterSchema.safeParse(char);
       expect(parsed.success).toBe(true);
     });
 
-    it('should fallback to empty dialogueSamples on Phase2 failure', async () => {
-      const llm = createMockLLMClientWithTools({
-        name: 'wrong_tool',
-        arguments: {},
-      });
+    it('should fallback to empty dialogueSamples when characters not found in response', async () => {
+      const llm = createMockLLMClientWithStructured({ characters: [] });
       const soulText = createMockSoulText();
       const fn = createCharacterEnricher(llm, soulText);
 
@@ -246,6 +223,73 @@ describe('createCharacterEnricher (FP)', () => {
       expect(result.characters).toHaveLength(1);
       // Fallback: minimum 2 default dialogue samples
       expect(result.characters[0].dialogueSamples.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should include Phase1 reasoning as prior context when provided (multi-turn)', async () => {
+      const llm = createMockLLMClientWithStructured(validPhase2Response, { reasoning: null });
+      const soulText = createMockSoulText();
+      const fn = createCharacterEnricher(llm, soulText);
+
+      const phase1Chars = [{
+        ...sampleDeveloped[0],
+        physicalHabits: validPhase1Response.characters[0].physicalHabits,
+        stance: validPhase1Response.characters[0].stance as { type: 'oblique'; manifestation: string; blindSpot: string },
+        dynamics: sampleDynamics,
+      }];
+
+      await fn.enrichPhase2(phase1Chars, samplePlot, sampleTheme, 'Phase1の推論プロセス');
+
+      const call = (llm.completeStructured as ReturnType<typeof vi.fn>).mock.calls[0];
+      const messages = call[0];
+      // Should have: system + user (Phase1 context) + assistant (Phase1 response with reasoning) + user (Phase2 prompt)
+      expect(messages).toHaveLength(4);
+      expect(messages[0].role).toBe('system');
+      expect(messages[1].role).toBe('user');
+      expect(messages[2].role).toBe('assistant');
+      expect(messages[2].reasoning).toBe('Phase1の推論プロセス');
+      expect(messages[3].role).toBe('user');
+    });
+
+    it('should use standard 2-message format when Phase1 reasoning is not provided (backward compat)', async () => {
+      const llm = createMockLLMClientWithStructured(validPhase2Response);
+      const soulText = createMockSoulText();
+      const fn = createCharacterEnricher(llm, soulText);
+
+      const phase1Chars = [{
+        ...sampleDeveloped[0],
+        physicalHabits: validPhase1Response.characters[0].physicalHabits,
+        stance: validPhase1Response.characters[0].stance as { type: 'oblique'; manifestation: string; blindSpot: string },
+        dynamics: sampleDynamics,
+      }];
+
+      await fn.enrichPhase2(phase1Chars, samplePlot, sampleTheme);
+
+      const call = (llm.completeStructured as ReturnType<typeof vi.fn>).mock.calls[0];
+      const messages = call[0];
+      // Without Phase1 reasoning, should be standard system + user
+      expect(messages).toHaveLength(2);
+      expect(messages[0].role).toBe('system');
+      expect(messages[1].role).toBe('user');
+    });
+  });
+
+  describe('Phase 1: reasoning in result', () => {
+    it('should return Phase1 reasoning in result', async () => {
+      const llm = createMockLLMClientWithStructured(validPhase1Response, { reasoning: 'キャラ分析の推論' });
+      const soulText = createMockSoulText();
+      const fn = createCharacterEnricher(llm, soulText);
+      const result = await fn.enrichPhase1(sampleDeveloped, sampleTheme);
+
+      expect(result.reasoning).toBe('キャラ分析の推論');
+    });
+
+    it('should return null reasoning when LLM provides none', async () => {
+      const llm = createMockLLMClientWithStructured(validPhase1Response, { reasoning: null });
+      const soulText = createMockSoulText();
+      const fn = createCharacterEnricher(llm, soulText);
+      const result = await fn.enrichPhase1(sampleDeveloped, sampleTheme);
+
+      expect(result.reasoning).toBeNull();
     });
   });
 });

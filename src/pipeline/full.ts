@@ -4,6 +4,12 @@ import type { CheckpointManagerFn } from '../storage/checkpoint-manager.js';
 import type { TaskRepo } from '../storage/task-repository.js';
 import type { WorkRepo } from '../storage/work-repository.js';
 import type { SoulCandidateRepo } from '../storage/soul-candidate-repository.js';
+import type { JudgeSessionRepo } from '../storage/judge-session-repository.js';
+import type { ChapterEvalRepo } from '../storage/chapter-evaluation-repository.js';
+import type { SynthesisPlanRepo } from '../storage/synthesis-plan-repository.js';
+import type { CorrectionHistoryRepo } from '../storage/correction-history-repository.js';
+import type { CrossChapterStateRepo } from '../storage/cross-chapter-state-repository.js';
+import type { PhaseMetricsRepo } from '../storage/phase-metrics-repository.js';
 import {
   type FullPipelineConfig,
   type FullPipelineResult,
@@ -99,6 +105,13 @@ export interface FullPipelineDeps {
   candidateRepo: SoulCandidateRepo;
   config: Partial<FullPipelineConfig>;
   logger?: LoggerFn;
+  // Optional analytics repositories (non-critical — failures are silently logged)
+  judgeSessionRepo?: JudgeSessionRepo;
+  chapterEvalRepo?: ChapterEvalRepo;
+  synthesisPlanRepo?: SynthesisPlanRepo;
+  correctionHistoryRepo?: CorrectionHistoryRepo;
+  crossChapterStateRepo?: CrossChapterStateRepo;
+  phaseMetricsRepo?: PhaseMetricsRepo;
 }
 
 export interface FullPipelineRunner {
@@ -109,7 +122,11 @@ export interface FullPipelineRunner {
 
 export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
   const config: FullPipelineConfig = { ...DEFAULT_FULL_PIPELINE_CONFIG, ...deps.config };
-  const { llmClient, soulManager, checkpointManager, taskRepo, workRepo, candidateRepo, logger } = deps;
+  const {
+    llmClient, soulManager, checkpointManager, taskRepo, workRepo, candidateRepo, logger,
+    judgeSessionRepo, chapterEvalRepo, synthesisPlanRepo,
+    correctionHistoryRepo, crossChapterStateRepo, phaseMetricsRepo,
+  } = deps;
 
   const chars = config.developedCharacters?.map(c => ({
     name: c.name,
@@ -129,6 +146,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
     enrichedCharacters?: EnrichedCharacter[],
     crossChapterState?: CrossChapterState,
     variationAxis?: VariationAxis,
+    previousChapterReasoning?: string | null,
   ): Promise<ChapterPipelineResult> {
     const tokensStart = llmClient.getTotalTokens();
 
@@ -165,6 +183,10 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
     let correctionAttempts = 0;
     let synthesized = false;
 
+    // --- Phase: Tournament / Collaboration ---
+    const tournamentPhaseStart = Date.now();
+    const tournamentTokensBefore = llmClient.getTotalTokens();
+
     if (config.mode === 'collaboration') {
       const collabPersonas = soulManager.getCollabPersonas();
       const collabConfigs = collabPersonas.length > 0
@@ -196,6 +218,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
           enrichedCharacters,
           themeContext,
           macGuffinContext,
+          previousChapterReasoning,
         }),
       );
       const arena = createTournamentArena({
@@ -212,39 +235,123 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       });
       tournamentResult = await arena.runTournament(chapterPromptText);
       finalText = tournamentResult.championText;
+    }
 
-      if (tournamentResult.allGenerations.length > 1) {
-        logger?.section('Synthesis V2');
-        const beforeLength = finalText.length;
+    // Save tournament phase metrics
+    if (phaseMetricsRepo) {
+      try {
+        await phaseMetricsRepo.save({
+          workId: null,
+          chapterIndex: chapter.index,
+          phase: config.mode === 'collaboration' ? 'collaboration' : 'tournament',
+          durationMs: Date.now() - tournamentPhaseStart,
+          tokensUsed: llmClient.getTotalTokens() - tournamentTokensBefore,
+        });
+      } catch (err) {
+        logger?.debug('Failed to save tournament phase metrics', { error: String(err) });
+      }
+    }
+
+    // Save judge session results (per-round)
+    if (judgeSessionRepo) {
+      for (const round of tournamentResult.rounds) {
         try {
-          const synthesizer = createSynthesisV2({
-            llmClient,
-            soulText: soulManager.getSoulText(),
-            narrativeRules,
-            themeContext,
-            macGuffinContext,
+          await judgeSessionRepo.save({
+            matchId: null,
+            scores: (round.judgeResult.scores as Record<string, unknown>) ?? {},
+            axisComments: { items: round.judgeResult.axis_comments ?? [] },
+            weaknesses: round.judgeResult.weaknesses?.A ?? [],
+            sectionAnalysis: round.judgeResult.section_analysis ?? [],
+            praisedExcerpts: round.judgeResult.praised_excerpts?.A ?? [],
           });
-          const synthesisResult = await synthesizer.synthesize({
-            championText: tournamentResult.championText,
-            championId: tournamentResult.champion,
-            allGenerations: tournamentResult.allGenerations,
-            rounds: tournamentResult.rounds,
-            plotContext: { chapter, plot },
-            chapterContext: chapterCtx,
-            enrichedCharacters: enrichedCharacters as EnrichedCharacter[] | undefined,
-            crossChapterState,
-          });
-          finalText = synthesisResult.synthesizedText;
-          synthesized = true;
-          logger?.debug('Synthesis V2 result', { synthesized: true, beforeLength, afterLength: finalText.length });
         } catch (err) {
-          console.warn(`Chapter ${chapter.index}: Synthesis V2 failed, using champion text as-is.`, err);
-          logger?.debug('Synthesis V2 failed', { error: String(err) });
+          logger?.debug('Failed to save judge session', { error: String(err) });
         }
       }
     }
 
-    // Compliance check (with async rules and chapter context)
+    // Extract Judge analysis data from tournament (needed for Synthesis V2 and DefectDetector)
+    const finalRound = tournamentResult.rounds[tournamentResult.rounds.length - 1];
+    const judgeResult = finalRound?.judgeResult;
+    let judgeWeaknesses: TextWeakness[] = [];
+    let judgeAxisComments: AxisComment[] = [];
+    let judgeReasoning: string | null = null;
+    if (judgeResult) {
+      const championKey = finalRound.winner === finalRound.contestantA ? 'A' : 'B';
+      judgeWeaknesses = judgeResult.weaknesses?.[championKey] ?? [];
+      judgeAxisComments = judgeResult.axis_comments ?? [];
+      judgeReasoning = judgeResult.llmReasoning ?? null;
+    }
+
+    // --- Phase: Synthesis V2 ---
+    if (config.mode !== 'collaboration' && tournamentResult.allGenerations.length > 1) {
+      const synthesisPhaseStart = Date.now();
+      const synthesisTokensBefore = llmClient.getTotalTokens();
+
+      logger?.section('Synthesis V2');
+      const beforeLength = finalText.length;
+      try {
+        const synthesizer = createSynthesisV2({
+          llmClient,
+          soulText: soulManager.getSoulText(),
+          narrativeRules,
+          themeContext,
+          macGuffinContext,
+        });
+        const synthesisResult = await synthesizer.synthesize({
+          championText: tournamentResult.championText,
+          championId: tournamentResult.champion,
+          allGenerations: tournamentResult.allGenerations,
+          rounds: tournamentResult.rounds,
+          plotContext: { chapter, plot },
+          chapterContext: chapterCtx,
+          enrichedCharacters: enrichedCharacters as EnrichedCharacter[] | undefined,
+          crossChapterState,
+          judgeReasoning,
+        });
+        finalText = synthesisResult.synthesizedText;
+        synthesized = true;
+        logger?.debug('Synthesis V2 result', { synthesized: true, beforeLength, afterLength: finalText.length });
+
+        // Save synthesis plan
+        if (synthesisPlanRepo && synthesisResult.plan) {
+          try {
+            await synthesisPlanRepo.save({
+              chapterId: null,
+              championAssessment: synthesisResult.plan.championAssessment ?? '',
+              preserveElements: synthesisResult.plan.preserveElements ?? [],
+              actions: synthesisResult.plan.actions ?? [],
+              expressionSources: synthesisResult.plan.expressionSources ?? [],
+            });
+          } catch (saveErr) {
+            logger?.debug('Failed to save synthesis plan', { error: String(saveErr) });
+          }
+        }
+      } catch (err) {
+        console.warn(`Chapter ${chapter.index}: Synthesis V2 failed, using champion text as-is.`, err);
+        logger?.debug('Synthesis V2 failed', { error: String(err) });
+      }
+
+      // Save synthesis phase metrics
+      if (phaseMetricsRepo) {
+        try {
+          await phaseMetricsRepo.save({
+            workId: null,
+            chapterIndex: chapter.index,
+            phase: 'synthesis',
+            durationMs: Date.now() - synthesisPhaseStart,
+            tokensUsed: llmClient.getTotalTokens() - synthesisTokensBefore,
+          });
+        } catch (err) {
+          logger?.debug('Failed to save synthesis phase metrics', { error: String(err) });
+        }
+      }
+    }
+
+    // --- Phase: Compliance Check ---
+    const compliancePhaseStart = Date.now();
+    const complianceTokensBefore = llmClient.getTotalTokens();
+
     logger?.section('Compliance Check');
     const checker = createCheckerFromSoulText(soulManager.getSoulText(), narrativeRules, llmClient);
     let complianceResult: ComplianceResult = chapterCtx
@@ -252,11 +359,28 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       : checker.check(finalText);
     logger?.debug('Compliance result', complianceResult);
 
-    // Correction loop if needed
+    if (phaseMetricsRepo) {
+      try {
+        await phaseMetricsRepo.save({
+          workId: null,
+          chapterIndex: chapter.index,
+          phase: 'compliance',
+          durationMs: Date.now() - compliancePhaseStart,
+          tokensUsed: llmClient.getTotalTokens() - complianceTokensBefore,
+        });
+      } catch (err) {
+        logger?.debug('Failed to save compliance phase metrics', { error: String(err) });
+      }
+    }
+
+    // --- Phase: Correction Loop ---
     if (!complianceResult.isCompliant) {
+      const correctionPhaseStart = Date.now();
+      const correctionTokensBefore = llmClient.getTotalTokens();
+
       logger?.section('Correction Loop');
       const corrector = createCorrector({ llmClient, soulText: soulManager.getSoulText(), themeContext });
-      const loop = createCorrectionLoop({ corrector, checker, maxAttempts: config.maxCorrectionAttempts });
+      const loop = createCorrectionLoop({ corrector, checker, maxAttempts: config.maxCorrectionAttempts, llmClient });
       const correctionResult = await loop.run(finalText, complianceResult.violations, chapterCtx);
 
       correctionAttempts = correctionResult.attempts;
@@ -271,21 +395,44 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
           `Chapter ${chapter.index}: Correction failed after ${correctionAttempts} attempts. Continuing with best effort.`
         );
       }
+
+      // Save correction phase metrics
+      if (phaseMetricsRepo) {
+        try {
+          await phaseMetricsRepo.save({
+            workId: null,
+            chapterIndex: chapter.index,
+            phase: 'correction',
+            durationMs: Date.now() - correctionPhaseStart,
+            tokensUsed: llmClient.getTotalTokens() - correctionTokensBefore,
+          });
+        } catch (err) {
+          logger?.debug('Failed to save correction phase metrics', { error: String(err) });
+        }
+      }
+
+      // Save correction history
+      if (correctionHistoryRepo) {
+        try {
+          await correctionHistoryRepo.save({
+            chapterId: null,
+            attemptNumber: correctionAttempts,
+            violationsCount: complianceResult.violations.length,
+            correctedSuccessfully: complianceResult.isCompliant,
+            tokensUsed: llmClient.getTotalTokens() - correctionTokensBefore,
+          });
+        } catch (err) {
+          logger?.debug('Failed to save correction history', { error: String(err) });
+        }
+      }
     }
 
-    // Extract Judge analysis data from tournament for DefectDetector cross-referencing
-    const finalRound = tournamentResult.rounds[tournamentResult.rounds.length - 1];
-    const judgeResult = finalRound?.judgeResult;
-    let judgeWeaknesses: TextWeakness[] = [];
-    let judgeAxisComments: AxisComment[] = [];
-    if (judgeResult) {
-      const championKey = finalRound.winner === finalRound.contestantA ? 'A' : 'B';
-      judgeWeaknesses = judgeResult.weaknesses?.[championKey] ?? [];
-      judgeAxisComments = judgeResult.axis_comments ?? [];
-    }
     const complianceWarnings = complianceResult.violations.filter(v => v.severity === 'warning');
 
-    // DefectDetector evaluation (Judge-informed, with retake on failure, max 2 retries)
+    // --- Phase: DefectDetector Evaluation ---
+    const defectPhaseStart = Date.now();
+    const defectTokensBefore = llmClient.getTotalTokens();
+
     logger?.section('DefectDetector Evaluation');
     const detector = createDefectDetector({
       llmClient,
@@ -296,13 +443,31 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       judgeWeaknesses,
       judgeAxisComments,
       complianceWarnings,
+      judgeReasoning,
     });
     let defectResult = await detector.detect(finalText);
     logger?.debug('DefectDetector result', defectResult);
 
+    if (phaseMetricsRepo) {
+      try {
+        await phaseMetricsRepo.save({
+          workId: null,
+          chapterIndex: chapter.index,
+          phase: 'defect_detection',
+          durationMs: Date.now() - defectPhaseStart,
+          tokensUsed: llmClient.getTotalTokens() - defectTokensBefore,
+        });
+      } catch (err) {
+        logger?.debug('Failed to save defect_detection phase metrics', { error: String(err) });
+      }
+    }
+
     const MAX_RETAKES = 2;
     let retakeCount = 0;
     while (!defectResult.passed && retakeCount < MAX_RETAKES) {
+      const retakePhaseStart = Date.now();
+      const retakeTokensBefore = llmClient.getTotalTokens();
+
       logger?.section(`DefectDetector Retake ${retakeCount + 1}/${MAX_RETAKES}`);
 
       const feedback = buildRetakeFeedback(
@@ -325,6 +490,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
         themeContext,
         chapterContext: chapterCtx,
         plotChapter,
+        detectorReasoning: defectResult.llmReasoning,
       });
       const retakeResult = await retakeAgent.retake(finalText, feedback, defectResult.defects);
       finalText = retakeResult.retakenText;
@@ -332,6 +498,38 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       defectResult = await detector.detect(finalText);
       retakeCount++;
       logger?.debug(`DefectDetector Retake ${retakeCount} result`, defectResult);
+
+      // Save retake phase metrics
+      if (phaseMetricsRepo) {
+        try {
+          await phaseMetricsRepo.save({
+            workId: null,
+            chapterIndex: chapter.index,
+            phase: 'retake',
+            durationMs: Date.now() - retakePhaseStart,
+            tokensUsed: llmClient.getTotalTokens() - retakeTokensBefore,
+          });
+        } catch (err) {
+          logger?.debug('Failed to save retake phase metrics', { error: String(err) });
+        }
+      }
+    }
+
+    // Save chapter evaluation from DefectDetector
+    if (chapterEvalRepo) {
+      try {
+        await chapterEvalRepo.save({
+          chapterId: null,
+          verdictLevel: defectResult.verdictLevel,
+          defects: defectResult.defects,
+          criticalCount: defectResult.criticalCount,
+          majorCount: defectResult.majorCount,
+          minorCount: defectResult.minorCount,
+          feedback: defectResult.feedback,
+        });
+      } catch (err) {
+        logger?.debug('Failed to save chapter evaluation', { error: String(err) });
+      }
     }
 
     // Build EvaluationResult from DefectDetector output
@@ -398,6 +596,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
 
   async function executeStory(taskId: string, _prompt: string): Promise<FullPipelineResult> {
     // Generate plot
+    const plotterPhaseStart = Date.now();
     const plotter = createPlotter({
       llmClient,
       soulText: soulManager.getSoulText(),
@@ -415,6 +614,21 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
     const plot = await plotter.generatePlot();
     const plotTokensUsed = llmClient.getTotalTokens() - tokensBefore;
     let totalTokensUsed = plotTokensUsed;
+
+    // Save plotter phase metrics
+    if (phaseMetricsRepo) {
+      try {
+        await phaseMetricsRepo.save({
+          workId: null,
+          chapterIndex: 0,
+          phase: 'plotter',
+          durationMs: Date.now() - plotterPhaseStart,
+          tokensUsed: plotTokensUsed,
+        });
+      } catch (err) {
+        logger?.debug('Failed to save plotter phase metrics', { error: String(err) });
+      }
+    }
 
     logger?.section('Plot Generated');
     logger?.debug('Plot', {
@@ -448,7 +662,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
           physicalHabits: c.physicalHabits, stance: c.stance,
           dynamics: c.dynamics,
         }));
-        const phase2Result = await enricher.enrichPhase2(phase1Chars, plot, config.theme!);
+        const phase2Result = await enricher.enrichPhase2(phase1Chars, plot, config.theme!, config.enricherPhase1Reasoning);
         enrichedCharacters = phase2Result.characters;
         totalTokensUsed += phase2Result.tokensUsed;
         logger?.debug('Characters enriched (Phase2)', enrichedCharacters);
@@ -462,12 +676,13 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
     const chapterCtx: ChapterContext = { previousChapterTexts: [] };
     const established: EstablishedInsight[] = [];
     let crossChapterState = createInitialCrossChapterState();
+    let chapterStateReasoning: string | null = null;
 
     for (const ch of plot.chapters) {
       logger?.section(`Chapter ${ch.index}: ${ch.title}`);
       const chapterResult = await generateChapter(
         ch, plot, chapterCtx, established, enrichedCharacters,
-        crossChapterState, ch.variation_axis,
+        crossChapterState, ch.variation_axis, chapterStateReasoning,
       );
 
       // Post-processing: Chinese contamination filter
@@ -490,6 +705,9 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
 
       // Cross-chapter state extraction (for multi-chapter stories)
       if (plot.chapters.length > 1 && ch.index < plot.chapters.length) {
+        const stateExtractionStart = Date.now();
+        const stateExtractionTokensBefore = llmClient.getTotalTokens();
+
         try {
           const extractor = createChapterStateExtractor({
             llmClient,
@@ -498,13 +716,49 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
           });
           const extraction = await extractor.extract(chapterResult.text, ch.index);
           crossChapterState = updateCrossChapterState(crossChapterState, extraction, ch.index);
+          chapterStateReasoning = extraction.llmReasoning ?? null;
           logger?.debug(`Cross-chapter state after Ch${ch.index}`, {
             characterStates: crossChapterState.characterStates.length,
             motifWear: crossChapterState.motifWear.length,
             variationHint: crossChapterState.variationHint,
+            hasReasoning: !!chapterStateReasoning,
           });
+
+          // Save cross-chapter state
+          if (crossChapterStateRepo) {
+            try {
+              const lastSummary = crossChapterState.chapterSummaries[crossChapterState.chapterSummaries.length - 1];
+              await crossChapterStateRepo.save({
+                workId: null,
+                chapterIndex: ch.index,
+                characterStates: Object.fromEntries(crossChapterState.characterStates.map(cs => [cs.characterName, cs])),
+                motifWear: Object.fromEntries(crossChapterState.motifWear.map(mw => [mw.motif, mw])),
+                variationHint: crossChapterState.variationHint ?? '',
+                chapterSummary: lastSummary?.summary ?? '',
+                dominantTone: lastSummary?.dominantTone ?? '',
+                peakIntensity: lastSummary?.peakIntensity ?? 0,
+              });
+            } catch (saveErr) {
+              logger?.debug(`Failed to save cross-chapter state for Ch${ch.index}`, { error: String(saveErr) });
+            }
+          }
         } catch (err) {
           logger?.debug(`Failed to extract chapter state for Ch${ch.index}`, { error: String(err) });
+        }
+
+        // Save chapter_state_extraction phase metrics
+        if (phaseMetricsRepo) {
+          try {
+            await phaseMetricsRepo.save({
+              workId: null,
+              chapterIndex: ch.index,
+              phase: 'chapter_state_extraction',
+              durationMs: Date.now() - stateExtractionStart,
+              tokensUsed: llmClient.getTotalTokens() - stateExtractionTokensBefore,
+            });
+          } catch (err) {
+            logger?.debug('Failed to save chapter_state_extraction phase metrics', { error: String(err) });
+          }
         }
       }
 
@@ -597,7 +851,7 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
           physicalHabits: c.physicalHabits, stance: c.stance,
           dynamics: c.dynamics,
         }));
-        const phase2Result = await enricher.enrichPhase2(phase1Chars, plot, config.theme!);
+        const phase2Result = await enricher.enrichPhase2(phase1Chars, plot, config.theme!, config.enricherPhase1Reasoning);
         enrichedCharacters = phase2Result.characters;
         totalTokensUsed += phase2Result.tokensUsed;
       }
@@ -626,10 +880,11 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
       });
     }
 
+    let chapterStateReasoning: string | null = null;
     for (const ch of remainingChapters) {
       const chapterResult = await generateChapter(
         ch, plot, chapterCtx, established, enrichedCharacters,
-        crossChapterState, ch.variation_axis,
+        crossChapterState, ch.variation_axis, chapterStateReasoning,
       );
 
       // Post-processing: Chinese contamination filter
@@ -651,6 +906,9 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
 
       // Cross-chapter state extraction
       if (plot.chapters.length > 1 && ch.index < plot.chapters.length) {
+        const stateExtractionStartResume = Date.now();
+        const stateExtractionTokensBeforeResume = llmClient.getTotalTokens();
+
         try {
           const extractor = createChapterStateExtractor({
             llmClient,
@@ -659,8 +917,43 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
           });
           const extraction = await extractor.extract(chapterResult.text, ch.index);
           crossChapterState = updateCrossChapterState(crossChapterState, extraction, ch.index);
+          chapterStateReasoning = extraction.llmReasoning ?? null;
+
+          // Save cross-chapter state
+          if (crossChapterStateRepo) {
+            try {
+              const lastSummary = crossChapterState.chapterSummaries[crossChapterState.chapterSummaries.length - 1];
+              await crossChapterStateRepo.save({
+                workId: null,
+                chapterIndex: ch.index,
+                characterStates: Object.fromEntries(crossChapterState.characterStates.map(cs => [cs.characterName, cs])),
+                motifWear: Object.fromEntries(crossChapterState.motifWear.map(mw => [mw.motif, mw])),
+                variationHint: crossChapterState.variationHint ?? '',
+                chapterSummary: lastSummary?.summary ?? '',
+                dominantTone: lastSummary?.dominantTone ?? '',
+                peakIntensity: lastSummary?.peakIntensity ?? 0,
+              });
+            } catch (saveErr) {
+              logger?.debug(`Failed to save cross-chapter state for Ch${ch.index}`, { error: String(saveErr) });
+            }
+          }
         } catch {
           // Non-critical: continue without cross-chapter state
+        }
+
+        // Save chapter_state_extraction phase metrics
+        if (phaseMetricsRepo) {
+          try {
+            await phaseMetricsRepo.save({
+              workId: null,
+              chapterIndex: ch.index,
+              phase: 'chapter_state_extraction',
+              durationMs: Date.now() - stateExtractionStartResume,
+              tokensUsed: llmClient.getTotalTokens() - stateExtractionTokensBeforeResume,
+            });
+          } catch (err) {
+            logger?.debug('Failed to save chapter_state_extraction phase metrics', { error: String(err) });
+          }
         }
       }
 

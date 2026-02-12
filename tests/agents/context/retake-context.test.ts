@@ -108,6 +108,29 @@ describe('buildRetakeSystemPrompt', () => {
     expect(prompt).toContain('frag3');
     expect(prompt).not.toContain('frag4');
   });
+
+  it('should include detectorReasoning when provided', () => {
+    const prompt = buildRetakeSystemPrompt(makeInput({
+      detectorReasoning: 'DefectDetector推論: 感情描写が浅い',
+    }));
+
+    expect(prompt).toContain('## 参考: 品質検査の推論過程');
+    expect(prompt).toContain('DefectDetector推論: 感情描写が浅い');
+  });
+
+  it('should not include detectorReasoning when null', () => {
+    const prompt = buildRetakeSystemPrompt(makeInput({
+      detectorReasoning: null,
+    }));
+
+    expect(prompt).not.toContain('品質検査の推論過程');
+  });
+
+  it('should not include detectorReasoning when not provided', () => {
+    const prompt = buildRetakeSystemPrompt(makeInput());
+
+    expect(prompt).not.toContain('品質検査の推論過程');
+  });
 });
 
 // --- buildRetakeUserPrompt ---

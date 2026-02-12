@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import type { ToolCallResponse } from '../../../src/llm/types.js';
+import type { StructuredResponse } from '../../../src/llm/types.js';
 import type { ReaderPersona } from '../../../src/schemas/reader-personas.js';
+import type { ReaderEvaluationRawResponse } from '../../../src/schemas/reader-evaluation-response.js';
 import {
   parseEvalToolResponse,
   normalizeScores,
@@ -9,17 +10,10 @@ import {
   calculateWeightedScore,
 } from '../../../src/agents/parsers/reader-eval-parser.js';
 
-function makeToolResponse(args: Record<string, unknown>): ToolCallResponse {
+function makeStructuredResponse(data: ReaderEvaluationRawResponse): StructuredResponse<ReaderEvaluationRawResponse> {
   return {
-    toolCalls: [{
-      id: 'tc-1',
-      type: 'function',
-      function: {
-        name: 'submit_reader_evaluation',
-        arguments: JSON.stringify(args),
-      },
-    }],
-    content: null,
+    data,
+    reasoning: null,
     tokensUsed: 50,
   };
 }
@@ -120,8 +114,8 @@ describe('calculateWeightedScore', () => {
 });
 
 describe('parseEvalToolResponse', () => {
-  it('should parse a valid tool response with object feedback', () => {
-    const response = makeToolResponse({
+  it('should parse a valid structured response with feedback', () => {
+    const response = makeStructuredResponse({
       categoryScores: {
         style: 0.8,
         plot: 0.75,
@@ -147,80 +141,8 @@ describe('parseEvalToolResponse', () => {
     expect(result.weightedScore).toBeCloseTo(0.805, 3);
   });
 
-  it('should handle string feedback as strengths', () => {
-    const response = makeToolResponse({
-      categoryScores: {
-        style: 0.8,
-        plot: 0.75,
-        character: 0.7,
-        worldbuilding: 0.9,
-        readability: 0.85,
-      },
-      feedback: '世界観の構築が優れている',
-    });
-    const result = parseEvalToolResponse(response, mockPersona);
-
-    expect(result.feedback.strengths).toBe('世界観の構築が優れている');
-    expect(result.feedback.weaknesses).toBe('');
-    expect(result.feedback.suggestion).toBe('');
-  });
-
-  it('should handle missing feedback with default message', () => {
-    const response = makeToolResponse({
-      categoryScores: {
-        style: 0.8,
-        plot: 0.75,
-        character: 0.7,
-        worldbuilding: 0.9,
-        readability: 0.85,
-      },
-    });
-    const result = parseEvalToolResponse(response, mockPersona);
-
-    expect(result.feedback.strengths).toBe('フィードバックなし');
-  });
-
-  it('should return fallback when tool call parsing fails', () => {
-    const response: ToolCallResponse = {
-      toolCalls: [{
-        id: 'tc-1',
-        type: 'function',
-        function: {
-          name: 'wrong_tool',
-          arguments: '{}',
-        },
-      }],
-      content: null,
-      tokensUsed: 50,
-    };
-    const result = parseEvalToolResponse(response, mockPersona);
-
-    expect(result.categoryScores.style).toBe(0.5);
-    expect(result.categoryScores.plot).toBe(0.5);
-    expect(result.feedback.weaknesses).toBe('ツール呼び出しの解析に失敗');
-  });
-
-  it('should return fallback when arguments JSON is invalid', () => {
-    const response: ToolCallResponse = {
-      toolCalls: [{
-        id: 'tc-1',
-        type: 'function',
-        function: {
-          name: 'submit_reader_evaluation',
-          arguments: 'not-json',
-        },
-      }],
-      content: null,
-      tokensUsed: 50,
-    };
-    const result = parseEvalToolResponse(response, mockPersona);
-
-    expect(result.categoryScores.style).toBe(0.5);
-    expect(result.feedback.weaknesses).toBe('ツール呼び出しの解析に失敗');
-  });
-
-  it('should handle partial feedback object', () => {
-    const response = makeToolResponse({
+  it('should handle empty feedback strings', () => {
+    const response = makeStructuredResponse({
       categoryScores: {
         style: 0.8,
         plot: 0.75,
@@ -229,12 +151,14 @@ describe('parseEvalToolResponse', () => {
         readability: 0.85,
       },
       feedback: {
-        strengths: '良い',
+        strengths: '',
+        weaknesses: '',
+        suggestion: '',
       },
     });
     const result = parseEvalToolResponse(response, mockPersona);
 
-    expect(result.feedback.strengths).toBe('良い');
+    expect(result.feedback.strengths).toBe('');
     expect(result.feedback.weaknesses).toBe('');
     expect(result.feedback.suggestion).toBe('');
   });

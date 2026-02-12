@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import type { LLMClient, ToolDefinition } from '../llm/types.js';
-import { assertToolCallingClient } from '../llm/tooling.js';
+import type { LLMClient, LLMMessage } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import type { GeneratedTheme } from '../schemas/generated-theme.js';
 import type { Plot } from '../schemas/plot.js';
@@ -74,6 +73,8 @@ export type EnrichedCharacter = z.infer<typeof EnrichedCharacterSchema>;
 export interface CharacterEnrichPhase1Result {
   characters: EnrichedCharacterPhase1[];
   tokensUsed: number;
+  /** LLM reasoning from Phase1 — propagated to Phase2 for multi-turn context */
+  reasoning: string | null;
 }
 
 export interface CharacterEnrichPhase2Result {
@@ -96,115 +97,48 @@ export interface CharacterEnricherFn {
     characters: EnrichedCharacterPhase1[],
     plot: Plot,
     theme: GeneratedTheme,
+    phase1Reasoning?: string | null,
   ) => Promise<CharacterEnrichPhase2Result>;
 }
 
 // =====================
-// Tool Definitions
+// Structured Output Schemas
 // =====================
 
-const SUBMIT_CHARACTER_ENRICHMENT_TOOL: ToolDefinition = {
-  type: 'function',
-  function: {
-    name: 'submit_character_enrichment',
-    description: 'キャラクターの人格力学・身体の癖・テーマへの態度を提出する',
-    parameters: {
-      type: 'object',
-      properties: {
-        characters: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              name: { type: 'string' },
-              physicalHabits: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    habit: { type: 'string' },
-                    trigger: { type: 'string' },
-                    sensoryDetail: { type: 'string' },
-                  },
-                  required: ['habit', 'trigger', 'sensoryDetail'],
-                  additionalProperties: false,
-                },
-              },
-              stance: {
-                type: 'object',
-                properties: {
-                  type: { type: 'string', enum: ['direct', 'oblique', 'indifferent', 'hostile'] },
-                  manifestation: { type: 'string' },
-                  blindSpot: { type: 'string' },
-                },
-                required: ['type', 'manifestation', 'blindSpot'],
-                additionalProperties: false,
-              },
-              dynamics: {
-                type: 'object',
-                properties: {
-                  innerWound: { type: 'string' },
-                  craving: { type: 'string' },
-                  surfaceContradiction: { type: 'string' },
-                  distortedFulfillment: { type: 'string' },
-                  fulfillmentCondition: { type: 'string' },
-                  relationshipAsymmetry: { type: 'string' },
-                },
-                required: ['innerWound', 'craving', 'surfaceContradiction', 'distortedFulfillment', 'fulfillmentCondition', 'relationshipAsymmetry'],
-                additionalProperties: false,
-              },
-            },
-            required: ['name', 'physicalHabits', 'stance', 'dynamics'],
-            additionalProperties: false,
-          },
-        },
-      },
-      required: ['characters'],
-      additionalProperties: false,
-    },
-    strict: true,
-  },
-};
+const Phase1ResponseSchema = z.object({
+  characters: z.array(z.object({
+    name: z.string(),
+    physicalHabits: z.array(z.object({
+      habit: z.string(),
+      trigger: z.string(),
+      sensoryDetail: z.string(),
+    })),
+    stance: z.object({
+      type: z.string(),
+      manifestation: z.string(),
+      blindSpot: z.string(),
+    }),
+    dynamics: z.object({
+      innerWound: z.string(),
+      craving: z.string(),
+      surfaceContradiction: z.string(),
+      distortedFulfillment: z.string(),
+      fulfillmentCondition: z.string(),
+      relationshipAsymmetry: z.string(),
+    }),
+  })),
+});
 
-const SUBMIT_DIALOGUE_SAMPLES_TOOL: ToolDefinition = {
-  type: 'function',
-  function: {
-    name: 'submit_dialogue_samples',
-    description: 'キャラクターの台詞サンプルを提出する',
-    parameters: {
-      type: 'object',
-      properties: {
-        characters: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              name: { type: 'string' },
-              dialogueSamples: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    line: { type: 'string' },
-                    situation: { type: 'string' },
-                    voiceNote: { type: 'string' },
-                  },
-                  required: ['line', 'situation', 'voiceNote'],
-                  additionalProperties: false,
-                },
-              },
-            },
-            required: ['name', 'dialogueSamples'],
-            additionalProperties: false,
-          },
-        },
-      },
-      required: ['characters'],
-      additionalProperties: false,
-    },
-    strict: true,
-  },
-};
+const Phase2ResponseSchema = z.object({
+  characters: z.array(z.object({
+    name: z.string(),
+    dialogueSamples: z.array(z.object({
+      line: z.string(),
+      situation: z.string(),
+      voiceNote: z.string(),
+    })),
+  })),
+});
 
 // =====================
 // Factory Function
@@ -221,41 +155,55 @@ export function createCharacterEnricher(
       const context = buildPhase1Context({ soulText, characters, theme, macGuffins });
       const { system: systemPrompt, user: userPrompt } = buildPrompt('character-enricher-phase1', context);
 
-      assertToolCallingClient(llmClient);
-      const response = await llmClient.completeWithTools(
-        systemPrompt,
-        userPrompt,
-        [SUBMIT_CHARACTER_ENRICHMENT_TOOL],
-        {
-          toolChoice: { type: 'function', function: { name: 'submit_character_enrichment' } },
-          temperature: 0.8,
-        },
+      const response = await llmClient.completeStructured!(
+        [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        Phase1ResponseSchema,
+        { temperature: 1.0 },
       );
 
-      const result = parsePhase1Response(response, characters);
+      const result = parsePhase1Response(response.data, characters);
       const tokensUsed = llmClient.getTotalTokens() - tokensBefore;
 
-      return { characters: result.characters, tokensUsed };
+      return { characters: result.characters, tokensUsed, reasoning: response.reasoning ?? null };
     },
 
-    enrichPhase2: async (characters, plot, theme) => {
+    enrichPhase2: async (characters, plot, theme, phase1Reasoning?) => {
       const tokensBefore = llmClient.getTotalTokens();
 
       const context = buildPhase2Context({ soulText, characters, plot, theme });
       const { system: systemPrompt, user: userPrompt } = buildPrompt('character-enricher-phase2', context);
 
-      assertToolCallingClient(llmClient);
-      const response = await llmClient.completeWithTools(
-        systemPrompt,
-        userPrompt,
-        [SUBMIT_DIALOGUE_SAMPLES_TOOL],
-        {
-          toolChoice: { type: 'function', function: { name: 'submit_dialogue_samples' } },
-          temperature: 0.8,
-        },
+      // Build messages with optional Phase1 reasoning as prior context
+      const messages: LLMMessage[] = [
+        { role: 'system', content: systemPrompt },
+      ];
+
+      if (phase1Reasoning) {
+        messages.push(
+          {
+            role: 'user',
+            content: 'Phase1ではキャラクターの身体癖・態度・人格力学を生成しました。以下がその分析過程です。',
+          },
+          {
+            role: 'assistant',
+            content: 'Phase1の分析を完了しました。',
+            reasoning: phase1Reasoning,
+          },
+        );
+      }
+
+      messages.push({ role: 'user', content: userPrompt });
+
+      const response = await llmClient.completeStructured!(
+        messages,
+        Phase2ResponseSchema,
+        { temperature: 1.0 },
       );
 
-      const result = parsePhase2Response(response, characters);
+      const result = parsePhase2Response(response.data, characters);
       const tokensUsed = llmClient.getTotalTokens() - tokensBefore;
 
       return { characters: result.characters, tokensUsed };

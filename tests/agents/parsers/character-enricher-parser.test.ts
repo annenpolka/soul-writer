@@ -1,23 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import type { ToolCallResponse } from '../../../src/llm/types.js';
 import { parsePhase1Response, parsePhase2Response } from '../../../src/agents/parsers/character-enricher-parser.js';
 import type { DevelopedCharacter } from '../../../src/factory/character-developer.js';
 import type { EnrichedCharacterPhase1 } from '../../../src/factory/character-enricher.js';
-
-function makeToolResponse(name: string, args: Record<string, unknown>): ToolCallResponse {
-  return {
-    toolCalls: [{
-      id: 'tc-1',
-      type: 'function',
-      function: {
-        name,
-        arguments: JSON.stringify(args),
-      },
-    }],
-    content: null,
-    tokensUsed: 80,
-  };
-}
 
 const sampleDeveloped: DevelopedCharacter[] = [
   {
@@ -51,7 +35,7 @@ const samplePhase1Chars: EnrichedCharacterPhase1[] = [
 
 describe('parsePhase1Response', () => {
   it('should parse valid Phase1 response with habits and stance', () => {
-    const response = makeToolResponse('submit_character_enrichment', {
+    const data = {
       characters: [
         {
           name: '佐々木',
@@ -66,9 +50,9 @@ describe('parsePhase1Response', () => {
           },
         },
       ],
-    });
+    };
 
-    const result = parsePhase1Response(response, sampleDeveloped);
+    const result = parsePhase1Response(data, sampleDeveloped);
 
     expect(result.characters).toHaveLength(1);
     const char = result.characters[0];
@@ -80,7 +64,7 @@ describe('parsePhase1Response', () => {
   });
 
   it('should merge original DevelopedCharacter fields into parsed result', () => {
-    const response = makeToolResponse('submit_character_enrichment', {
+    const data = {
       characters: [
         {
           name: '佐々木',
@@ -90,9 +74,9 @@ describe('parsePhase1Response', () => {
           stance: { type: 'direct', manifestation: '正面から向き合う', blindSpot: '共感の欠如' },
         },
       ],
-    });
+    };
 
-    const result = parsePhase1Response(response, sampleDeveloped);
+    const result = parsePhase1Response(data, sampleDeveloped);
     const char = result.characters[0];
 
     expect(char.isNew).toBe(true);
@@ -101,34 +85,14 @@ describe('parsePhase1Response', () => {
     expect(char.voice).toBe(sampleDeveloped[0].voice);
   });
 
-  it('should return fallback defaults when tool name is wrong', () => {
-    const response = makeToolResponse('wrong_tool', {});
+  it('should return fallback defaults when characters array is empty', () => {
+    const data = { characters: [] };
 
-    const result = parsePhase1Response(response, sampleDeveloped);
+    const result = parsePhase1Response(data, sampleDeveloped);
 
     expect(result.characters).toHaveLength(1);
     expect(result.characters[0].name).toBe('佐々木');
     expect(result.characters[0].physicalHabits).toHaveLength(1);
-    expect(result.characters[0].stance.type).toBe('direct');
-  });
-
-  it('should return fallback defaults when JSON is invalid', () => {
-    const response: ToolCallResponse = {
-      toolCalls: [{
-        id: 'tc-1',
-        type: 'function',
-        function: {
-          name: 'submit_character_enrichment',
-          arguments: 'not-json',
-        },
-      }],
-      content: null,
-      tokensUsed: 50,
-    };
-
-    const result = parsePhase1Response(response, sampleDeveloped);
-
-    expect(result.characters).toHaveLength(1);
     expect(result.characters[0].stance.type).toBe('direct');
   });
 
@@ -138,7 +102,7 @@ describe('parsePhase1Response', () => {
       { name: '田中', isNew: true, role: '傍観者', description: '記者', voice: '砕けた口調' },
     ];
 
-    const response = makeToolResponse('submit_character_enrichment', {
+    const data = {
       characters: [
         {
           name: '佐々木',
@@ -151,9 +115,9 @@ describe('parsePhase1Response', () => {
           stance: { type: 'indifferent', manifestation: '傍観に徹する', blindSpot: '感情移入' },
         },
       ],
-    });
+    };
 
-    const result = parsePhase1Response(response, multiDeveloped);
+    const result = parsePhase1Response(data, multiDeveloped);
 
     expect(result.characters).toHaveLength(2);
     expect(result.characters[0].name).toBe('佐々木');
@@ -167,7 +131,7 @@ describe('parsePhase1Response', () => {
       { name: '田中', isNew: true, role: '傍観者', description: '記者', voice: '砕けた口調' },
     ];
 
-    const response = makeToolResponse('submit_character_enrichment', {
+    const data = {
       characters: [
         {
           name: '佐々木',
@@ -176,9 +140,9 @@ describe('parsePhase1Response', () => {
         },
         // 田中 is missing from LLM response
       ],
-    });
+    };
 
-    const result = parsePhase1Response(response, multiDeveloped);
+    const result = parsePhase1Response(data, multiDeveloped);
 
     expect(result.characters).toHaveLength(2);
     expect(result.characters[0].physicalHabits[0].habit).toBe('肘掴み');
@@ -187,23 +151,8 @@ describe('parsePhase1Response', () => {
     expect(result.characters[1].stance.type).toBe('direct');
   });
 
-  it('should include tokensUsed from response', () => {
-    const response = makeToolResponse('submit_character_enrichment', {
-      characters: [
-        {
-          name: '佐々木',
-          physicalHabits: [{ habit: 'h', trigger: 't', sensoryDetail: 's' }],
-          stance: { type: 'direct', manifestation: 'm', blindSpot: 'b' },
-        },
-      ],
-    });
-
-    const result = parsePhase1Response(response, sampleDeveloped);
-    expect(result.tokensUsed).toBe(80);
-  });
-
   it('should parse dynamics from Phase1 response', () => {
-    const response = makeToolResponse('submit_character_enrichment', {
+    const data = {
       characters: [
         {
           name: '佐々木',
@@ -212,9 +161,9 @@ describe('parsePhase1Response', () => {
           dynamics: sampleDynamics,
         },
       ],
-    });
+    };
 
-    const result = parsePhase1Response(response, sampleDeveloped);
+    const result = parsePhase1Response(data, sampleDeveloped);
     const char = result.characters[0];
     expect(char.dynamics.innerWound).toContain('見捨てられ');
     expect(char.dynamics.craving).toContain('痕跡');
@@ -225,7 +174,7 @@ describe('parsePhase1Response', () => {
   });
 
   it('should use default dynamics when dynamics is missing from response', () => {
-    const response = makeToolResponse('submit_character_enrichment', {
+    const data = {
       characters: [
         {
           name: '佐々木',
@@ -234,9 +183,9 @@ describe('parsePhase1Response', () => {
           // no dynamics field
         },
       ],
-    });
+    };
 
-    const result = parsePhase1Response(response, sampleDeveloped);
+    const result = parsePhase1Response(data, sampleDeveloped);
     const char = result.characters[0];
     // Should fall back to defaults
     expect(char.dynamics.innerWound).toBeDefined();
@@ -245,7 +194,7 @@ describe('parsePhase1Response', () => {
   });
 
   it('should use default for individual dynamics fields that are too short', () => {
-    const response = makeToolResponse('submit_character_enrichment', {
+    const data = {
       characters: [
         {
           name: '佐々木',
@@ -261,9 +210,9 @@ describe('parsePhase1Response', () => {
           },
         },
       ],
-    });
+    };
 
-    const result = parsePhase1Response(response, sampleDeveloped);
+    const result = parsePhase1Response(data, sampleDeveloped);
     const char = result.characters[0];
     // Short fields should fall back to defaults
     expect(char.dynamics.innerWound).not.toBe('短い');
@@ -276,7 +225,7 @@ describe('parsePhase1Response', () => {
 
 describe('parsePhase2Response', () => {
   it('should parse valid Phase2 response with dialogue samples', () => {
-    const response = makeToolResponse('submit_dialogue_samples', {
+    const data = {
       characters: [
         {
           name: '佐々木',
@@ -287,9 +236,9 @@ describe('parsePhase2Response', () => {
           ],
         },
       ],
-    });
+    };
 
-    const result = parsePhase2Response(response, samplePhase1Chars);
+    const result = parsePhase2Response(data, samplePhase1Chars);
 
     expect(result.characters).toHaveLength(1);
     const char = result.characters[0];
@@ -299,7 +248,7 @@ describe('parsePhase2Response', () => {
   });
 
   it('should preserve all Phase1 fields in Phase2 result', () => {
-    const response = makeToolResponse('submit_dialogue_samples', {
+    const data = {
       characters: [
         {
           name: '佐々木',
@@ -309,9 +258,9 @@ describe('parsePhase2Response', () => {
           ],
         },
       ],
-    });
+    };
 
-    const result = parsePhase2Response(response, samplePhase1Chars);
+    const result = parsePhase2Response(data, samplePhase1Chars);
     const char = result.characters[0];
 
     expect(char.physicalHabits).toEqual(samplePhase1Chars[0].physicalHabits);
@@ -320,30 +269,10 @@ describe('parsePhase2Response', () => {
     expect(char.voice).toBe('丁寧語、語尾に「ですね」が多い');
   });
 
-  it('should return fallback dialogue samples when tool name is wrong', () => {
-    const response = makeToolResponse('wrong_tool', {});
+  it('should return fallback dialogue samples when characters array is empty', () => {
+    const data = { characters: [] };
 
-    const result = parsePhase2Response(response, samplePhase1Chars);
-
-    expect(result.characters).toHaveLength(1);
-    expect(result.characters[0].dialogueSamples.length).toBeGreaterThanOrEqual(2);
-  });
-
-  it('should return fallback dialogue samples when JSON is invalid', () => {
-    const response: ToolCallResponse = {
-      toolCalls: [{
-        id: 'tc-1',
-        type: 'function',
-        function: {
-          name: 'submit_dialogue_samples',
-          arguments: 'not-json',
-        },
-      }],
-      content: null,
-      tokensUsed: 50,
-    };
-
-    const result = parsePhase2Response(response, samplePhase1Chars);
+    const result = parsePhase2Response(data, samplePhase1Chars);
 
     expect(result.characters).toHaveLength(1);
     expect(result.characters[0].dialogueSamples.length).toBeGreaterThanOrEqual(2);
@@ -364,7 +293,7 @@ describe('parsePhase2Response', () => {
       },
     ];
 
-    const response = makeToolResponse('submit_dialogue_samples', {
+    const data = {
       characters: [
         {
           name: '佐々木',
@@ -375,31 +304,14 @@ describe('parsePhase2Response', () => {
         },
         // 田中 missing
       ],
-    });
+    };
 
-    const result = parsePhase2Response(response, multiPhase1);
+    const result = parsePhase2Response(data, multiPhase1);
 
     expect(result.characters).toHaveLength(2);
     expect(result.characters[0].dialogueSamples).toHaveLength(2);
     // 田中 should get fallback defaults
     expect(result.characters[1].name).toBe('田中');
     expect(result.characters[1].dialogueSamples.length).toBeGreaterThanOrEqual(2);
-  });
-
-  it('should include tokensUsed from response', () => {
-    const response = makeToolResponse('submit_dialogue_samples', {
-      characters: [
-        {
-          name: '佐々木',
-          dialogueSamples: [
-            { line: 'L1', situation: 'S1', voiceNote: 'V1' },
-            { line: 'L2', situation: 'S2', voiceNote: 'V2' },
-          ],
-        },
-      ],
-    });
-
-    const result = parsePhase2Response(response, samplePhase1Chars);
-    expect(result.tokensUsed).toBe(80);
   });
 });

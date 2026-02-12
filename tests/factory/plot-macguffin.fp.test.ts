@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { createPlotMacGuffinAgent, type PlotMacGuffinFn } from '../../src/factory/plot-macguffin.js';
-import { createMockLLMClientWithTools } from '../helpers/mock-deps.js';
+import { createMockLLMClientWithStructured } from '../helpers/mock-deps.js';
 import { createMockSoulText } from '../helpers/mock-soul-text.js';
 import type { GeneratedTheme } from '../../src/schemas/generated-theme.js';
 
@@ -27,33 +27,24 @@ const validPlotMacGuffins = {
 
 describe('createPlotMacGuffinAgent (FP)', () => {
   it('should return a PlotMacGuffinFn with generate method', () => {
-    const llm = createMockLLMClientWithTools({
-      name: 'submit_plot_macguffins',
-      arguments: validPlotMacGuffins,
-    });
+    const llm = createMockLLMClientWithStructured(validPlotMacGuffins);
     const soulText = createMockSoulText();
     const fn: PlotMacGuffinFn = createPlotMacGuffinAgent(llm, soulText);
     expect(typeof fn.generate).toBe('function');
   });
 
   it('should generate plot macguffins', async () => {
-    const llm = createMockLLMClientWithTools({
-      name: 'submit_plot_macguffins',
-      arguments: validPlotMacGuffins,
-    });
+    const llm = createMockLLMClientWithStructured(validPlotMacGuffins);
     const soulText = createMockSoulText();
     const fn = createPlotMacGuffinAgent(llm, soulText);
     const result = await fn.generate(sampleTheme);
     expect(result.macguffins).toHaveLength(1);
     expect(result.macguffins[0].name).toBe('消えたARタグ');
-    expect(llm.completeWithTools).toHaveBeenCalledTimes(1);
+    expect(llm.completeStructured).toHaveBeenCalledTimes(1);
   });
 
   it('should accept optional charMacGuffins', async () => {
-    const llm = createMockLLMClientWithTools({
-      name: 'submit_plot_macguffins',
-      arguments: validPlotMacGuffins,
-    });
+    const llm = createMockLLMClientWithStructured(validPlotMacGuffins);
     const soulText = createMockSoulText();
     const fn = createPlotMacGuffinAgent(llm, soulText);
     const charMacGuffins = [{
@@ -66,11 +57,9 @@ describe('createPlotMacGuffinAgent (FP)', () => {
     expect(result.macguffins).toHaveLength(1);
   });
 
-  it('should fallback on parse failure', async () => {
-    const llm = createMockLLMClientWithTools({
-      name: 'wrong_tool',
-      arguments: {},
-    });
+  it('should fallback on completeStructured failure', async () => {
+    const llm = createMockLLMClientWithStructured(validPlotMacGuffins);
+    (llm.completeStructured as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('fail'));
     const soulText = createMockSoulText();
     const fn = createPlotMacGuffinAgent(llm, soulText);
     const result = await fn.generate(sampleTheme);

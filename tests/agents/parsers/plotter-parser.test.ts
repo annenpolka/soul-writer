@@ -1,237 +1,31 @@
 import { describe, it, expect } from 'vitest';
-import type { ToolCallResponse } from '../../../src/llm/types.js';
+import type { StructuredResponse } from '../../../src/llm/types.js';
+import type { PlotSkeleton } from '../../../src/schemas/plot.js';
 import {
-  parsePlotResponse,
   parsePlotSkeletonResponse,
   parseChapterConstraintsResponse,
-  coerceStringifiedArrays,
+  type BatchChapterConstraints,
 } from '../../../src/agents/parsers/plotter-parser.js';
 
-function makeToolResponse(args: string, toolName = 'submit_plot'): ToolCallResponse {
-  return {
-    toolCalls: [{
-      id: 'tc-1',
-      type: 'function',
-      function: {
-        name: toolName,
-        arguments: args,
-      },
-    }],
-    content: null,
-    tokensUsed: 50,
-  };
+function makeSkeletonResponse(data: PlotSkeleton): StructuredResponse<PlotSkeleton> {
+  return { data, reasoning: null, tokensUsed: 50 };
 }
 
-const validPlotJson = JSON.stringify({
-  title: '透心の朝',
-  theme: '存在確認',
-  chapters: [
-    {
-      index: 1,
-      title: '目覚め',
-      summary: '透心が朝を迎える',
-      key_events: ['起床', 'MRタグの確認'],
-      target_length: 4000,
-    },
-    {
-      index: 2,
-      title: '教室',
-      summary: '学校での日常',
-      key_events: ['クラスメイトとの会話'],
-      target_length: 4000,
-    },
-  ],
-});
-
-describe('parsePlotResponse', () => {
-  it('should parse a valid plot response', () => {
-    const response = makeToolResponse(validPlotJson);
-    const result = parsePlotResponse(response);
-
-    expect(result.title).toBe('透心の朝');
-    expect(result.theme).toBe('存在確認');
-    expect(result.chapters).toHaveLength(2);
-    expect(result.chapters[0].index).toBe(1);
-    expect(result.chapters[0].title).toBe('目覚め');
-  });
-
-  it('should parse chapters with variation_constraints', () => {
-    const plotWithConstraints = JSON.stringify({
-      title: 'テスト',
-      theme: 'テーマ',
-      chapters: [{
-        index: 1,
-        title: '章1',
-        summary: '概要',
-        key_events: ['イベント'],
-        target_length: 4000,
-        variation_constraints: {
-          structure_type: 'single_scene',
-          emotional_arc: 'ascending',
-          pacing: 'slow_burn',
-          deviation_from_previous: null,
-          motif_budget: [{ motif: 'ライオン', max_uses: 2 }],
-        },
-      }],
-    });
-    const response = makeToolResponse(plotWithConstraints);
-    const result = parsePlotResponse(response);
-
-    expect(result.chapters[0].variation_constraints).toBeDefined();
-    expect(result.chapters[0].variation_constraints!.structure_type).toBe('single_scene');
-    expect(result.chapters[0].variation_constraints!.motif_budget).toHaveLength(1);
-  });
-
-  it('should parse chapters with epistemic_constraints', () => {
-    const plotWithEpistemic = JSON.stringify({
-      title: 'テスト',
-      theme: 'テーマ',
-      chapters: [{
-        index: 1,
-        title: '章1',
-        summary: '概要',
-        key_events: ['イベント'],
-        target_length: 4000,
-        epistemic_constraints: [{
-          perspective: '透心',
-          constraints: ['つるぎの正体を知らない'],
-        }],
-      }],
-    });
-    const response = makeToolResponse(plotWithEpistemic);
-    const result = parsePlotResponse(response);
-
-    expect(result.chapters[0].epistemic_constraints).toHaveLength(1);
-    expect(result.chapters[0].epistemic_constraints![0].perspective).toBe('透心');
-  });
-
-  it('should throw when tool call is missing', () => {
-    const response: ToolCallResponse = {
-      toolCalls: [{
-        id: 'tc-1',
-        type: 'function',
-        function: { name: 'wrong_tool', arguments: '{}' },
-      }],
-      content: null,
-      tokensUsed: 50,
-    };
-
-    expect(() => parsePlotResponse(response)).toThrow('Failed to parse tool call arguments');
-  });
-
-  it('should throw when arguments JSON is invalid', () => {
-    const response = makeToolResponse('not-json');
-
-    expect(() => parsePlotResponse(response)).toThrow('Failed to parse tool call arguments');
-  });
-
-  it('should throw on schema validation failure — empty title', () => {
-    const invalidPlot = JSON.stringify({
-      title: '',
-      theme: 'test',
-      chapters: [{ index: 1, title: 'c', summary: 's', key_events: ['e'], target_length: 1000 }],
-    });
-    const response = makeToolResponse(invalidPlot);
-
-    expect(() => parsePlotResponse(response)).toThrow('Plot validation failed');
-  });
-
-  it('should throw on schema validation failure — empty chapters', () => {
-    const invalidPlot = JSON.stringify({
-      title: 'valid',
-      theme: 'valid',
-      chapters: [],
-    });
-    const response = makeToolResponse(invalidPlot);
-
-    expect(() => parsePlotResponse(response)).toThrow('Plot validation failed');
-  });
-
-  it('should throw on schema validation failure — missing key_events', () => {
-    const invalidPlot = JSON.stringify({
-      title: 'valid',
-      theme: 'valid',
-      chapters: [{ index: 1, title: 'c', summary: 's', key_events: [], target_length: 1000 }],
-    });
-    const response = makeToolResponse(invalidPlot);
-
-    expect(() => parsePlotResponse(response)).toThrow('Plot validation failed');
-  });
-
-  it('should coerce chapters from JSON string to array', () => {
-    const chapters = [
-      { index: 1, title: '章1', summary: '概要', key_events: ['イベント'], target_length: 4000 },
-    ];
-    const plot = JSON.stringify({
-      title: 'テスト',
-      theme: 'テーマ',
-      chapters: JSON.stringify(chapters),
-    });
-    const response = makeToolResponse(plot);
-    const result = parsePlotResponse(response);
-
-    expect(result.chapters).toHaveLength(1);
-    expect(result.chapters[0].title).toBe('章1');
-  });
-
-  it('should coerce key_events from JSON string to array', () => {
-    const plot = JSON.stringify({
-      title: 'テスト',
-      theme: 'テーマ',
-      chapters: [{
-        index: 1,
-        title: '章1',
-        summary: '概要',
-        key_events: JSON.stringify(['起床', 'MRタグ確認']),
-        target_length: 4000,
-      }],
-    });
-    const response = makeToolResponse(plot);
-    const result = parsePlotResponse(response);
-
-    expect(result.chapters[0].key_events).toEqual(['起床', 'MRタグ確認']);
-  });
-
-  it('should coerce both chapters and key_events from JSON strings', () => {
-    const chapters = [
-      { index: 1, title: '章1', summary: '概要', key_events: JSON.stringify(['イベント']), target_length: 4000 },
-    ];
-    const plot = JSON.stringify({
-      title: 'テスト',
-      theme: 'テーマ',
-      chapters: JSON.stringify(chapters),
-    });
-    const response = makeToolResponse(plot);
-    const result = parsePlotResponse(response);
-
-    expect(result.chapters).toHaveLength(1);
-    expect(result.chapters[0].key_events).toEqual(['イベント']);
-  });
-
-  it('should throw when chapters is an invalid string', () => {
-    const plot = JSON.stringify({
-      title: 'テスト',
-      theme: 'テーマ',
-      chapters: 'not-valid-json',
-    });
-    const response = makeToolResponse(plot);
-
-    expect(() => parsePlotResponse(response)).toThrow('chapters field is a non-array string');
-  });
-});
+function makeConstraintsResponse(data: BatchChapterConstraints): StructuredResponse<BatchChapterConstraints> {
+  return { data, reasoning: null, tokensUsed: 50 };
+}
 
 describe('parsePlotSkeletonResponse', () => {
   it('should parse a valid skeleton response', () => {
-    const json = JSON.stringify({
+    const data: PlotSkeleton = {
       title: '螺旋の水位',
       theme: '存在と監視',
       chapters: [
         { index: 1, title: '目覚め', summary: '朝の始まり', key_events: ['起床'], target_length: 4000 },
         { index: 2, title: '教室', summary: '学校生活', key_events: ['会話'], target_length: 4000 },
       ],
-    });
-    const response = makeToolResponse(json, 'submit_plot_skeleton');
-    const result = parsePlotSkeletonResponse(response);
+    };
+    const result = parsePlotSkeletonResponse(makeSkeletonResponse(data));
 
     expect(result.title).toBe('螺旋の水位');
     expect(result.theme).toBe('存在と監視');
@@ -241,7 +35,7 @@ describe('parsePlotSkeletonResponse', () => {
   });
 
   it('should parse skeleton with dramaturgy and arc_role', () => {
-    const json = JSON.stringify({
+    const data: PlotSkeleton = {
       title: '螺旋の水位',
       theme: '存在と監視',
       chapters: [
@@ -255,81 +49,96 @@ describe('parsePlotSkeletonResponse', () => {
           arc_role: 'introduction',
         },
       ],
-    });
-    const response = makeToolResponse(json, 'submit_plot_skeleton');
-    const result = parsePlotSkeletonResponse(response);
+    };
+    const result = parsePlotSkeletonResponse(makeSkeletonResponse(data));
 
     expect(result.chapters[0].dramaturgy).toBe('不穏な静寂からの覚醒');
     expect(result.chapters[0].arc_role).toBe('introduction');
   });
 
-  it('should apply default target_length', () => {
-    const json = JSON.stringify({
+  it('should return data directly', () => {
+    const data: PlotSkeleton = {
       title: 'テスト',
       theme: 'テーマ',
       chapters: [
-        { index: 1, title: '章1', summary: '概要', key_events: ['イベント'] },
+        { index: 1, title: '章1', summary: '概要', key_events: ['イベント'], target_length: 4000 },
       ],
-    });
-    const response = makeToolResponse(json, 'submit_plot_skeleton');
-    const result = parsePlotSkeletonResponse(response);
-
-    expect(result.chapters[0].target_length).toBe(4000);
-  });
-
-  it('should throw on missing tool call', () => {
-    const response: ToolCallResponse = {
-      toolCalls: [{
-        id: 'tc-1',
-        type: 'function',
-        function: { name: 'wrong_tool', arguments: '{}' },
-      }],
-      content: null,
-      tokensUsed: 50,
     };
-    expect(() => parsePlotSkeletonResponse(response)).toThrow('Failed to parse plot skeleton tool call arguments');
+    const result = parsePlotSkeletonResponse(makeSkeletonResponse(data));
+    expect(result).toBe(data);
+  });
+});
+
+describe('parsePlotSkeletonResponse with variation_axis', () => {
+  it('should parse skeleton with variation_axis', () => {
+    const data: PlotSkeleton = {
+      title: '螺旋の水位',
+      theme: '存在と監視',
+      chapters: [
+        {
+          index: 1,
+          title: '目覚め',
+          summary: '朝の始まり',
+          key_events: ['起床'],
+          target_length: 4000,
+          variation_axis: {
+            curve_type: 'escalation',
+            intensity_target: 3,
+            differentiation_technique: '内省から外界接触へ',
+          },
+        },
+      ],
+    };
+    const result = parsePlotSkeletonResponse(makeSkeletonResponse(data));
+
+    expect(result.chapters[0].variation_axis).toBeDefined();
+    expect(result.chapters[0].variation_axis!.curve_type).toBe('escalation');
+    expect(result.chapters[0].variation_axis!.intensity_target).toBe(3);
+    expect(result.chapters[0].variation_axis!.differentiation_technique).toBe('内省から外界接触へ');
   });
 
-  it('should throw on empty title', () => {
-    const json = JSON.stringify({
-      title: '',
-      theme: 'テーマ',
-      chapters: [{ index: 1, title: '章1', summary: '概要', key_events: ['e'], target_length: 4000 }],
-    });
-    const response = makeToolResponse(json, 'submit_plot_skeleton');
-    expect(() => parsePlotSkeletonResponse(response)).toThrow('Plot skeleton validation failed');
-  });
-
-  it('should throw on empty chapters', () => {
-    const json = JSON.stringify({
+  it('should parse skeleton with variation_axis including internal_beats', () => {
+    const data: PlotSkeleton = {
       title: 'テスト',
       theme: 'テーマ',
-      chapters: [],
-    });
-    const response = makeToolResponse(json, 'submit_plot_skeleton');
-    expect(() => parsePlotSkeletonResponse(response)).toThrow('Plot skeleton validation failed');
+      chapters: [
+        {
+          index: 1,
+          title: '章1',
+          summary: '概要',
+          key_events: ['イベント'],
+          target_length: 4000,
+          variation_axis: {
+            curve_type: 'oscillation',
+            intensity_target: 4,
+            differentiation_technique: '揺れ動きと停滞の交互配置',
+            internal_beats: ['導入の静寂', '最初の衝撃', '反動の停滞'],
+          },
+        },
+      ],
+    };
+    const result = parsePlotSkeletonResponse(makeSkeletonResponse(data));
+
+    expect(result.chapters[0].variation_axis!.internal_beats).toEqual(['導入の静寂', '最初の衝撃', '反動の停滞']);
   });
 
-  it('should coerce stringified chapters array', () => {
-    const chapters = [
-      { index: 1, title: '章1', summary: '概要', key_events: ['イベント'], target_length: 4000 },
-    ];
-    const json = JSON.stringify({
+  it('should parse skeleton without variation_axis (optional)', () => {
+    const data: PlotSkeleton = {
       title: 'テスト',
       theme: 'テーマ',
-      chapters: JSON.stringify(chapters),
-    });
-    const response = makeToolResponse(json, 'submit_plot_skeleton');
-    const result = parsePlotSkeletonResponse(response);
+      chapters: [
+        { index: 1, title: '章1', summary: '概要', key_events: ['イベント'], target_length: 4000 },
+      ],
+    };
+    const result = parsePlotSkeletonResponse(makeSkeletonResponse(data));
 
-    expect(result.chapters).toHaveLength(1);
-    expect(result.chapters[0].title).toBe('章1');
+    expect(result.chapters[0].variation_axis).toBeUndefined();
   });
 });
 
 describe('parseChapterConstraintsResponse', () => {
   it('should parse valid constraints response', () => {
-    const json = JSON.stringify({
+    const data: BatchChapterConstraints = {
       chapters: [
         {
           index: 1,
@@ -352,9 +161,8 @@ describe('parseChapterConstraintsResponse', () => {
           },
         },
       ],
-    });
-    const response = makeToolResponse(json, 'submit_chapter_constraints');
-    const result = parseChapterConstraintsResponse(response);
+    };
+    const result = parseChapterConstraintsResponse(makeConstraintsResponse(data));
 
     expect(result.chapters).toHaveLength(2);
     expect(result.chapters[0].variation_constraints?.structure_type).toBe('single_scene');
@@ -362,30 +170,14 @@ describe('parseChapterConstraintsResponse', () => {
     expect(result.chapters[1].variation_constraints?.deviation_from_previous).toBe('前章との差分');
   });
 
-  it('should return empty chapters on validation failure', () => {
-    const json = JSON.stringify({ invalid: 'data' });
-    const response = makeToolResponse(json, 'submit_chapter_constraints');
-    const result = parseChapterConstraintsResponse(response);
-
-    expect(result.chapters).toEqual([]);
-  });
-
-  it('should return empty chapters on parse failure', () => {
-    const response: ToolCallResponse = {
-      toolCalls: [{
-        id: 'tc-1',
-        type: 'function',
-        function: { name: 'wrong_tool', arguments: '{}' },
-      }],
-      content: null,
-      tokensUsed: 50,
-    };
-    const result = parseChapterConstraintsResponse(response);
-    expect(result.chapters).toEqual([]);
+  it('should return data directly', () => {
+    const data: BatchChapterConstraints = { chapters: [] };
+    const result = parseChapterConstraintsResponse(makeConstraintsResponse(data));
+    expect(result).toBe(data);
   });
 
   it('should parse constraints with emotional_beats and forbidden_patterns', () => {
-    const json = JSON.stringify({
+    const data: BatchChapterConstraints = {
       chapters: [{
         index: 1,
         variation_constraints: {
@@ -396,16 +188,15 @@ describe('parseChapterConstraintsResponse', () => {
           forbidden_patterns: ['安易な救済', '説明的独白'],
         },
       }],
-    });
-    const response = makeToolResponse(json, 'submit_chapter_constraints');
-    const result = parseChapterConstraintsResponse(response);
+    };
+    const result = parseChapterConstraintsResponse(makeConstraintsResponse(data));
 
     expect(result.chapters[0].variation_constraints?.emotional_beats).toEqual(['不安', '期待', '絶望']);
     expect(result.chapters[0].variation_constraints?.forbidden_patterns).toEqual(['安易な救済', '説明的独白']);
   });
 
   it('should handle constraints with motif_budget', () => {
-    const json = JSON.stringify({
+    const data: BatchChapterConstraints = {
       chapters: [{
         index: 1,
         variation_constraints: {
@@ -415,159 +206,10 @@ describe('parseChapterConstraintsResponse', () => {
           motif_budget: [{ motif: '×マーク', max_uses: 2 }],
         },
       }],
-    });
-    const response = makeToolResponse(json, 'submit_chapter_constraints');
-    const result = parseChapterConstraintsResponse(response);
+    };
+    const result = parseChapterConstraintsResponse(makeConstraintsResponse(data));
 
     expect(result.chapters[0].variation_constraints?.motif_budget).toHaveLength(1);
     expect(result.chapters[0].variation_constraints?.motif_budget![0].motif).toBe('×マーク');
-  });
-});
-
-describe('coerceStringifiedArrays', () => {
-  it('should pass through non-object values', () => {
-    expect(coerceStringifiedArrays(null)).toBeNull();
-    expect(coerceStringifiedArrays(undefined)).toBeUndefined();
-    expect(coerceStringifiedArrays(42)).toBe(42);
-    expect(coerceStringifiedArrays('string')).toBe('string');
-  });
-
-  it('should pass through objects without string arrays', () => {
-    const input = { title: 'test', chapters: [{ key_events: ['a'] }] };
-    const result = coerceStringifiedArrays(input) as Record<string, unknown>;
-    expect(result.chapters).toEqual([{ key_events: ['a'] }]);
-  });
-
-  it('should coerce emotional_beats from string in variation_constraints', () => {
-    const input = {
-      chapters: [{
-        key_events: ['e'],
-        variation_constraints: {
-          structure_type: 'single_scene',
-          emotional_beats: JSON.stringify(['不安', '期待']),
-        },
-      }],
-    };
-    const result = coerceStringifiedArrays(input) as Record<string, unknown>;
-    const ch = (result.chapters as Record<string, unknown>[])[0];
-    const vc = ch.variation_constraints as Record<string, unknown>;
-    expect(vc.emotional_beats).toEqual(['不安', '期待']);
-  });
-
-  it('should coerce forbidden_patterns from string in variation_constraints', () => {
-    const input = {
-      chapters: [{
-        key_events: ['e'],
-        variation_constraints: {
-          structure_type: 'single_scene',
-          forbidden_patterns: JSON.stringify(['安易な救済']),
-        },
-      }],
-    };
-    const result = coerceStringifiedArrays(input) as Record<string, unknown>;
-    const ch = (result.chapters as Record<string, unknown>[])[0];
-    const vc = ch.variation_constraints as Record<string, unknown>;
-    expect(vc.forbidden_patterns).toEqual(['安易な救済']);
-  });
-
-  it('should coerce motif_budget from string', () => {
-    const budget = [{ motif: 'ライオン', max_uses: 2 }];
-    const input = {
-      chapters: [{
-        key_events: ['e'],
-        motif_budget: JSON.stringify(budget),
-      }],
-    };
-    const result = coerceStringifiedArrays(input) as Record<string, unknown>;
-    const ch = (result.chapters as Record<string, unknown>[])[0];
-    expect(ch.motif_budget).toEqual(budget);
-  });
-
-  it('should coerce internal_beats from string in variation_axis', () => {
-    const input = {
-      chapters: [{
-        key_events: ['e'],
-        variation_axis: {
-          curve_type: 'escalation',
-          intensity_target: 3,
-          differentiation_technique: 'test',
-          internal_beats: JSON.stringify(['静寂', '衝撃', '解放']),
-        },
-      }],
-    };
-    const result = coerceStringifiedArrays(input) as Record<string, unknown>;
-    const ch = (result.chapters as Record<string, unknown>[])[0];
-    const va = ch.variation_axis as Record<string, unknown>;
-    expect(va.internal_beats).toEqual(['静寂', '衝撃', '解放']);
-  });
-});
-
-describe('parsePlotSkeletonResponse with variation_axis', () => {
-  it('should parse skeleton with variation_axis', () => {
-    const json = JSON.stringify({
-      title: '螺旋の水位',
-      theme: '存在と監視',
-      chapters: [
-        {
-          index: 1,
-          title: '目覚め',
-          summary: '朝の始まり',
-          key_events: ['起床'],
-          target_length: 4000,
-          variation_axis: {
-            curve_type: 'escalation',
-            intensity_target: 3,
-            differentiation_technique: '内省から外界接触へ',
-          },
-        },
-      ],
-    });
-    const response = makeToolResponse(json, 'submit_plot_skeleton');
-    const result = parsePlotSkeletonResponse(response);
-
-    expect(result.chapters[0].variation_axis).toBeDefined();
-    expect(result.chapters[0].variation_axis!.curve_type).toBe('escalation');
-    expect(result.chapters[0].variation_axis!.intensity_target).toBe(3);
-    expect(result.chapters[0].variation_axis!.differentiation_technique).toBe('内省から外界接触へ');
-  });
-
-  it('should parse skeleton with variation_axis including internal_beats', () => {
-    const json = JSON.stringify({
-      title: 'テスト',
-      theme: 'テーマ',
-      chapters: [
-        {
-          index: 1,
-          title: '章1',
-          summary: '概要',
-          key_events: ['イベント'],
-          target_length: 4000,
-          variation_axis: {
-            curve_type: 'oscillation',
-            intensity_target: 4,
-            differentiation_technique: '揺れ動きと停滞の交互配置',
-            internal_beats: ['導入の静寂', '最初の衝撃', '反動の停滞'],
-          },
-        },
-      ],
-    });
-    const response = makeToolResponse(json, 'submit_plot_skeleton');
-    const result = parsePlotSkeletonResponse(response);
-
-    expect(result.chapters[0].variation_axis!.internal_beats).toEqual(['導入の静寂', '最初の衝撃', '反動の停滞']);
-  });
-
-  it('should parse skeleton without variation_axis (optional)', () => {
-    const json = JSON.stringify({
-      title: 'テスト',
-      theme: 'テーマ',
-      chapters: [
-        { index: 1, title: '章1', summary: '概要', key_events: ['イベント'], target_length: 4000 },
-      ],
-    });
-    const response = makeToolResponse(json, 'submit_plot_skeleton');
-    const result = parsePlotSkeletonResponse(response);
-
-    expect(result.chapters[0].variation_axis).toBeUndefined();
   });
 });

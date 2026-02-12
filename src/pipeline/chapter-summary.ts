@@ -52,7 +52,7 @@ export async function analyzePreviousChapter(
     [ANALYZE_CHAPTER_TOOL],
     {
       toolChoice: { type: 'function', function: { name: 'report_chapter_analysis' } },
-      temperature: 0.3,
+      temperature: 1.0,
     },
   );
 
@@ -148,7 +148,7 @@ rule例: "再度「発見」させないこと", "恐怖に戻さないこと", 
     [EXTRACT_INSIGHTS_TOOL],
     {
       toolChoice: { type: 'function', function: { name: 'report_established_insights' } },
-      temperature: 0.3,
+      temperature: 1.0,
     },
   );
 

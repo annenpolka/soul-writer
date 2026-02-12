@@ -1,44 +1,40 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createSynthesisV2 } from '../../src/synthesis/synthesis-v2.js';
 import type { SynthesisAnalyzerDeps, SynthesisExecutorDeps, SynthesisAnalyzerInput } from '../../src/agents/types.js';
-import { createMockLLMClientWithTools, createMockLLMClient } from '../helpers/mock-deps.js';
+import type { ImprovementPlanRaw } from '../../src/schemas/improvement-plan.js';
+import { createMockLLMClient } from '../helpers/mock-deps.js';
 import { createMockSoulText } from '../helpers/mock-soul-text.js';
 
-function createMockV2Deps(): SynthesisAnalyzerDeps & SynthesisExecutorDeps & {
-  analyzerLLMClient: ReturnType<typeof createMockLLMClientWithTools>;
-  executorLLMClient: ReturnType<typeof createMockLLMClient>;
-} {
-  const analyzerToolResponse = {
-    name: 'submit_improvement_plan',
-    arguments: {
-      championAssessment: '勝者テキストの文体安定',
-      preserveElements: ['冒頭比喩'],
-      actions: [
-        {
-          section: '展開',
-          type: 'expression_upgrade',
-          description: '表現強化',
-          source: 'writer_2',
-          priority: 'high',
-        },
-      ],
-      expressionSources: [
-        {
-          writerId: 'writer_2',
-          expressions: ['月光が砕けた'],
-          context: '情景',
-        },
-      ],
-    },
+function createMockV2Deps(): SynthesisAnalyzerDeps & SynthesisExecutorDeps {
+  const analyzerData: ImprovementPlanRaw = {
+    championAssessment: '勝者テキストの文体安定',
+    preserveElements: ['冒頭比喩'],
+    actions: [
+      {
+        section: '展開',
+        type: 'expression_upgrade',
+        description: '表現強化',
+        source: 'writer_2',
+        priority: 'high',
+      },
+    ],
+    expressionSources: [
+      {
+        writerId: 'writer_2',
+        expressions: ['月光が砕けた'],
+        context: '情景',
+      },
+    ],
   };
 
-  const analyzerLLMClient = createMockLLMClientWithTools(analyzerToolResponse, 200);
-  const executorLLMClient = createMockLLMClient('改善後テキスト', 150);
-
-  // Combined deps: analyzer uses completeWithTools, executor uses complete
+  // Combined LLM client: completeStructured for analyzer, complete for executor
   const combinedLLMClient = {
-    complete: executorLLMClient.complete,
-    completeWithTools: analyzerLLMClient.completeWithTools,
+    complete: vi.fn().mockResolvedValue('改善後テキスト'),
+    completeStructured: vi.fn().mockResolvedValue({
+      data: analyzerData,
+      reasoning: null,
+      tokensUsed: 200,
+    }),
     getTotalTokens: vi.fn()
       .mockReturnValueOnce(0)    // analyzer before
       .mockReturnValueOnce(200)  // analyzer after
@@ -49,8 +45,6 @@ function createMockV2Deps(): SynthesisAnalyzerDeps & SynthesisExecutorDeps & {
   return {
     llmClient: combinedLLMClient,
     soulText: createMockSoulText(),
-    analyzerLLMClient,
-    executorLLMClient,
   };
 }
 
@@ -99,8 +93,8 @@ describe('createSynthesisV2', () => {
     const synth = createSynthesisV2(deps);
     await synth.synthesize(createMockInput());
 
-    // Analyzer called completeWithTools
-    expect(deps.llmClient.completeWithTools).toHaveBeenCalledTimes(1);
+    // Analyzer called completeStructured
+    expect(deps.llmClient.completeStructured).toHaveBeenCalledTimes(1);
     // Executor called complete
     expect(deps.llmClient.complete).toHaveBeenCalledTimes(1);
   });
@@ -130,7 +124,7 @@ describe('createSynthesisV2', () => {
     expect(result.synthesizedText).toBe('勝者テキスト');
     expect(result.plan).toBeNull();
     expect(result.totalTokensUsed).toBe(0);
-    expect(deps.llmClient.completeWithTools).not.toHaveBeenCalled();
+    expect(deps.llmClient.completeStructured).not.toHaveBeenCalled();
     expect(deps.llmClient.complete).not.toHaveBeenCalled();
   });
 });

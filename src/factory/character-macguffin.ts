@@ -1,39 +1,13 @@
-import type { LLMClient, ToolDefinition, ToolCallResponse } from '../llm/types.js';
-import { assertToolCallingClient, parseToolArguments } from '../llm/tooling.js';
+import { z } from 'zod';
+import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import type { GeneratedTheme } from '../schemas/generated-theme.js';
 import { CharacterMacGuffinSchema, type CharacterMacGuffin } from '../schemas/macguffin.js';
 import { buildPrompt } from '../template/composer.js';
 
-const SUBMIT_CHARACTER_MACGUFFINS_TOOL: ToolDefinition = {
-  type: 'function',
-  function: {
-    name: 'submit_character_macguffins',
-    description: 'キャラクターのマクガフィン（秘密や伏線）を提出する',
-    parameters: {
-      type: 'object',
-      properties: {
-        characterMacGuffins: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              characterName: { type: 'string' },
-              secret: { type: 'string' },
-              surfaceSigns: { type: 'array', items: { type: 'string' } },
-              narrativeFunction: { type: 'string' },
-            },
-            required: ['characterName', 'secret', 'surfaceSigns', 'narrativeFunction'],
-            additionalProperties: false,
-          },
-        },
-      },
-      required: ['characterMacGuffins'],
-      additionalProperties: false,
-    },
-    strict: true,
-  },
-};
+const CharacterMacGuffinResponseSchema = z.object({
+  characterMacGuffins: z.array(CharacterMacGuffinSchema),
+});
 
 export interface CharacterMacGuffinResult {
   macguffins: CharacterMacGuffin[];
@@ -93,26 +67,6 @@ function charMacGuffinFallback(theme: GeneratedTheme): CharacterMacGuffin[] {
   }));
 }
 
-function parseCharMacGuffinToolResponse(response: ToolCallResponse, theme: GeneratedTheme): CharacterMacGuffin[] {
-  let raw: unknown;
-  try {
-    raw = parseToolArguments<unknown>(response, 'submit_character_macguffins');
-  } catch (e) {
-    console.warn('[character-macguffin] Tool call parsing failed, using fallback:', e instanceof Error ? e.message : e);
-    return charMacGuffinFallback(theme);
-  }
-
-  const items = Array.isArray(raw) ? raw : (raw as { characterMacGuffins?: unknown }).characterMacGuffins;
-  if (!Array.isArray(items)) {
-    return charMacGuffinFallback(theme);
-  }
-
-  const validated = items.map((item: unknown) => CharacterMacGuffinSchema.safeParse(item))
-    .filter((r): r is { success: true; data: CharacterMacGuffin } => r.success)
-    .map((r) => r.data);
-  return validated.length > 0 ? validated : charMacGuffinFallback(theme);
-}
-
 // --- Factory function ---
 
 export function createCharacterMacGuffinAgent(llmClient: LLMClient, soulText: SoulText): CharacterMacGuffinFn {
@@ -122,18 +76,26 @@ export function createCharacterMacGuffinAgent(llmClient: LLMClient, soulText: So
 
       const context = buildCharMacGuffinContext(soulText, theme);
       const { system: systemPrompt, user: userPrompt } = buildPrompt('character-macguffin', context);
-      assertToolCallingClient(llmClient);
-      const response = await llmClient.completeWithTools(
-        systemPrompt,
-        userPrompt,
-        [SUBMIT_CHARACTER_MACGUFFINS_TOOL],
-        {
-          toolChoice: { type: 'function', function: { name: 'submit_character_macguffins' } },
-          temperature: 0.9,
-        },
-      );
 
-      const macguffins = parseCharMacGuffinToolResponse(response, theme);
+      let macguffins: CharacterMacGuffin[];
+      try {
+        const response = await llmClient.completeStructured!(
+          [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          CharacterMacGuffinResponseSchema,
+          { temperature: 1.0 },
+        );
+
+        macguffins = response.data.characterMacGuffins.length > 0
+          ? response.data.characterMacGuffins
+          : charMacGuffinFallback(theme);
+      } catch (e) {
+        console.warn('[character-macguffin] completeStructured failed, using fallback:', e instanceof Error ? e.message : e);
+        macguffins = charMacGuffinFallback(theme);
+      }
+
       const tokensUsed = llmClient.getTotalTokens() - tokensBefore;
 
       return { macguffins, tokensUsed };

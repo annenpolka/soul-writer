@@ -67,7 +67,7 @@ export function createChapterVariationRule(llmClient: LLMClient): AsyncComplianc
         [REPORT_VARIATION_TOOL],
         {
           toolChoice: { type: 'function', function: { name: 'report_chapter_variation' } },
-          temperature: 0.3,
+          temperature: 1.0,
         },
       );
 

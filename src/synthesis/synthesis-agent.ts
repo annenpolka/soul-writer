@@ -33,7 +33,7 @@ export function createSynthesisAgent(deps: SynthesisDeps): Synthesizer {
       const userPrompt = buildSynthesisUserPrompt(championText, loserExcerpts);
 
       const result = await llmClient.complete(systemPrompt, userPrompt, {
-        temperature: 0.6,
+        temperature: 1.0,
       });
 
       return {

@@ -1,7 +1,7 @@
-import type { ToolCallResponse } from '../../llm/types.js';
+import type { StructuredResponse } from '../../llm/types.js';
 import type { CategoryScores, PersonaEvaluation, PersonaFeedback } from '../types.js';
 import type { ReaderPersona } from '../../schemas/reader-personas.js';
-import { parseToolArguments } from '../../llm/tooling.js';
+import type { ReaderEvaluationRawResponse } from '../../schemas/reader-evaluation-response.js';
 
 /**
  * Clamp a score to [0, 1], defaulting undefined/NaN to 0.5 (pure function).
@@ -56,52 +56,19 @@ export function calculateWeightedScore(
 }
 
 /**
- * Parse a tool-call response into a PersonaEvaluation (pure function).
+ * Parse a structured response into a PersonaEvaluation (pure function).
  */
 export function parseEvalToolResponse(
-  response: ToolCallResponse,
+  response: StructuredResponse<ReaderEvaluationRawResponse>,
   persona: ReaderPersona,
 ): PersonaEvaluation {
-  let categoryScores: CategoryScores;
-  let feedback: PersonaFeedback;
-
-  const defaultFeedback: PersonaFeedback = {
-    strengths: '',
-    weaknesses: '',
-    suggestion: '',
+  const data = response.data;
+  const categoryScores = normalizeScores(data.categoryScores);
+  const feedback: PersonaFeedback = {
+    strengths: data.feedback.strengths || '',
+    weaknesses: data.feedback.weaknesses || '',
+    suggestion: data.feedback.suggestion || '',
   };
-
-  let parsed: unknown;
-  try {
-    parsed = parseToolArguments<unknown>(response, 'submit_reader_evaluation');
-  } catch (e) {
-    console.warn('[reader-eval-parser] Tool call parsing failed, using default scores:', e instanceof Error ? e.message : e);
-    parsed = null;
-  }
-
-  if (parsed && typeof parsed === 'object') {
-    const candidate = parsed as {
-      categoryScores?: Partial<CategoryScores>;
-      feedback?: Partial<PersonaFeedback> | string;
-    };
-    categoryScores = normalizeScores(candidate.categoryScores);
-    if (candidate.feedback && typeof candidate.feedback === 'object') {
-      const fb = candidate.feedback as Partial<PersonaFeedback>;
-      feedback = {
-        strengths: fb.strengths || '',
-        weaknesses: fb.weaknesses || '',
-        suggestion: fb.suggestion || '',
-      };
-    } else {
-      feedback = {
-        ...defaultFeedback,
-        strengths: typeof candidate.feedback === 'string' ? candidate.feedback : 'フィードバックなし',
-      };
-    }
-  } else {
-    categoryScores = getDefaultScores();
-    feedback = { ...defaultFeedback, weaknesses: 'ツール呼び出しの解析に失敗' };
-  }
 
   const weightedScore = calculateWeightedScore(categoryScores, persona.evaluation_weights);
 

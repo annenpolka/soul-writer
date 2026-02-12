@@ -1,40 +1,13 @@
-import type { LLMClient, ToolDefinition, ToolCallResponse } from '../llm/types.js';
-import { assertToolCallingClient, parseToolArguments } from '../llm/tooling.js';
+import { z } from 'zod';
+import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import type { GeneratedTheme } from '../schemas/generated-theme.js';
 import { PlotMacGuffinSchema, type PlotMacGuffin, type CharacterMacGuffin } from '../schemas/macguffin.js';
 import { buildPrompt } from '../template/composer.js';
 
-const SUBMIT_PLOT_MACGUFFINS_TOOL: ToolDefinition = {
-  type: 'function',
-  function: {
-    name: 'submit_plot_macguffins',
-    description: 'プロット用のマクガフィンを提出する',
-    parameters: {
-      type: 'object',
-      properties: {
-        plotMacGuffins: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              name: { type: 'string' },
-              surfaceAppearance: { type: 'string' },
-              hiddenLayer: { type: 'string' },
-              tensionQuestions: { type: 'array', items: { type: 'string' } },
-              presenceHint: { type: 'string' },
-            },
-            required: ['name', 'surfaceAppearance', 'hiddenLayer', 'tensionQuestions', 'presenceHint'],
-            additionalProperties: false,
-          },
-        },
-      },
-      required: ['plotMacGuffins'],
-      additionalProperties: false,
-    },
-    strict: true,
-  },
-};
+const PlotMacGuffinResponseSchema = z.object({
+  plotMacGuffins: z.array(PlotMacGuffinSchema),
+});
 
 export interface PlotMacGuffinResult {
   macguffins: PlotMacGuffin[];
@@ -94,26 +67,6 @@ function plotMacGuffinFallback(): PlotMacGuffin[] {
   }];
 }
 
-function parsePlotMacGuffinToolResponse(response: ToolCallResponse): PlotMacGuffin[] {
-  let raw: unknown;
-  try {
-    raw = parseToolArguments<unknown>(response, 'submit_plot_macguffins');
-  } catch (e) {
-    console.warn('[plot-macguffin] Tool call parsing failed, using fallback:', e instanceof Error ? e.message : e);
-    return plotMacGuffinFallback();
-  }
-
-  const items = Array.isArray(raw) ? raw : (raw as { plotMacGuffins?: unknown }).plotMacGuffins;
-  if (!Array.isArray(items)) {
-    return plotMacGuffinFallback();
-  }
-
-  const validated = items.map((item: unknown) => PlotMacGuffinSchema.safeParse(item))
-    .filter((r): r is { success: true; data: PlotMacGuffin } => r.success)
-    .map((r) => r.data);
-  return validated.length > 0 ? validated : plotMacGuffinFallback();
-}
-
 // --- Factory function ---
 
 export function createPlotMacGuffinAgent(llmClient: LLMClient, soulText: SoulText): PlotMacGuffinFn {
@@ -123,18 +76,26 @@ export function createPlotMacGuffinAgent(llmClient: LLMClient, soulText: SoulTex
 
       const context = buildPlotMacGuffinContext(soulText, theme, charMacGuffins);
       const { system: systemPrompt, user: userPrompt } = buildPrompt('plot-macguffin', context);
-      assertToolCallingClient(llmClient);
-      const response = await llmClient.completeWithTools(
-        systemPrompt,
-        userPrompt,
-        [SUBMIT_PLOT_MACGUFFINS_TOOL],
-        {
-          toolChoice: { type: 'function', function: { name: 'submit_plot_macguffins' } },
-          temperature: 0.9,
-        },
-      );
 
-      const macguffins = parsePlotMacGuffinToolResponse(response);
+      let macguffins: PlotMacGuffin[];
+      try {
+        const response = await llmClient.completeStructured!(
+          [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          PlotMacGuffinResponseSchema,
+          { temperature: 1.0 },
+        );
+
+        macguffins = response.data.plotMacGuffins.length > 0
+          ? response.data.plotMacGuffins
+          : plotMacGuffinFallback();
+      } catch (e) {
+        console.warn('[plot-macguffin] completeStructured failed, using fallback:', e instanceof Error ? e.message : e);
+        macguffins = plotMacGuffinFallback();
+      }
+
       const tokensUsed = llmClient.getTotalTokens() - tokensBefore;
 
       return { macguffins, tokensUsed };

@@ -1,79 +1,49 @@
-import type { ToolCallResponse } from '../../llm/types.js';
-import type { DefectDetectorResult, Defect, DefectSeverity, VerdictLevel } from '../types.js';
-import { parseToolArguments } from '../../llm/tooling.js';
+import type { StructuredResponse } from '../../llm/types.js';
+import type { DefectDetectorResult, Defect, VerdictLevel } from '../types.js';
+import type { DefectDetectorRawResponse } from '../../schemas/defect-detector-response.js';
 import { isVerdictPassing } from '../../evaluation/verdict-utils.js';
 
-const VALID_SEVERITIES: Set<string> = new Set(['critical', 'major', 'minor']);
-const VALID_VERDICT_LEVELS: Set<string> = new Set(['exceptional', 'publishable', 'acceptable', 'needs_work', 'unacceptable']);
-
 /**
- * Parse a tool-call response into a DefectDetectorResult (pure function).
+ * Parse a structured response into a DefectDetectorResult (pure function).
  */
-export function parseDefectDetectorResponse(response: ToolCallResponse): DefectDetectorResult {
-  let parsed: unknown;
-  try {
-    parsed = parseToolArguments<unknown>(response, 'submit_defects');
-  } catch (e) {
-    console.warn('[defect-detector-parser] Tool call parsing failed:', e instanceof Error ? e.message : e);
-    return createFallbackResult();
-  }
+export function parseDefectDetectorResponse(response: StructuredResponse<DefectDetectorRawResponse>): DefectDetectorResult {
+  const data = response.data;
+  const verdictLevel: VerdictLevel = data.verdict_level;
 
-  try {
-    const candidate = parsed as { defects?: unknown[]; verdict_level?: string };
-    const rawDefects = Array.isArray(candidate.defects) ? candidate.defects : [];
+  const defects: Defect[] = data.defects.map((d) => ({
+    severity: d.severity,
+    category: d.category,
+    description: d.description,
+    ...(d.location ? { location: d.location } : {}),
+    ...(d.quoted_text ? { quotedText: d.quoted_text } : {}),
+    ...(d.suggested_fix ? { suggestedFix: d.suggested_fix } : {}),
+  }));
 
-    // Parse verdict level with fallback
-    const rawVerdict = candidate.verdict_level;
-    const verdictLevel: VerdictLevel =
-      typeof rawVerdict === 'string' && VALID_VERDICT_LEVELS.has(rawVerdict)
-        ? (rawVerdict as VerdictLevel)
-        : 'needs_work';
+  const criticalCount = defects.filter(d => d.severity === 'critical').length;
+  const majorCount = defects.filter(d => d.severity === 'major').length;
+  const minorCount = defects.filter(d => d.severity === 'minor').length;
 
-    // Filter and validate defects
-    const defects: Defect[] = rawDefects
-      .filter((d): d is Record<string, unknown> =>
-        typeof d === 'object' && d !== null &&
-        typeof (d as Record<string, unknown>).severity === 'string' &&
-        VALID_SEVERITIES.has((d as Record<string, unknown>).severity as string)
-      )
-      .map((d) => ({
-        severity: d.severity as DefectSeverity,
-        category: String(d.category ?? ''),
-        description: String(d.description ?? ''),
-        ...(d.location ? { location: String(d.location) } : {}),
-        ...(d.quoted_text ? { quotedText: String(d.quoted_text) } : {}),
-        ...(d.suggested_fix ? { suggestedFix: String(d.suggested_fix) } : {}),
-      }));
+  const passed = criticalCount === 0 && isVerdictPassing(verdictLevel);
 
-    const criticalCount = defects.filter(d => d.severity === 'critical').length;
-    const majorCount = defects.filter(d => d.severity === 'major').length;
-    const minorCount = defects.filter(d => d.severity === 'minor').length;
+  const feedback = defects.length === 0
+    ? '欠陥なし'
+    : defects.map(d => {
+        let line = `[${d.severity}/${d.category}] ${d.description}`;
+        if (d.quotedText) line += `\n  問題箇所: 「${d.quotedText}」`;
+        if (d.suggestedFix) line += `\n  修正方向: ${d.suggestedFix}`;
+        return line;
+      }).join('\n\n');
 
-    // Pass criteria: no critical defects AND verdict is passing
-    const passed = criticalCount === 0 && isVerdictPassing(verdictLevel);
-
-    const feedback = defects.length === 0
-      ? '欠陥なし'
-      : defects.map(d => {
-          let line = `[${d.severity}/${d.category}] ${d.description}`;
-          if (d.quotedText) line += `\n  問題箇所: 「${d.quotedText}」`;
-          if (d.suggestedFix) line += `\n  修正方向: ${d.suggestedFix}`;
-          return line;
-        }).join('\n\n');
-
-    return {
-      defects,
-      criticalCount,
-      majorCount,
-      minorCount,
-      verdictLevel,
-      passed,
-      feedback,
-    };
-  } catch (e) {
-    console.warn('[defect-detector-parser] Response structure parsing failed:', e instanceof Error ? e.message : e);
-    return createFallbackResult();
-  }
+  return {
+    defects,
+    criticalCount,
+    majorCount,
+    minorCount,
+    verdictLevel,
+    passed,
+    feedback,
+    llmReasoning: response.reasoning ?? null,
+  };
 }
 
 /**
@@ -87,6 +57,6 @@ export function createFallbackResult(): DefectDetectorResult {
     minorCount: 0,
     verdictLevel: 'needs_work',
     passed: false,
-    feedback: 'パース失敗: ツールコールの解析に失敗しました',
+    feedback: 'パース失敗: structured outputの解析に失敗しました',
   };
 }
