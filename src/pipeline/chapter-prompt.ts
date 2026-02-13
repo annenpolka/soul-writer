@@ -247,21 +247,21 @@ export function buildChapterPrompt(input: ChapterPromptInput): string {
     parts.push('');
   }
 
-  // Motif wear warnings
-  if (input.crossChapterState) {
-    const wornMotifs = input.crossChapterState.motifWear.filter(m => m.wearLevel === 'worn' || m.wearLevel === 'exhausted');
-    if (wornMotifs.length > 0) {
-      parts.push('## モチーフ摩耗警告');
-      parts.push('以下のモチーフは使い古されています。そのまま再利用せず、変奏または記号化すること。');
-      for (const m of wornMotifs) {
-        if (m.wearLevel === 'exhausted') {
-          parts.push(`- ${m.motif} [exhausted: ${m.usageCount}回使用] → 単語レベルに記号化すること`);
-        } else {
-          parts.push(`- ${m.motif} [worn: ${m.usageCount}回使用] → 感覚の一部を欠落させること`);
-        }
+  // Motif budget display — all motif wear entries with 3-time budget
+  if (input.crossChapterState && input.crossChapterState.motifWear.length > 0) {
+    parts.push('## モチーフ使用状況（3回ルール）');
+    parts.push('身体的モチーフは作品全体で最大3回まで（導入→深化→決定的使用）。使用予算を意識して執筆すること。');
+    for (const m of input.crossChapterState.motifWear) {
+      const remaining = Math.max(0, 3 - m.usageCount);
+      if (remaining === 0) {
+        parts.push(`- ${m.motif}: ${m.usageCount}回使用済み → ★使用禁止（別のモチーフに切り替えよ）★`);
+      } else if (remaining === 1) {
+        parts.push(`- ${m.motif}: ${m.usageCount}回使用済み → 残り1回（クライマックス専用）`);
+      } else {
+        parts.push(`- ${m.motif}: ${m.usageCount}回使用済み → 残り${remaining}回`);
       }
-      parts.push('');
     }
+    parts.push('');
   }
 
   // Variation axis
