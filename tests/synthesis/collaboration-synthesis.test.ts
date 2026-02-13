@@ -2,43 +2,40 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createCollaborationSynthesis, type CollaborationSynthesizerFn } from '../../src/synthesis/collaboration-synthesis.js';
 import type { SynthesisAnalyzerDeps } from '../../src/agents/types.js';
 import type { CollaborationResult } from '../../src/collaboration/types.js';
-import { createMockLLMClientWithTools, createMockLLMClient } from '../helpers/mock-deps.js';
+import type { ImprovementPlanRaw } from '../../src/schemas/improvement-plan.js';
+import { createMockLLMClient } from '../helpers/mock-deps.js';
 import { createMockSoulText } from '../helpers/mock-soul-text.js';
 
-function createMockDeps(): SynthesisAnalyzerDeps & {
-  _analyzerClient: ReturnType<typeof createMockLLMClientWithTools>;
-  _executorClient: ReturnType<typeof createMockLLMClient>;
-} {
-  const analyzerToolResponse = {
-    name: 'submit_improvement_plan',
-    arguments: {
-      championAssessment: 'コラボ最終テキストの合意度は高い',
-      preserveElements: ['冒頭の描写', '結末の余韻'],
-      actions: [
-        {
-          section: '展開',
-          type: 'voice_refinement',
-          description: '透心の声をより鮮明に',
-          source: 'writer_2_feedback',
-          priority: 'high',
-        },
-      ],
-      expressionSources: [
-        {
-          writerId: 'writer_1',
-          expressions: ['ARタグが星のように'],
-          context: 'ドラフト導入部',
-        },
-      ],
-    },
+function createMockDeps(): SynthesisAnalyzerDeps {
+  const analyzerData: ImprovementPlanRaw = {
+    championAssessment: 'コラボ最終テキストの合意度は高い',
+    preserveElements: ['冒頭の描写', '結末の余韻'],
+    actions: [
+      {
+        section: '展開',
+        type: 'voice_refinement',
+        description: '透心の声をより鮮明に',
+        source: 'writer_2_feedback',
+        priority: 'high',
+      },
+    ],
+    expressionSources: [
+      {
+        writerId: 'writer_1',
+        expressions: ['ARタグが星のように'],
+        context: 'ドラフト導入部',
+      },
+    ],
   };
 
-  const analyzerClient = createMockLLMClientWithTools(analyzerToolResponse, 200);
-  const executorClient = createMockLLMClient('改善されたコラボテキスト', 150);
-
+  // Combined LLM client: completeStructured for analyzer, complete for executor
   const combinedLLMClient = {
-    complete: executorClient.complete,
-    completeWithTools: analyzerClient.completeWithTools,
+    complete: vi.fn().mockResolvedValue('改善されたコラボテキスト'),
+    completeStructured: vi.fn().mockResolvedValue({
+      data: analyzerData,
+      reasoning: null,
+      tokensUsed: 200,
+    }),
     getTotalTokens: vi.fn()
       .mockReturnValueOnce(0)
       .mockReturnValueOnce(200)
@@ -49,8 +46,6 @@ function createMockDeps(): SynthesisAnalyzerDeps & {
   return {
     llmClient: combinedLLMClient,
     soulText: createMockSoulText(),
-    _analyzerClient: analyzerClient,
-    _executorClient: executorClient,
   };
 }
 
@@ -122,13 +117,13 @@ describe('createCollaborationSynthesis', () => {
     expect(result.totalTokensUsed).toBeGreaterThan(0);
   });
 
-  it('synthesize() should use completeWithTools for analysis (Collab-specific)', async () => {
+  it('synthesize() should use completeStructured for analysis', async () => {
     const deps = createMockDeps();
     const synth = createCollaborationSynthesis(deps);
     await synth.synthesize('テキスト', createMockCollaborationResult());
 
-    // Analyzer used completeWithTools
-    expect(deps.llmClient.completeWithTools).toHaveBeenCalledTimes(1);
+    // Analyzer used completeStructured
+    expect(deps.llmClient.completeStructured).toHaveBeenCalledTimes(1);
   });
 
   it('synthesize() should reuse SynthesisExecutor for execution pass', async () => {
@@ -140,25 +135,13 @@ describe('createCollaborationSynthesis', () => {
     expect(deps.llmClient.complete).toHaveBeenCalledTimes(1);
   });
 
-  it('synthesize() should use submit_improvement_plan tool with strict mode', async () => {
+  it('synthesize() should use temperature 1.0 for analysis', async () => {
     const deps = createMockDeps();
     const synth = createCollaborationSynthesis(deps);
     await synth.synthesize('テキスト', createMockCollaborationResult());
 
-    const call = (deps.llmClient.completeWithTools as ReturnType<typeof vi.fn>).mock.calls[0];
-    const tools = call[2] as Array<{ type: string; function: { name: string; strict?: boolean } }>;
-    expect(tools).toHaveLength(1);
-    expect(tools[0].function.name).toBe('submit_improvement_plan');
-    expect(tools[0].function.strict).toBe(true);
-  });
-
-  it('synthesize() should use temperature 0.4 for analysis', async () => {
-    const deps = createMockDeps();
-    const synth = createCollaborationSynthesis(deps);
-    await synth.synthesize('テキスト', createMockCollaborationResult());
-
-    const call = (deps.llmClient.completeWithTools as ReturnType<typeof vi.fn>).mock.calls[0];
-    const options = call[3] as { temperature?: number };
-    expect(options.temperature).toBe(0.4);
+    const call = (deps.llmClient.completeStructured as ReturnType<typeof vi.fn>).mock.calls[0];
+    const options = call[2] as { temperature?: number };
+    expect(options.temperature).toBe(1.0);
   });
 });

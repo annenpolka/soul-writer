@@ -20,6 +20,8 @@ export interface WriterContextInput {
   macGuffinContext?: MacGuffinContext;
   /** Motif avoidance list from past works analysis */
   motifAvoidanceList?: string[];
+  /** LLM reasoning from ChapterStateExtractor for previous chapter — reference context */
+  previousChapterReasoning?: string | null;
 }
 
 /**
@@ -130,6 +132,11 @@ export function buildWriterContext(input: WriterContextInput): Record<string, un
   // Motif avoidance list from past works analysis
   if (input.motifAvoidanceList && input.motifAvoidanceList.length > 0) {
     ctx.motifAvoidanceList = input.motifAvoidanceList;
+  }
+
+  // Previous chapter's state analysis reasoning (reference for cross-chapter awareness)
+  if (input.previousChapterReasoning) {
+    ctx.previousChapterReasoning = input.previousChapterReasoning;
   }
 
   ctx.prompt = prompt;

@@ -200,4 +200,19 @@ describe('buildDefectDetectorContext', () => {
     const ctx = buildDefectDetectorContext(makeInput({ complianceWarnings: [] }));
     expect(ctx).not.toHaveProperty('complianceWarnings');
   });
+
+  it('should include judgeReasoning when provided', () => {
+    const ctx = buildDefectDetectorContext(makeInput({ judgeReasoning: 'Judge推論: テキストの構成に問題あり' }));
+    expect(ctx.judgeReasoning).toBe('Judge推論: テキストの構成に問題あり');
+  });
+
+  it('should not include judgeReasoning when null', () => {
+    const ctx = buildDefectDetectorContext(makeInput({ judgeReasoning: null }));
+    expect(ctx).not.toHaveProperty('judgeReasoning');
+  });
+
+  it('should not include judgeReasoning when not provided', () => {
+    const ctx = buildDefectDetectorContext(makeInput());
+    expect(ctx).not.toHaveProperty('judgeReasoning');
+  });
 });

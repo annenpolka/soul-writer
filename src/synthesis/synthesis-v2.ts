@@ -24,8 +24,8 @@ export function createSynthesisV2(deps: SynthesisAnalyzerDeps & SynthesisExecuto
       // Pass 1: Analyze
       const analyzerResult = await analyzer.analyze(input);
 
-      // Pass 2: Execute
-      const executorResult = await executor.execute(input.championText, analyzerResult.plan);
+      // Pass 2: Execute (with analyzer reasoning for multi-turn context)
+      const executorResult = await executor.execute(input.championText, analyzerResult.plan, analyzerResult.reasoning);
 
       return {
         synthesizedText: executorResult.synthesizedText,

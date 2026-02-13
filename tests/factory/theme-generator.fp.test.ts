@@ -2,8 +2,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { createThemeGenerator, type ThemeGeneratorFn } from '../../src/factory/theme-generator.js';
 import { createMockSoulText } from '../helpers/mock-soul-text.js';
 import type { LLMClient } from '../../src/llm/types.js';
+import { createMockLLMClientWithStructured } from '../helpers/mock-deps.js';
 
-const validThemeArgs = {
+const validThemeData = {
   emotion: '孤独',
   timeline: '出会い前',
   characters: [{ name: '御鐘透心', isNew: false }],
@@ -11,25 +12,12 @@ const validThemeArgs = {
   scene_types: ['内面描写'],
 };
 
-function createThemeGenLLM(themeArgs: Record<string, unknown> = validThemeArgs): LLMClient {
-  return {
-    // Stage 1 wild idea generation
-    complete: vi.fn().mockResolvedValue('ワイルドアイデア: テスト用の奇抜なアイデア'),
-    // Stage 2 tool call
-    completeWithTools: vi.fn().mockResolvedValue({
-      toolCalls: [{
-        id: 'tc-1',
-        type: 'function' as const,
-        function: {
-          name: 'submit_theme',
-          arguments: JSON.stringify(themeArgs),
-        },
-      }],
-      content: null,
-      tokensUsed: 200,
-    }),
-    getTotalTokens: vi.fn().mockReturnValue(200),
-  };
+function createThemeGenLLM(themeData: Record<string, unknown> = validThemeData): LLMClient {
+  const client = createMockLLMClientWithStructured(themeData);
+  // Stage 1 wild idea generation uses complete()
+  (client.complete as ReturnType<typeof vi.fn>).mockResolvedValue('ワイルドアイデア: テスト用の奇抜なアイデア');
+  (client.getTotalTokens as ReturnType<typeof vi.fn>).mockReturnValue(200);
+  return client;
 }
 
 describe('createThemeGenerator (FP)', () => {
@@ -47,9 +35,9 @@ describe('createThemeGenerator (FP)', () => {
     const result = await fn.generateTheme();
     expect(result.theme.emotion).toBe('孤独');
     expect(result.theme.premise).toBe('テスト用前提');
-    // Stage 1 calls complete, Stage 2 calls completeWithTools
+    // Stage 1 calls complete, Stage 2 calls completeStructured
     expect(llm.complete).toHaveBeenCalledTimes(1);
-    expect(llm.completeWithTools).toHaveBeenCalledTimes(1);
+    expect(llm.completeStructured).toHaveBeenCalledTimes(1);
     // Tone is injected from stage1
     expect(result.theme.tone).toBeDefined();
   });
@@ -69,14 +57,9 @@ describe('createThemeGenerator (FP)', () => {
     expect(result.theme).toBeDefined();
   });
 
-  it('should throw on invalid theme response', async () => {
-    const llm = createThemeGenLLM({
-      emotion: '', // Invalid: empty string fails min(1) validation
-      timeline: '',
-      characters: [],
-      premise: '',
-      scene_types: [],
-    });
+  it('should throw on completeStructured failure', async () => {
+    const llm = createThemeGenLLM();
+    (llm.completeStructured as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Structured output failed'));
     const soulText = createMockSoulText();
     const fn = createThemeGenerator(llm, soulText);
     await expect(fn.generateTheme()).rejects.toThrow();

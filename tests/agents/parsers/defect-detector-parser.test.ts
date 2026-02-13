@@ -1,25 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import type { ToolCallResponse } from '../../../src/llm/types.js';
-import { parseDefectDetectorResponse } from '../../../src/agents/parsers/defect-detector-parser.js';
+import type { StructuredResponse } from '../../../src/llm/types.js';
+import type { DefectDetectorRawResponse } from '../../../src/schemas/defect-detector-response.js';
+import { parseDefectDetectorResponse, createFallbackResult } from '../../../src/agents/parsers/defect-detector-parser.js';
 
-function makeToolResponse(args: Record<string, unknown>): ToolCallResponse {
+function makeStructuredResponse(data: DefectDetectorRawResponse): StructuredResponse<DefectDetectorRawResponse> {
   return {
-    toolCalls: [{
-      id: 'tc-1',
-      type: 'function',
-      function: {
-        name: 'submit_defects',
-        arguments: JSON.stringify(args),
-      },
-    }],
-    content: null,
+    data,
+    reasoning: null,
     tokensUsed: 50,
   };
 }
 
 describe('parseDefectDetectorResponse', () => {
-  it('should parse valid defects and verdictLevel from tool response', () => {
-    const response = makeToolResponse({
+  it('should parse valid defects and verdictLevel from structured response', () => {
+    const response = makeStructuredResponse({
       verdict_level: 'needs_work',
       defects: [
         { severity: 'critical', category: 'plot_contradiction', description: 'Plot hole in chapter 2' },
@@ -37,7 +31,7 @@ describe('parseDefectDetectorResponse', () => {
   });
 
   it('should handle empty defects array with publishable verdict', () => {
-    const response = makeToolResponse({ verdict_level: 'publishable', defects: [] });
+    const response = makeStructuredResponse({ verdict_level: 'publishable', defects: [] });
     const result = parseDefectDetectorResponse(response);
 
     expect(result.defects).toEqual([]);
@@ -50,7 +44,7 @@ describe('parseDefectDetectorResponse', () => {
   });
 
   it('should count critical, major, minor defects correctly', () => {
-    const response = makeToolResponse({
+    const response = makeStructuredResponse({
       verdict_level: 'unacceptable',
       defects: [
         { severity: 'critical', category: 'plot', description: 'c1' },
@@ -69,7 +63,7 @@ describe('parseDefectDetectorResponse', () => {
   });
 
   it('should set passed=false when critical defects exist even with publishable verdict', () => {
-    const response = makeToolResponse({
+    const response = makeStructuredResponse({
       verdict_level: 'publishable',
       defects: [
         { severity: 'critical', category: 'plot', description: 'Plot hole' },
@@ -81,7 +75,7 @@ describe('parseDefectDetectorResponse', () => {
   });
 
   it('should set passed=true when only minor defects exist and verdict is publishable', () => {
-    const response = makeToolResponse({
+    const response = makeStructuredResponse({
       verdict_level: 'publishable',
       defects: [
         { severity: 'minor', category: 'style', description: 'Slight issue' },
@@ -94,7 +88,7 @@ describe('parseDefectDetectorResponse', () => {
   });
 
   it('should set passed=false when only major defects exist but verdict is acceptable', () => {
-    const response = makeToolResponse({
+    const response = makeStructuredResponse({
       verdict_level: 'acceptable',
       defects: [
         { severity: 'major', category: 'pacing', description: 'Pacing issue' },
@@ -106,29 +100,8 @@ describe('parseDefectDetectorResponse', () => {
     expect(result.verdictLevel).toBe('acceptable');
   });
 
-  it('should fallback verdictLevel to needs_work for invalid verdict', () => {
-    const response = makeToolResponse({
-      verdict_level: 'invalid_value',
-      defects: [],
-    });
-    const result = parseDefectDetectorResponse(response);
-
-    expect(result.verdictLevel).toBe('needs_work');
-    expect(result.passed).toBe(false);
-  });
-
-  it('should fallback verdictLevel to needs_work when verdict is missing', () => {
-    const response = makeToolResponse({
-      defects: [],
-    });
-    const result = parseDefectDetectorResponse(response);
-
-    expect(result.verdictLevel).toBe('needs_work');
-    expect(result.passed).toBe(false);
-  });
-
   it('should include optional location field', () => {
-    const response = makeToolResponse({
+    const response = makeStructuredResponse({
       verdict_level: 'acceptable',
       defects: [
         { severity: 'major', category: 'pacing', description: 'Slow', location: 'paragraph 5' },
@@ -139,24 +112,45 @@ describe('parseDefectDetectorResponse', () => {
     expect(result.defects[0].location).toBe('paragraph 5');
   });
 
-  it('should filter out defects with invalid severity', () => {
-    const response = makeToolResponse({
+  it('should include optional quoted_text and suggested_fix fields', () => {
+    const response = makeStructuredResponse({
       verdict_level: 'needs_work',
       defects: [
-        { severity: 'critical', category: 'plot', description: 'Valid' },
-        { severity: 'unknown', category: 'bad', description: 'Invalid severity' },
-        { severity: 'major', category: 'pacing', description: 'Also valid' },
+        {
+          severity: 'major',
+          category: 'style',
+          description: 'Cliche expression',
+          quoted_text: '心臓がバクバクした',
+          suggested_fix: 'より具体的な身体感覚に置き換える',
+        },
       ],
     });
     const result = parseDefectDetectorResponse(response);
 
-    expect(result.defects).toHaveLength(2);
-    expect(result.criticalCount).toBe(1);
-    expect(result.majorCount).toBe(1);
+    expect(result.defects[0].quotedText).toBe('心臓がバクバクした');
+    expect(result.defects[0].suggestedFix).toBe('より具体的な身体感覚に置き換える');
+  });
+
+  it('should capture LLM reasoning from response', () => {
+    const response: StructuredResponse<DefectDetectorRawResponse> = {
+      data: { verdict_level: 'publishable', defects: [] },
+      reasoning: 'DefectDetector推論: テキストの品質は高い',
+      tokensUsed: 50,
+    };
+    const result = parseDefectDetectorResponse(response);
+
+    expect(result.llmReasoning).toBe('DefectDetector推論: テキストの品質は高い');
+  });
+
+  it('should set llmReasoning to null when response.reasoning is null', () => {
+    const response = makeStructuredResponse({ verdict_level: 'publishable', defects: [] });
+    const result = parseDefectDetectorResponse(response);
+
+    expect(result.llmReasoning).toBeNull();
   });
 
   it('should generate feedback summarizing defect descriptions', () => {
-    const response = makeToolResponse({
+    const response = makeStructuredResponse({
       verdict_level: 'needs_work',
       defects: [
         { severity: 'critical', category: 'plot', description: 'Plot hole found' },
@@ -169,54 +163,14 @@ describe('parseDefectDetectorResponse', () => {
     expect(result.feedback).toContain('Slow pacing');
   });
 
-  it('should return fallback result when tool call is missing', () => {
-    const response: ToolCallResponse = {
-      toolCalls: [{
-        id: 'tc-1',
-        type: 'function',
-        function: {
-          name: 'wrong_tool',
-          arguments: '{}',
-        },
-      }],
-      content: null,
-      tokensUsed: 50,
-    };
-    const result = parseDefectDetectorResponse(response);
+  describe('createFallbackResult', () => {
+    it('should return a safe fallback result', () => {
+      const result = createFallbackResult();
 
-    expect(result.defects).toEqual([]);
-    expect(result.passed).toBe(false);
-    expect(result.verdictLevel).toBe('needs_work');
-    expect(result.feedback).toContain('パース失敗');
-  });
-
-  it('should return fallback result when arguments JSON is invalid', () => {
-    const response: ToolCallResponse = {
-      toolCalls: [{
-        id: 'tc-1',
-        type: 'function',
-        function: {
-          name: 'submit_defects',
-          arguments: 'not-json',
-        },
-      }],
-      content: null,
-      tokensUsed: 50,
-    };
-    const result = parseDefectDetectorResponse(response);
-
-    expect(result.defects).toEqual([]);
-    expect(result.passed).toBe(false);
-    expect(result.verdictLevel).toBe('needs_work');
-    expect(result.feedback).toContain('パース失敗');
-  });
-
-  it('should handle defects without defects array gracefully', () => {
-    const response = makeToolResponse({});
-    const result = parseDefectDetectorResponse(response);
-
-    expect(result.defects).toEqual([]);
-    expect(result.verdictLevel).toBe('needs_work');
-    expect(result.passed).toBe(false);
+      expect(result.defects).toEqual([]);
+      expect(result.passed).toBe(false);
+      expect(result.verdictLevel).toBe('needs_work');
+      expect(result.feedback).toContain('パース失敗');
+    });
   });
 });

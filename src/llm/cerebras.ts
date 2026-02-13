@@ -1,11 +1,48 @@
 import Cerebras from '@cerebras/cerebras_cloud_sdk';
 import type { ChatCompletion } from '@cerebras/cerebras_cloud_sdk/resources/chat/completions.js';
-import type { LLMClient, CompletionOptions, CerebrasConfig, ToolDefinition, ToolCallOptions, ToolCallResponse, ToolCallResult } from './types.js';
+import { z, type ZodType } from 'zod';
+import type { LLMClient, CompletionOptions, CerebrasConfig, ToolDefinition, ToolCallOptions, ToolCallResponse, ToolCallResult, LLMMessage, StructuredResponse } from './types.js';
 import type { CircuitBreaker } from './circuit-breaker.js';
 
 const DEFAULT_MAX_RETRIES = 5;
 const DEFAULT_INITIAL_RETRY_DELAY_MS = 2000;
 const DEFAULT_MAX_RETRY_DELAY_MS = 60000;
+
+// Keywords not supported by Cerebras strict mode JSON Schema
+const UNSUPPORTED_KEYWORDS = new Set([
+  '$schema', 'minLength', 'maxLength', 'pattern', 'format',
+  'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum',
+  'multipleOf', 'minItems', 'maxItems', 'uniqueItems',
+  'minProperties', 'maxProperties', 'default', 'examples',
+  'description', 'title', '$comment',
+]);
+
+/**
+ * Strip JSON Schema keywords unsupported by Cerebras strict mode.
+ * Context-aware: keys inside "properties" are property names (never stripped).
+ */
+function stripUnsupportedKeywords(obj: unknown, insideProperties = false): unknown {
+  if (Array.isArray(obj)) {
+    return obj.map(item => stripUnsupportedKeywords(item, false));
+  }
+  if (obj && typeof obj === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (insideProperties) {
+        // Keys here are property names (e.g. "description", "title") — keep them
+        result[key] = stripUnsupportedKeywords(value, false);
+      } else if (UNSUPPORTED_KEYWORDS.has(key)) {
+        continue;
+      } else if (key === 'properties') {
+        result[key] = stripUnsupportedKeywords(value, true);
+      } else {
+        result[key] = stripUnsupportedKeywords(value, false);
+      }
+    }
+    return result;
+  }
+  return obj;
+}
 
 function isCompletionResponse(
   response: ChatCompletion,
@@ -66,23 +103,37 @@ export class CerebrasClient implements LLMClient {
   }
 
   async complete(
-    systemPrompt: string,
-    userPrompt: string,
+    systemPromptOrMessages: string | LLMMessage[],
+    userPromptOrOptions?: string | CompletionOptions,
     options?: CompletionOptions
   ): Promise<string> {
+    // Resolve overload: (string, string, options?) or (LLMMessage[], options?)
+    let messages: Array<{ role: string; content: string; reasoning?: string }>;
+    let resolvedOptions: CompletionOptions | undefined;
+
+    if (typeof systemPromptOrMessages === 'string') {
+      messages = [
+        { role: 'system', content: systemPromptOrMessages },
+        { role: 'user', content: userPromptOrOptions as string },
+      ];
+      resolvedOptions = options;
+    } else {
+      messages = systemPromptOrMessages;
+      resolvedOptions = userPromptOrOptions as CompletionOptions | undefined;
+    }
+
     let lastError: unknown = null;
 
     for (let attempt = 0; attempt < this.maxRetries; attempt++) {
       try {
         const apiCall = () => this.client.chat.completions.create({
           model: this.model,
-          messages: [
-            { role: 'system' as const, content: systemPrompt },
-            { role: 'user' as const, content: userPrompt },
-          ],
-          temperature: options?.temperature,
-          max_tokens: options?.maxTokens,
-          top_p: options?.topP,
+          messages: messages as any,
+          temperature: resolvedOptions?.temperature,
+          max_tokens: resolvedOptions?.maxTokens,
+          top_p: resolvedOptions?.topP,
+          reasoning_format: resolvedOptions?.reasoningFormat,
+          clear_thinking: false,
         });
 
         const response = this.circuitBreaker
@@ -131,6 +182,90 @@ export class CerebrasClient implements LLMClient {
     throw new Error(`LLM request failed after ${this.maxRetries} retries: ${formatLastError(lastError)}`);
   }
 
+  async completeStructured<T>(
+    messages: LLMMessage[],
+    schema: ZodType<T>,
+    options?: CompletionOptions
+  ): Promise<StructuredResponse<T>> {
+    const jsonSchema = stripUnsupportedKeywords(z.toJSONSchema(schema));
+    let lastError: unknown = null;
+
+    for (let attempt = 0; attempt < this.maxRetries; attempt++) {
+      try {
+        const apiCall = () => this.client.chat.completions.create({
+          model: this.model,
+          messages: messages as any,
+          response_format: {
+            type: 'json_schema',
+            json_schema: {
+              name: 'response',
+              schema: jsonSchema,
+              strict: true,
+            },
+          },
+          reasoning_format: options?.reasoningFormat ?? 'parsed',
+          temperature: options?.temperature ?? 1.0,
+          max_tokens: options?.maxTokens,
+          top_p: options?.topP,
+          clear_thinking: false,
+        });
+
+        const response = this.circuitBreaker
+          ? await this.circuitBreaker.execute(apiCall)
+          : await apiCall();
+
+        if (!isCompletionResponse(response)) {
+          lastError = new Error('Invalid response format from LLM');
+          continue;
+        }
+
+        if (response.usage?.total_tokens) {
+          this.totalTokens += response.usage.total_tokens;
+        }
+
+        const message = response.choices[0]?.message;
+        const content = message?.content;
+        if (!content) {
+          lastError = new Error('Empty response from LLM');
+          continue;
+        }
+
+        const data = schema.parse(JSON.parse(content));
+        const reasoning = message?.reasoning ?? null;
+
+        return {
+          data,
+          reasoning,
+          tokensUsed: response.usage?.total_tokens ?? 0,
+        };
+      } catch (error) {
+        lastError = error;
+
+        if (!this.isRetryable(error)) {
+          throw error;
+        }
+
+        const retryAfterMs = getRetryAfterMs(error);
+        if (retryAfterMs !== null) {
+          await this.sleep(retryAfterMs);
+          continue;
+        }
+      }
+
+      // Exponential backoff with jitter
+      if (attempt < this.maxRetries - 1) {
+        const baseDelay = Math.min(
+          this.initialRetryDelayMs * Math.pow(2, attempt),
+          this.maxRetryDelayMs
+        );
+        const jitter = Math.random() * 0.5 + 0.75;
+        await this.sleep(baseDelay * jitter);
+      }
+    }
+
+    throw new Error(`LLM structured request failed after ${this.maxRetries} retries: ${formatLastError(lastError)}`);
+  }
+
   async completeWithTools(
     systemPrompt: string,
     userPrompt: string,
@@ -153,6 +288,8 @@ export class CerebrasClient implements LLMClient {
           temperature: options?.temperature,
           max_tokens: options?.maxTokens,
           top_p: options?.topP,
+          reasoning_format: options?.reasoningFormat ?? 'parsed',
+          clear_thinking: false,
         });
 
         const response = this.circuitBreaker
@@ -183,6 +320,7 @@ export class CerebrasClient implements LLMClient {
           toolCalls,
           content: message?.content ?? null,
           tokensUsed: response.usage?.total_tokens ?? 0,
+          reasoning: message?.reasoning ?? null,
         };
       } catch (error) {
         lastError = error;

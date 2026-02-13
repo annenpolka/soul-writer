@@ -4,6 +4,12 @@ import type { TaskRepo } from '../storage/task-repository.js';
 import type { WorkRepo } from '../storage/work-repository.js';
 import type { CheckpointManagerFn } from '../storage/checkpoint-manager.js';
 import type { SoulCandidateRepo } from '../storage/soul-candidate-repository.js';
+import type { JudgeSessionRepo } from '../storage/judge-session-repository.js';
+import type { ChapterEvalRepo } from '../storage/chapter-evaluation-repository.js';
+import type { SynthesisPlanRepo } from '../storage/synthesis-plan-repository.js';
+import type { CorrectionHistoryRepo } from '../storage/correction-history-repository.js';
+import type { CrossChapterStateRepo } from '../storage/cross-chapter-state-repository.js';
+import type { PhaseMetricsRepo } from '../storage/phase-metrics-repository.js';
 import type { FactoryConfig } from '../schemas/factory-config.js';
 import type { GeneratedTheme } from '../schemas/generated-theme.js';
 import type { FullPipelineResult } from '../agents/types.js';
@@ -57,6 +63,13 @@ export interface BatchDependencies {
   workRepo: WorkRepo;
   checkpointManager: CheckpointManagerFn;
   candidateRepo: SoulCandidateRepo;
+  // Optional analytics repositories (non-critical — forwarded to FullPipeline)
+  judgeSessionRepo?: JudgeSessionRepo;
+  chapterEvalRepo?: ChapterEvalRepo;
+  synthesisPlanRepo?: SynthesisPlanRepo;
+  correctionHistoryRepo?: CorrectionHistoryRepo;
+  crossChapterStateRepo?: CrossChapterStateRepo;
+  phaseMetricsRepo?: PhaseMetricsRepo;
 }
 
 // Interfaces for dependency injection (testing)
@@ -79,7 +92,7 @@ export interface StoryFileWriter {
 export interface BatchRunnerOptions {
   themeGenerator?: ThemeGenerator;
   characterDeveloper?: CharacterDeveloper;
-  pipelineFactory?: (theme: GeneratedTheme, developed?: DevelopedCharacters, logger?: LoggerFn, charMacGuffins?: CharacterMacGuffin[], plotMacGuffins?: PlotMacGuffin[], enrichedChars?: EnrichedCharacterPhase1[]) => PipelineInstance;
+  pipelineFactory?: (theme: GeneratedTheme, developed?: DevelopedCharacters, logger?: LoggerFn, charMacGuffins?: CharacterMacGuffin[], plotMacGuffins?: PlotMacGuffin[], enrichedChars?: EnrichedCharacterPhase1[], enricherPhase1Reasoning?: string | null) => PipelineInstance;
   fileWriter?: StoryFileWriter;
   verbose?: boolean;
 }
@@ -114,7 +127,7 @@ export function createBatchRunner(
     const fileWriter = options.fileWriter ??
       createFileWriter(config.outputDir);
 
-    const createPipeline = options.pipelineFactory ?? ((theme: GeneratedTheme, developed?: DevelopedCharacters, logger?: LoggerFn, charMG?: CharacterMacGuffin[], plotMG?: PlotMacGuffin[], enrichedChars?: EnrichedCharacterPhase1[]) => {
+    const createPipeline = options.pipelineFactory ?? ((theme: GeneratedTheme, developed?: DevelopedCharacters, logger?: LoggerFn, charMG?: CharacterMacGuffin[], plotMG?: PlotMacGuffin[], enrichedChars?: EnrichedCharacterPhase1[], enricherPhase1Reasoning?: string | null) => {
       const mockSoulManager = {
         getSoulText: () => deps.soulText,
         getConstitution: () => deps.soulText.constitution,
@@ -147,9 +160,16 @@ export function createBatchRunner(
           characterMacGuffins: charMG,
           plotMacGuffins: plotMG,
           motifAvoidanceList: dbMotifAvoidance.length > 0 ? dbMotifAvoidance : undefined,
+          enricherPhase1Reasoning: enricherPhase1Reasoning ?? undefined,
           mode: config.mode === 'collaboration' ? 'collaboration' : undefined,
         },
         logger,
+        judgeSessionRepo: deps.judgeSessionRepo,
+        chapterEvalRepo: deps.chapterEvalRepo,
+        synthesisPlanRepo: deps.synthesisPlanRepo,
+        correctionHistoryRepo: deps.correctionHistoryRepo,
+        crossChapterStateRepo: deps.crossChapterStateRepo,
+        phaseMetricsRepo: deps.phaseMetricsRepo,
       });
     });
 
@@ -209,8 +229,8 @@ export function createBatchRunner(
         const plotMacGuffins: PlotMacGuffin[] = plotMacGuffinResult.macguffins;
         logger?.debug('Plot MacGuffins generated', plotMacGuffins);
 
-        // Create pipeline and generate story
-        const pipeline = createPipeline(themeResult.theme, charResult.developed, logger, charMacGuffins, plotMacGuffins, phase1Result.characters);
+        // Create pipeline and generate story (pass Phase1 reasoning for multi-turn Phase2)
+        const pipeline = createPipeline(themeResult.theme, charResult.developed, logger, charMacGuffins, plotMacGuffins, phase1Result.characters, phase1Result.reasoning);
         const storyResult = await pipeline.generateStory(themeResult.theme.premise);
 
         // Write to file

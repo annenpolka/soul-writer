@@ -7,6 +7,12 @@ import { createWorkRepo } from '../storage/work-repository.js';
 import { createCheckpointRepo } from '../storage/checkpoint-repository.js';
 import { createCheckpointManager } from '../storage/checkpoint-manager.js';
 import { createSoulCandidateRepo } from '../storage/soul-candidate-repository.js';
+import { createJudgeSessionRepo } from '../storage/judge-session-repository.js';
+import { createChapterEvalRepo } from '../storage/chapter-evaluation-repository.js';
+import { createSynthesisPlanRepo } from '../storage/synthesis-plan-repository.js';
+import { createCorrectionHistoryRepo } from '../storage/correction-history-repository.js';
+import { createCrossChapterStateRepo } from '../storage/cross-chapter-state-repository.js';
+import { createPhaseMetricsRepo } from '../storage/phase-metrics-repository.js';
 import { createFullPipeline } from '../pipeline/full.js';
 import { createLogger } from '../logger.js';
 
@@ -36,7 +42,7 @@ export async function resume(options: ResumeOptions): Promise<void> {
 
   // Check environment
   const apiKey = process.env.CEREBRAS_API_KEY;
-  const model = process.env.CEREBRAS_MODEL || 'llama-3.3-70b';
+  const model = process.env.CEREBRAS_MODEL || 'zai-glm-4.7';
 
   if (!apiKey) {
     console.error('Error: CEREBRAS_API_KEY environment variable is not set');
@@ -80,6 +86,14 @@ export async function resume(options: ResumeOptions): Promise<void> {
   // Create LLM client
   const llmClient = new CerebrasClient({ apiKey, model });
 
+  // Create analytics repositories
+  const judgeSessionRepo = createJudgeSessionRepo(sqlite);
+  const chapterEvalRepo = createChapterEvalRepo(sqlite);
+  const synthesisPlanRepo = createSynthesisPlanRepo(sqlite);
+  const correctionHistoryRepo = createCorrectionHistoryRepo(sqlite);
+  const crossChapterStateRepo = createCrossChapterStateRepo(sqlite);
+  const phaseMetricsRepo = createPhaseMetricsRepo(sqlite);
+
   // Create pipeline
   const pipeline = createFullPipeline({
     llmClient,
@@ -90,6 +104,12 @@ export async function resume(options: ResumeOptions): Promise<void> {
     candidateRepo,
     config: {},
     logger,
+    judgeSessionRepo,
+    chapterEvalRepo,
+    synthesisPlanRepo,
+    correctionHistoryRepo,
+    crossChapterStateRepo,
+    phaseMetricsRepo,
   });
 
   console.log('Resuming story generation...\n');

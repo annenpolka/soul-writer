@@ -277,4 +277,42 @@ describe('buildSynthesisAnalyzerContext', () => {
 
     expect(ctx.championId).toBe('writer_1');
   });
+
+  it('should include judgeReasoning when provided', () => {
+    const input: SynthesisAnalyzerContextInput = {
+      soulText: createMockSoulText(),
+      input: createMockAnalyzerInput(),
+      narrativeRules: createMockNarrativeRules(),
+      judgeReasoning: 'Judgeの推論プロセス: Aはリズムが安定している',
+    };
+
+    const ctx = buildSynthesisAnalyzerContext(input);
+
+    expect(ctx.judgeReasoning).toBe('Judgeの推論プロセス: Aはリズムが安定している');
+  });
+
+  it('should not include judgeReasoning when null', () => {
+    const input: SynthesisAnalyzerContextInput = {
+      soulText: createMockSoulText(),
+      input: createMockAnalyzerInput(),
+      narrativeRules: createMockNarrativeRules(),
+      judgeReasoning: null,
+    };
+
+    const ctx = buildSynthesisAnalyzerContext(input);
+
+    expect(ctx).not.toHaveProperty('judgeReasoning');
+  });
+
+  it('should not include judgeReasoning when not provided', () => {
+    const input: SynthesisAnalyzerContextInput = {
+      soulText: createMockSoulText(),
+      input: createMockAnalyzerInput(),
+      narrativeRules: createMockNarrativeRules(),
+    };
+
+    const ctx = buildSynthesisAnalyzerContext(input);
+
+    expect(ctx).not.toHaveProperty('judgeReasoning');
+  });
 });

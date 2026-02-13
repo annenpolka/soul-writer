@@ -18,10 +18,10 @@ export interface WriterConfig {
  * Default writer configurations for tournament
  */
 export const DEFAULT_WRITERS: WriterConfig[] = [
-  { id: 'writer_1', temperature: 0.7, topP: 0.9, style: 'balanced', focusCategories: ['opening', 'introspection'] },
-  { id: 'writer_2', temperature: 0.9, topP: 0.95, style: 'creative', focusCategories: ['dialogue', 'character_voice'] },
-  { id: 'writer_3', temperature: 0.5, topP: 0.8, style: 'conservative', focusCategories: ['killing', 'symbolism'] },
-  { id: 'writer_4', temperature: 0.8, topP: 0.85, style: 'moderate', focusCategories: ['world_building', 'introspection'] },
+  { id: 'writer_1', temperature: 1.0, topP: 0.9, style: 'balanced', focusCategories: ['opening', 'introspection'] },
+  { id: 'writer_2', temperature: 1.0, topP: 0.95, style: 'creative', focusCategories: ['dialogue', 'character_voice'] },
+  { id: 'writer_3', temperature: 1.0, topP: 0.8, style: 'conservative', focusCategories: ['killing', 'symbolism'] },
+  { id: 'writer_4', temperature: 1.0, topP: 0.85, style: 'moderate', focusCategories: ['world_building', 'introspection'] },
 ];
 
 /**
@@ -98,6 +98,8 @@ export interface JudgeResult {
   axis_comments?: AxisComment[];
   /** Section-level analysis */
   section_analysis?: SectionAnalysis[];
+  /** LLM reasoning (from reasoning_format='parsed') — propagated to downstream agents */
+  llmReasoning?: string | null;
 }
 
 /**
@@ -328,6 +330,8 @@ export interface FullPipelineConfig {
   plotMacGuffins?: import('../schemas/macguffin.js').PlotMacGuffin[];
   /** Motif avoidance list from past works analysis */
   motifAvoidanceList?: string[];
+  /** Phase1 reasoning from CharacterEnricher — propagated to Phase2 for multi-turn context */
+  enricherPhase1Reasoning?: string | null;
   verbose?: boolean;
   mode?: 'tournament' | 'collaboration';
   collaborationConfig?: import('../collaboration/types.js').CollaborationConfig;
@@ -413,6 +417,8 @@ export interface WriterDeps extends AgentDeps {
   enrichedCharacters?: EnrichedCharacter[];
   themeContext?: ThemeContext;
   macGuffinContext?: MacGuffinContext;
+  /** LLM reasoning from ChapterStateExtractor for previous chapter — reference context */
+  previousChapterReasoning?: string | null;
 }
 
 /**
@@ -542,6 +548,8 @@ export interface SynthesisAnalyzerInput {
   chapterContext?: ChapterContext;
   enrichedCharacters?: EnrichedCharacter[];
   crossChapterState?: CrossChapterState;
+  /** LLM reasoning from final Judge — propagated to SynthesisAnalyzer context */
+  judgeReasoning?: string | null;
 }
 
 /**
@@ -557,7 +565,7 @@ export interface SynthesisAnalyzerDeps extends AgentDeps {
  * FP Synthesis Analyzer interface — returned by createSynthesisAnalyzer()
  */
 export interface SynthesisAnalyzer {
-  analyze: (input: SynthesisAnalyzerInput) => Promise<{ plan: ImprovementPlan; tokensUsed: number }>;
+  analyze: (input: SynthesisAnalyzerInput) => Promise<{ plan: ImprovementPlan; tokensUsed: number; reasoning: string | null }>;
 }
 
 /**
@@ -572,7 +580,7 @@ export interface SynthesisExecutorDeps extends AgentDeps {
  * FP Synthesis Executor interface — returned by createSynthesisExecutor()
  */
 export interface SynthesisExecutorFn {
-  execute: (championText: string, plan: ImprovementPlan) => Promise<{ synthesizedText: string; tokensUsed: number }>;
+  execute: (championText: string, plan: ImprovementPlan, analyzerReasoning?: string | null) => Promise<{ synthesizedText: string; tokensUsed: number }>;
 }
 
 /**
@@ -599,6 +607,8 @@ export interface RetakeDeps extends AgentDeps {
   themeContext?: ThemeContext;
   chapterContext?: ChapterContext;
   plotChapter?: { summary: string; keyEvents: string[]; decisionPoint?: { action: string; stakes: string; irreversibility: string } };
+  /** LLM reasoning from DefectDetector — reference context for retake */
+  detectorReasoning?: string | null;
 }
 
 /**
@@ -670,6 +680,8 @@ export interface DefectDetectorResult {
   /** Pass = criticalCount===0 AND verdictLevel >= 'publishable' */
   passed: boolean;
   feedback: string;
+  /** LLM reasoning from DefectDetector (reasoning_format='parsed') — propagated to RetakeAgent */
+  llmReasoning?: string | null;
 }
 
 /**
@@ -687,6 +699,8 @@ export interface DefectDetectorDeps extends AgentDeps {
   judgeAxisComments?: AxisComment[];
   /** Compliance warnings (non-error violations) — delegated to DefectDetector */
   complianceWarnings?: Violation[];
+  /** LLM reasoning from Judge — reference context for defect detection */
+  judgeReasoning?: string | null;
 }
 
 /**
@@ -751,6 +765,8 @@ export interface ChapterStateExtraction {
   chapterSummary: string;
   dominantTone: string;
   peakIntensity: number;
+  /** LLM reasoning from ChapterStateExtractor — propagated to next chapter's Writer */
+  llmReasoning?: string | null;
 }
 
 /**

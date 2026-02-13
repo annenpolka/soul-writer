@@ -1,7 +1,5 @@
-import type { ToolCallResponse } from '../../llm/types.js';
 import type { DevelopedCharacter } from '../../factory/character-developer.js';
 import type { EnrichedCharacterPhase1, EnrichedCharacter, CharacterEnrichPhase1Result, CharacterEnrichPhase2Result, PersonalityDynamics } from '../../factory/character-enricher.js';
-import { parseToolArguments } from '../../llm/tooling.js';
 
 const VALID_STANCE_TYPES = new Set(['direct', 'oblique', 'indifferent', 'hostile']);
 
@@ -54,25 +52,14 @@ function createDefaultDialogueSamples(dev: { name: string; voice: string }) {
 }
 
 /**
- * Parse Phase1 LLM response (habits + stance) into EnrichedCharacterPhase1[].
+ * Parse Phase1 structured response (habits + stance + dynamics) into EnrichedCharacterPhase1[].
  */
 export function parsePhase1Response(
-  response: ToolCallResponse,
+  data: { characters?: RawPhase1Character[] },
   originalCharacters: DevelopedCharacter[],
 ): CharacterEnrichPhase1Result {
-  let parsed: unknown;
   try {
-    parsed = parseToolArguments<unknown>(response, 'submit_character_enrichment');
-  } catch {
-    return {
-      characters: originalCharacters.map(createDefaultPhase1),
-      tokensUsed: response.tokensUsed,
-    };
-  }
-
-  try {
-    const candidate = parsed as { characters?: RawPhase1Character[] };
-    const rawChars = Array.isArray(candidate.characters) ? candidate.characters : [];
+    const rawChars = Array.isArray(data.characters) ? data.characters : [];
 
     const charMap = new Map<string, RawPhase1Character>();
     for (const rc of rawChars) {
@@ -124,38 +111,24 @@ export function parsePhase1Response(
       };
     });
 
-    return { characters, tokensUsed: response.tokensUsed };
+    return { characters, tokensUsed: 0 };
   } catch {
     return {
       characters: originalCharacters.map(createDefaultPhase1),
-      tokensUsed: response.tokensUsed,
+      tokensUsed: 0,
     };
   }
 }
 
 /**
- * Parse Phase2 LLM response (dialogue samples) into EnrichedCharacter[].
+ * Parse Phase2 structured response (dialogue samples) into EnrichedCharacter[].
  */
 export function parsePhase2Response(
-  response: ToolCallResponse,
+  data: { characters?: RawPhase2Character[] },
   phase1Characters: EnrichedCharacterPhase1[],
 ): CharacterEnrichPhase2Result {
-  let parsed: unknown;
   try {
-    parsed = parseToolArguments<unknown>(response, 'submit_dialogue_samples');
-  } catch {
-    return {
-      characters: phase1Characters.map((c) => ({
-        ...c,
-        dialogueSamples: createDefaultDialogueSamples(c),
-      })),
-      tokensUsed: response.tokensUsed,
-    };
-  }
-
-  try {
-    const candidate = parsed as { characters?: RawPhase2Character[] };
-    const rawChars = Array.isArray(candidate.characters) ? candidate.characters : [];
+    const rawChars = Array.isArray(data.characters) ? data.characters : [];
 
     const charMap = new Map<string, RawPhase2Character>();
     for (const rc of rawChars) {
@@ -186,14 +159,14 @@ export function parsePhase2Response(
       };
     });
 
-    return { characters, tokensUsed: response.tokensUsed };
+    return { characters, tokensUsed: 0 };
   } catch {
     return {
       characters: phase1Characters.map((c) => ({
         ...c,
         dialogueSamples: createDefaultDialogueSamples(c),
       })),
-      tokensUsed: response.tokensUsed,
+      tokensUsed: 0,
     };
   }
 }

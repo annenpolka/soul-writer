@@ -27,6 +27,7 @@ export function createRetakeAgent(deps: RetakeDeps): Retaker {
         narrativeRules,
         themeContext,
         defectCategories,
+        detectorReasoning: deps.detectorReasoning,
       });
 
       const userPrompt = buildRetakeUserPrompt({
@@ -36,7 +37,7 @@ export function createRetakeAgent(deps: RetakeDeps): Retaker {
       });
 
       const retakenText = await llmClient.complete(systemPrompt, userPrompt, {
-        temperature: 0.6,
+        temperature: 1.0,
       });
 
       return {

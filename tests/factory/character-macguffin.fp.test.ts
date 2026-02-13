@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { createCharacterMacGuffinAgent, type CharacterMacGuffinFn } from '../../src/factory/character-macguffin.js';
-import { createMockLLMClientWithTools } from '../helpers/mock-deps.js';
+import { createMockLLMClientWithStructured } from '../helpers/mock-deps.js';
 import { createMockSoulText } from '../helpers/mock-soul-text.js';
 import type { GeneratedTheme } from '../../src/schemas/generated-theme.js';
 
@@ -29,33 +29,25 @@ const validMacGuffins = {
 
 describe('createCharacterMacGuffinAgent (FP)', () => {
   it('should return a CharacterMacGuffinFn with generate method', () => {
-    const llm = createMockLLMClientWithTools({
-      name: 'submit_character_macguffins',
-      arguments: validMacGuffins,
-    });
+    const llm = createMockLLMClientWithStructured(validMacGuffins);
     const soulText = createMockSoulText();
     const fn: CharacterMacGuffinFn = createCharacterMacGuffinAgent(llm, soulText);
     expect(typeof fn.generate).toBe('function');
   });
 
   it('should generate character macguffins', async () => {
-    const llm = createMockLLMClientWithTools({
-      name: 'submit_character_macguffins',
-      arguments: validMacGuffins,
-    });
+    const llm = createMockLLMClientWithStructured(validMacGuffins);
     const soulText = createMockSoulText();
     const fn = createCharacterMacGuffinAgent(llm, soulText);
     const result = await fn.generate(sampleTheme);
     expect(result.macguffins).toHaveLength(1);
     expect(result.macguffins[0].characterName).toBe('御鐘透心');
-    expect(llm.completeWithTools).toHaveBeenCalledTimes(1);
+    expect(llm.completeStructured).toHaveBeenCalledTimes(1);
   });
 
-  it('should fallback on parse failure', async () => {
-    const llm = createMockLLMClientWithTools({
-      name: 'wrong_tool',
-      arguments: {},
-    });
+  it('should fallback on completeStructured failure', async () => {
+    const llm = createMockLLMClientWithStructured(validMacGuffins);
+    (llm.completeStructured as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('fail'));
     const soulText = createMockSoulText();
     const fn = createCharacterMacGuffinAgent(llm, soulText);
     const result = await fn.generate(sampleTheme);

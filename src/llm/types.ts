@@ -1,3 +1,20 @@
+import type { ZodType } from 'zod';
+
+/** Multi-turn message type */
+export interface LLMMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+  /** For assistant role: set when reasoning_format='parsed' */
+  reasoning?: string;
+}
+
+/** Structured output response */
+export interface StructuredResponse<T> {
+  data: T;
+  reasoning: string | null;
+  tokensUsed: number;
+}
+
 /**
  * Options for LLM completion requests
  */
@@ -8,6 +25,8 @@ export interface CompletionOptions {
   maxTokens?: number;
   /** Top-p sampling parameter */
   topP?: number;
+  /** Reasoning format for reasoning models */
+  reasoningFormat?: 'parsed' | 'raw' | 'hidden' | 'none';
 }
 
 /**
@@ -15,17 +34,30 @@ export interface CompletionOptions {
  */
 export interface LLMClient {
   /**
-   * Generate a completion from the LLM
-   * @param systemPrompt - System prompt to set context
-   * @param userPrompt - User prompt to respond to
-   * @param options - Optional completion parameters
-   * @returns Generated text response
+   * Generate a completion from the LLM (legacy string-based)
    */
   complete(
     systemPrompt: string,
     userPrompt: string,
     options?: CompletionOptions
   ): Promise<string>;
+
+  /**
+   * Generate a completion from the LLM (messages-based)
+   */
+  complete(
+    messages: LLMMessage[],
+    options?: CompletionOptions
+  ): Promise<string>;
+
+  /**
+   * Generate a structured completion from the LLM
+   */
+  completeStructured?<T>(
+    messages: LLMMessage[],
+    schema: ZodType<T>,
+    options?: CompletionOptions
+  ): Promise<StructuredResponse<T>>;
 
   /**
    * Generate a completion with tool calling support
@@ -69,6 +101,7 @@ export interface ToolCallResponse {
   toolCalls: ToolCallResult[];
   content: string | null;
   tokensUsed: number;
+  reasoning: string | null;
 }
 
 export interface ToolCallOptions extends CompletionOptions {

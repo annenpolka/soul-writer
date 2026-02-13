@@ -1,5 +1,4 @@
-import type { LLMClient, ToolDefinition, ToolCallResponse } from '../llm/types.js';
-import { assertToolCallingClient, parseToolArguments } from '../llm/tooling.js';
+import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import { GeneratedThemeSchema, type GeneratedTheme } from '../schemas/generated-theme.js';
 import {
@@ -13,40 +12,6 @@ import {
   pickRandom,
 } from './diversity-catalog.js';
 import { buildPrompt } from '../template/composer.js';
-
-const SUBMIT_THEME_TOOL: ToolDefinition = {
-  type: 'function',
-  function: {
-    name: 'submit_theme',
-    description: '物語のテーマ構造を提出する',
-    parameters: {
-      type: 'object',
-      properties: {
-        emotion: { type: 'string' },
-        timeline: { type: 'string' },
-        characters: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              name: { type: 'string' },
-              isNew: { type: 'boolean' },
-              description: { type: 'string' },
-            },
-            required: ['name', 'isNew'],
-            additionalProperties: false,
-          },
-        },
-        premise: { type: 'string' },
-        scene_types: { type: 'array', items: { type: 'string' } },
-        narrative_type: { type: 'string' },
-      },
-      required: ['emotion', 'timeline', 'characters', 'premise', 'scene_types'],
-      additionalProperties: false,
-    },
-    strict: true,
-  },
-};
 
 export interface ThemeResult {
   theme: GeneratedTheme;
@@ -186,22 +151,6 @@ function buildStage2Context(soulText: SoulText, wildIdea: string, recentThemes?:
   return ctx;
 }
 
-function parseThemeToolResponse(response: ToolCallResponse): GeneratedTheme {
-  let parsed: unknown;
-  try {
-    parsed = parseToolArguments<GeneratedTheme>(response, 'submit_theme');
-  } catch {
-    throw new Error('Failed to parse tool call arguments');
-  }
-
-  const result = GeneratedThemeSchema.safeParse(parsed);
-  if (!result.success) {
-    throw new Error(`Theme validation failed: ${result.error.message}`);
-  }
-
-  return result.data;
-}
-
 // --- Factory function ---
 
 export function createThemeGenerator(llmClient: LLMClient, soulText: SoulText): ThemeGeneratorFn {
@@ -214,18 +163,16 @@ export function createThemeGenerator(llmClient: LLMClient, soulText: SoulText): 
       const stage2Context = buildStage2Context(soulText, wildIdeaResult.idea, recentThemes, motifAvoidance);
       const { system: systemPrompt, user: userPrompt } = buildPrompt('theme-generator-stage2', stage2Context);
 
-      assertToolCallingClient(llmClient);
-      const response = await llmClient.completeWithTools(
-        systemPrompt,
-        userPrompt,
-        [SUBMIT_THEME_TOOL],
-        {
-          toolChoice: { type: 'function', function: { name: 'submit_theme' } },
-          temperature: 0.9,
-        },
+      const response = await llmClient.completeStructured!(
+        [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        GeneratedThemeSchema,
+        { temperature: 1.0 },
       );
 
-      const theme = parseThemeToolResponse(response);
+      const theme = response.data;
       theme.tone = wildIdeaResult.tone;
       const tokensAfter = llmClient.getTotalTokens();
 

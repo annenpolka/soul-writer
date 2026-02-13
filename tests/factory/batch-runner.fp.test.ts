@@ -38,7 +38,7 @@ const createMockDeps = (): BatchDependencies => ({
   soulText: createMockSoulText() as any,
   llmClient: {
     complete: vi.fn().mockResolvedValue('{}'),
-    completeWithTools: vi.fn().mockResolvedValue({ toolCalls: [], content: null, tokensUsed: 0 }),
+    completeStructured: vi.fn().mockResolvedValue({ data: {}, reasoning: null, tokensUsed: 0 }),
     getTotalTokens: vi.fn().mockReturnValue(0),
   },
   taskRepo: { create: vi.fn().mockResolvedValue({ id: 'task-1' }), markStarted: vi.fn(), markCompleted: vi.fn(), markFailed: vi.fn() } as any,

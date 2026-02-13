@@ -1,5 +1,4 @@
-import type { LLMClient, ToolDefinition, ToolCallResponse } from '../llm/types.js';
-import { assertToolCallingClient, parseToolArguments } from '../llm/tooling.js';
+import type { LLMClient, LLMMessage } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import { buildPrompt } from '../template/composer.js';
 import {
@@ -9,28 +8,6 @@ import {
   type FacilitationResult,
   type FeedbackAction,
 } from './types.js';
-
-const SUBMIT_FACILITATION_TOOL: ToolDefinition = {
-  type: 'function',
-  function: {
-    name: 'submit_facilitation',
-    description: 'モデレーターのファシリテーション結果を提出する',
-    parameters: {
-      type: 'object',
-      properties: {
-        nextPhase: { type: 'string' },
-        assignments: { type: 'object', additionalProperties: { type: 'string' } },
-        summary: { type: 'string' },
-        shouldTerminate: { type: 'boolean' },
-        consensusScore: { type: 'number' },
-        continueRounds: { type: 'number' },
-      },
-      required: ['nextPhase', 'assignments', 'summary', 'shouldTerminate', 'consensusScore'],
-      additionalProperties: false,
-    },
-    strict: true,
-  },
-};
 
 // --- FP interface ---
 
@@ -175,15 +152,14 @@ function extractSoultextExcerpt(soulText: SoulText): string | undefined {
   return result.length > 0 ? result.slice(0, 2000) : undefined;
 }
 
-function parseToolResponse(response: ToolCallResponse): FacilitationResult {
-  const parsed = parseToolArguments<unknown>(response, 'submit_facilitation');
-  return FacilitationResultSchema.parse(parsed);
-}
-
 // --- Factory function ---
 
 export function createModerator(deps: ModeratorDeps): ModeratorFn {
   const { llmClient, soulText } = deps;
+
+  // Multi-turn conversation state for facilitateRound (separate from composeFinal)
+  let facilitationMessages: LLMMessage[] = [];
+  let facilitationInitialized = false;
 
   const facilitateRound = async (
     state: CollaborationState,
@@ -192,24 +168,38 @@ export function createModerator(deps: ModeratorDeps): ModeratorFn {
   ): Promise<FacilitationResult> => {
     const context = buildFacilitationContext(soulText, state, actions, writers);
     const { system, user } = buildPrompt('moderator', context);
-    assertToolCallingClient(llmClient);
+
+    if (!facilitationInitialized) {
+      // First call: initialize conversation
+      facilitationMessages = [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ];
+      facilitationInitialized = true;
+    } else {
+      // Subsequent calls: append new user message to accumulated conversation
+      facilitationMessages.push({ role: 'user', content: user });
+    }
 
     for (let attempt = 0; attempt <= FACILITATE_MAX_RETRIES; attempt++) {
       try {
-        const response = await llmClient.completeWithTools(
-          system,
-          user,
-          [SUBMIT_FACILITATION_TOOL],
-          {
-            toolChoice: { type: 'function', function: { name: 'submit_facilitation' } },
-            temperature: 0.3,
-          },
+        const response = await llmClient.completeStructured!(
+          [...facilitationMessages],
+          FacilitationResultSchema,
+          { temperature: 1.0 },
         );
 
-        return parseToolResponse(response);
+        // Add assistant response to conversation for future multi-turn reference
+        const assistantMessage: LLMMessage = {
+          role: 'assistant',
+          content: JSON.stringify(response.data),
+          ...(response.reasoning ? { reasoning: response.reasoning } : {}),
+        };
+        facilitationMessages.push(assistantMessage);
+
+        return response.data;
       } catch {
         if (attempt === FACILITATE_MAX_RETRIES) {
-          // フォールバック: 安全なデフォルト結果で続行
           return {
             nextPhase: state.currentPhase,
             assignments: {},
@@ -272,7 +262,7 @@ export function createModerator(deps: ModeratorDeps): ModeratorFn {
     ].join('\n');
 
     const text = await llmClient.complete(systemPrompt, userPrompt, {
-      temperature: 0.4,
+      temperature: 1.0,
     });
 
     const tokensUsed = llmClient.getTotalTokens() - tokensBefore;
@@ -282,4 +272,3 @@ export function createModerator(deps: ModeratorDeps): ModeratorFn {
 
   return { facilitateRound, composeFinal };
 }
-

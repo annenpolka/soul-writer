@@ -3,28 +3,20 @@ import {
   parseChapterStateExtractionResponse,
   createFallbackExtraction,
 } from '../../../src/agents/parsers/chapter-state-extractor-parser.js';
-import type { ToolCallResponse } from '../../../src/llm/types.js';
+import type { StructuredResponse } from '../../../src/llm/types.js';
+import type { ChapterStateRawResponse } from '../../../src/schemas/chapter-state-response.js';
 
-function createToolResponse(args: Record<string, unknown>): ToolCallResponse {
+function makeStructuredResponse(data: ChapterStateRawResponse): StructuredResponse<ChapterStateRawResponse> {
   return {
-    toolCalls: [
-      {
-        id: 'tc-1',
-        type: 'function',
-        function: {
-          name: 'submit_chapter_state',
-          arguments: JSON.stringify(args),
-        },
-      },
-    ],
-    content: null,
+    data,
+    reasoning: null,
     tokensUsed: 50,
   };
 }
 
 describe('parseChapterStateExtractionResponse', () => {
   it('should parse a complete valid response', () => {
-    const response = createToolResponse({
+    const response = makeStructuredResponse({
       character_states: [
         {
           character_name: '透心',
@@ -63,7 +55,7 @@ describe('parseChapterStateExtractionResponse', () => {
   });
 
   it('should handle character_states without physical_state', () => {
-    const response = createToolResponse({
+    const response = makeStructuredResponse({
       character_states: [
         {
           character_name: '透心',
@@ -83,8 +75,40 @@ describe('parseChapterStateExtractionResponse', () => {
     expect(result.characterStates[0].physicalState).toBeUndefined();
   });
 
+  it('should capture LLM reasoning from response', () => {
+    const response: StructuredResponse<ChapterStateRawResponse> = {
+      data: {
+        character_states: [],
+        motif_occurrences: [],
+        next_variation_hint: '',
+        chapter_summary: '',
+        dominant_tone: '',
+        peak_intensity: 3,
+      },
+      reasoning: 'ChapterState推論: キャラクター変化を分析した',
+      tokensUsed: 50,
+    };
+    const result = parseChapterStateExtractionResponse(response);
+
+    expect(result.llmReasoning).toBe('ChapterState推論: キャラクター変化を分析した');
+  });
+
+  it('should set llmReasoning to null when response.reasoning is null', () => {
+    const response = makeStructuredResponse({
+      character_states: [],
+      motif_occurrences: [],
+      next_variation_hint: '',
+      chapter_summary: '',
+      dominant_tone: '',
+      peak_intensity: 3,
+    });
+    const result = parseChapterStateExtractionResponse(response);
+
+    expect(result.llmReasoning).toBeNull();
+  });
+
   it('should clamp peak_intensity to 1-5 range', () => {
-    const responseLow = createToolResponse({
+    const responseLow = makeStructuredResponse({
       character_states: [],
       motif_occurrences: [],
       next_variation_hint: '',
@@ -94,7 +118,7 @@ describe('parseChapterStateExtractionResponse', () => {
     });
     expect(parseChapterStateExtractionResponse(responseLow).peakIntensity).toBe(1);
 
-    const responseHigh = createToolResponse({
+    const responseHigh = makeStructuredResponse({
       character_states: [],
       motif_occurrences: [],
       next_variation_hint: '',
@@ -103,73 +127,6 @@ describe('parseChapterStateExtractionResponse', () => {
       peak_intensity: 10,
     });
     expect(parseChapterStateExtractionResponse(responseHigh).peakIntensity).toBe(5);
-  });
-
-  it('should return fallback for missing tool call', () => {
-    const response: ToolCallResponse = {
-      toolCalls: [],
-      content: 'Some text response instead',
-      tokensUsed: 50,
-    };
-
-    const result = parseChapterStateExtractionResponse(response);
-    expect(result).toEqual(createFallbackExtraction());
-  });
-
-  it('should return fallback for wrong tool name', () => {
-    const response: ToolCallResponse = {
-      toolCalls: [
-        {
-          id: 'tc-1',
-          type: 'function',
-          function: {
-            name: 'wrong_tool',
-            arguments: JSON.stringify({}),
-          },
-        },
-      ],
-      content: null,
-      tokensUsed: 50,
-    };
-
-    const result = parseChapterStateExtractionResponse(response);
-    expect(result).toEqual(createFallbackExtraction());
-  });
-
-  it('should handle incomplete response gracefully', () => {
-    const response = createToolResponse({
-      character_states: 'not an array',
-      motif_occurrences: null,
-      next_variation_hint: 123,
-      chapter_summary: undefined,
-    });
-
-    const result = parseChapterStateExtractionResponse(response);
-    expect(result.characterStates).toEqual([]);
-    expect(result.motifOccurrences).toEqual([]);
-    expect(result.nextVariationHint).toBe('');
-    expect(result.chapterSummary).toBe('');
-    expect(result.peakIntensity).toBe(3);
-  });
-
-  it('should filter invalid character state entries', () => {
-    const response = createToolResponse({
-      character_states: [
-        { character_name: '透心', emotional_state: '静か', knowledge_gained: [], relationship_changes: [] },
-        'invalid entry',
-        null,
-        42,
-      ],
-      motif_occurrences: [],
-      next_variation_hint: '',
-      chapter_summary: '',
-      dominant_tone: '',
-      peak_intensity: 3,
-    });
-
-    const result = parseChapterStateExtractionResponse(response);
-    expect(result.characterStates).toHaveLength(1);
-    expect(result.characterStates[0].characterName).toBe('透心');
   });
 });
 

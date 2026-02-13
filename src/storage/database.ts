@@ -174,6 +174,107 @@ export class DatabaseConnection {
       )
     `);
 
+    // Add 8-axis scoring columns to judge_scores (nullable for backward compat)
+    const judgeScoreNewCols = [
+      'voice_accuracy_score REAL',
+      'originality_score REAL',
+      'structure_score REAL',
+      'amplitude_score REAL',
+      'agency_score REAL',
+      'stakes_score REAL',
+    ];
+    for (const col of judgeScoreNewCols) {
+      try {
+        this.sqlite.exec(`ALTER TABLE judge_scores ADD COLUMN ${col}`);
+      } catch {
+        // Column already exists, ignore
+      }
+    }
+
+    // Create judge_session_results table
+    this.sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS judge_session_results (
+        id TEXT PRIMARY KEY,
+        match_id TEXT REFERENCES tournament_matches(id),
+        scores_json TEXT NOT NULL,
+        axis_comments_json TEXT NOT NULL,
+        weaknesses_json TEXT NOT NULL,
+        section_analysis_json TEXT NOT NULL,
+        praised_excerpts_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    `);
+
+    // Create chapter_evaluations table
+    this.sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS chapter_evaluations (
+        id TEXT PRIMARY KEY,
+        chapter_id TEXT REFERENCES chapters(id),
+        verdict_level TEXT NOT NULL,
+        defects_json TEXT NOT NULL,
+        critical_count INTEGER NOT NULL,
+        major_count INTEGER NOT NULL,
+        minor_count INTEGER NOT NULL,
+        feedback TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    `);
+
+    // Create synthesis_plans table
+    this.sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS synthesis_plans (
+        id TEXT PRIMARY KEY,
+        chapter_id TEXT REFERENCES chapters(id),
+        champion_assessment TEXT NOT NULL,
+        preserve_elements_json TEXT NOT NULL,
+        actions_json TEXT NOT NULL,
+        expression_sources_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    `);
+
+    // Create correction_history table
+    this.sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS correction_history (
+        id TEXT PRIMARY KEY,
+        chapter_id TEXT REFERENCES chapters(id),
+        attempt_number INTEGER NOT NULL,
+        violations_count INTEGER NOT NULL,
+        corrected_successfully INTEGER NOT NULL,
+        tokens_used INTEGER NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    `);
+
+    // Create cross_chapter_states table
+    this.sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS cross_chapter_states (
+        id TEXT PRIMARY KEY,
+        work_id TEXT REFERENCES works(id),
+        chapter_index INTEGER NOT NULL,
+        character_states_json TEXT NOT NULL,
+        motif_wear_json TEXT NOT NULL,
+        variation_hint TEXT NOT NULL,
+        chapter_summary TEXT NOT NULL,
+        dominant_tone TEXT NOT NULL,
+        peak_intensity REAL NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    `);
+
+    // Create phase_metrics table
+    this.sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS phase_metrics (
+        id TEXT PRIMARY KEY,
+        work_id TEXT REFERENCES works(id),
+        chapter_index INTEGER NOT NULL,
+        phase TEXT NOT NULL,
+        duration_ms INTEGER NOT NULL,
+        tokens_used INTEGER NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    `);
+
     // Create indexes
     this.sqlite.exec(`
       CREATE INDEX IF NOT EXISTS idx_works_soul_id ON works(soul_id);
@@ -186,6 +287,12 @@ export class DatabaseConnection {
       CREATE INDEX IF NOT EXISTS idx_checkpoints_task_id ON checkpoints(task_id);
       CREATE INDEX IF NOT EXISTS idx_candidates_status ON soul_candidates(status);
       CREATE INDEX IF NOT EXISTS idx_candidates_soul_id ON soul_candidates(soul_id);
+      CREATE INDEX IF NOT EXISTS idx_judge_session_match ON judge_session_results(match_id);
+      CREATE INDEX IF NOT EXISTS idx_chapter_eval_chapter ON chapter_evaluations(chapter_id);
+      CREATE INDEX IF NOT EXISTS idx_synthesis_plan_chapter ON synthesis_plans(chapter_id);
+      CREATE INDEX IF NOT EXISTS idx_correction_history_chapter ON correction_history(chapter_id);
+      CREATE INDEX IF NOT EXISTS idx_cross_chapter_work ON cross_chapter_states(work_id);
+      CREATE INDEX IF NOT EXISTS idx_phase_metrics_work ON phase_metrics(work_id);
     `);
   }
 

@@ -1,23 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import type { ToolCallResponse } from '../../../src/llm/types.js';
+import type { StructuredResponse } from '../../../src/llm/types.js';
+import type { JudgeRawResponse } from '../../../src/schemas/judge-response.js';
 import { parseJudgeResponse } from '../../../src/agents/parsers/judge-parser.js';
 
-function makeToolResponse(args: Record<string, unknown>): ToolCallResponse {
+function makeStructuredResponse(data: JudgeRawResponse): StructuredResponse<JudgeRawResponse> {
   return {
-    toolCalls: [{
-      id: 'tc-1',
-      type: 'function',
-      function: {
-        name: 'submit_judgement',
-        arguments: JSON.stringify(args),
-      },
-    }],
-    content: null,
+    data,
+    reasoning: null,
     tokensUsed: 50,
   };
 }
 
-const baseArgs = {
+const baseData: JudgeRawResponse = {
   winner: 'A',
   reasoning: 'A is better',
   scores: {
@@ -29,8 +23,8 @@ const baseArgs = {
 
 describe('parseJudgeResponse - enhanced fields', () => {
   it('should parse weaknesses when present', () => {
-    const response = makeToolResponse({
-      ...baseArgs,
+    const response = makeStructuredResponse({
+      ...baseData,
       weaknesses: {
         A: [{ category: 'pacing', description: 'Slow middle', suggestedFix: 'Tighten', severity: 'minor' }],
         B: [
@@ -51,8 +45,8 @@ describe('parseJudgeResponse - enhanced fields', () => {
   });
 
   it('should parse axis_comments when present', () => {
-    const response = makeToolResponse({
-      ...baseArgs,
+    const response = makeStructuredResponse({
+      ...baseData,
       axis_comments: [
         { axis: 'style', commentA: 'Good rhythm', commentB: 'Lacks flow', exampleA: 'excerpt A', exampleB: 'excerpt B' },
         { axis: 'originality', commentA: 'Fresh', commentB: 'Predictable' },
@@ -69,8 +63,8 @@ describe('parseJudgeResponse - enhanced fields', () => {
   });
 
   it('should parse section_analysis when present', () => {
-    const response = makeToolResponse({
-      ...baseArgs,
+    const response = makeStructuredResponse({
+      ...baseData,
       section_analysis: [
         { section: 'introduction', ratingA: 'excellent', ratingB: 'good', commentA: 'Strong', commentB: 'Decent' },
         { section: 'climax', ratingA: 'adequate', ratingB: 'excellent', commentA: 'Flat', commentB: 'Gripping' },
@@ -86,57 +80,17 @@ describe('parseJudgeResponse - enhanced fields', () => {
   });
 
   it('should return undefined for enhanced fields when not present', () => {
-    const response = makeToolResponse(baseArgs);
+    const response = makeStructuredResponse(baseData);
     const result = parseJudgeResponse(response);
 
     expect(result.weaknesses).toBeUndefined();
     expect(result.axis_comments).toBeUndefined();
     expect(result.section_analysis).toBeUndefined();
-  });
-
-  it('should ignore weaknesses when data is not an object', () => {
-    const response = makeToolResponse({
-      ...baseArgs,
-      weaknesses: 'not-an-object',
-    });
-    const result = parseJudgeResponse(response);
-
-    expect(result.weaknesses).toBeUndefined();
-  });
-
-  it('should ignore axis_comments when data is not an array', () => {
-    const response = makeToolResponse({
-      ...baseArgs,
-      axis_comments: 'not-an-array',
-    });
-    const result = parseJudgeResponse(response);
-
-    expect(result.axis_comments).toBeUndefined();
-  });
-
-  it('should ignore section_analysis when data is not an array', () => {
-    const response = makeToolResponse({
-      ...baseArgs,
-      section_analysis: { not: 'an array' },
-    });
-    const result = parseJudgeResponse(response);
-
-    expect(result.section_analysis).toBeUndefined();
-  });
-
-  it('should ignore weaknesses when A or B is not an array', () => {
-    const response = makeToolResponse({
-      ...baseArgs,
-      weaknesses: { A: 'not-array', B: [{ category: 'style', description: 'd', suggestedFix: 's', severity: 'minor' }] },
-    });
-    const result = parseJudgeResponse(response);
-
-    expect(result.weaknesses).toBeUndefined();
   });
 
   it('should parse all three enhanced fields together', () => {
-    const response = makeToolResponse({
-      ...baseArgs,
+    const response = makeStructuredResponse({
+      ...baseData,
       weaknesses: {
         A: [{ category: 'imagery', description: 'Cliche', suggestedFix: 'Use fresh imagery', severity: 'minor' }],
         B: [],

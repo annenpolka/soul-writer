@@ -1,67 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import {
-  COLLABORATION_TOOLS,
-  getToolByName,
-  parseToolCallToAction,
-} from './tools.js';
+import { parseStructuredAction } from './tools.js';
 import { CollaborationActionSchema } from './types.js';
+import type { CollaborationActionRaw } from '../schemas/collaboration-action.js';
 
-describe('COLLABORATION_TOOLS', () => {
-  it('should define 4 tools', () => {
-    expect(COLLABORATION_TOOLS).toHaveLength(4);
-  });
+describe('parseStructuredAction', () => {
+  it('should parse proposal action', () => {
+    const data: CollaborationActionRaw = {
+      action: 'proposal',
+      content: '透心の独白から始める',
+      targetSection: 'opening',
+    };
+    const action = parseStructuredAction('writer_1', data);
 
-  it('should have correct tool names', () => {
-    const names = COLLABORATION_TOOLS.map((t) => t.function.name);
-    expect(names).toEqual([
-      'submit_proposal',
-      'give_feedback',
-      'submit_draft',
-      'volunteer_section',
-    ]);
-  });
-
-  it('should all have strict: true', () => {
-    for (const tool of COLLABORATION_TOOLS) {
-      expect(tool.function.strict).toBe(true);
-    }
-  });
-
-  it('should all have type: function', () => {
-    for (const tool of COLLABORATION_TOOLS) {
-      expect(tool.type).toBe('function');
-    }
-  });
-
-  it('should have JSON Schema parameters with required fields', () => {
-    for (const tool of COLLABORATION_TOOLS) {
-      const params = tool.function.parameters as any;
-      expect(params.type).toBe('object');
-      expect(params.properties).toBeDefined();
-      expect(params.required).toBeDefined();
-      expect(params.required.length).toBeGreaterThan(0);
-    }
-  });
-});
-
-describe('getToolByName', () => {
-  it('should return the correct tool', () => {
-    const tool = getToolByName('submit_proposal');
-    expect(tool?.function.name).toBe('submit_proposal');
-  });
-
-  it('should return undefined for unknown tool', () => {
-    expect(getToolByName('unknown')).toBeUndefined();
-  });
-});
-
-describe('parseToolCallToAction', () => {
-  it('should parse submit_proposal tool call', () => {
-    const action = parseToolCallToAction(
-      'writer_1',
-      'submit_proposal',
-      '{"content":"透心の独白から始める","targetSection":"opening"}',
-    );
     expect(action).toEqual({
       type: 'proposal',
       writerId: 'writer_1',
@@ -71,12 +21,28 @@ describe('parseToolCallToAction', () => {
     expect(() => CollaborationActionSchema.parse(action)).not.toThrow();
   });
 
-  it('should parse give_feedback tool call', () => {
-    const action = parseToolCallToAction(
-      'writer_2',
-      'give_feedback',
-      '{"targetWriterId":"writer_1","feedback":"緊張感が足りない","sentiment":"suggest_revision"}',
-    );
+  it('should parse proposal action without optional targetSection', () => {
+    const data: CollaborationActionRaw = {
+      action: 'proposal',
+      content: '全体の構成を提案する',
+    };
+    const action = parseStructuredAction('writer_1', data);
+
+    expect(action.type).toBe('proposal');
+    if (action.type === 'proposal') {
+      expect(action.targetSection).toBeUndefined();
+    }
+  });
+
+  it('should parse feedback action', () => {
+    const data: CollaborationActionRaw = {
+      action: 'feedback',
+      targetWriterId: 'writer_1',
+      feedback: '緊張感が足りない',
+      sentiment: 'suggest_revision',
+    };
+    const action = parseStructuredAction('writer_2', data);
+
     expect(action).toEqual({
       type: 'feedback',
       writerId: 'writer_2',
@@ -86,12 +52,46 @@ describe('parseToolCallToAction', () => {
     });
   });
 
-  it('should parse submit_draft tool call', () => {
-    const action = parseToolCallToAction(
-      'writer_1',
-      'submit_draft',
-      '{"section":"opening","text":"透心は窓の外を見つめていた。"}',
-    );
+  it('should parse feedback action with counterProposal', () => {
+    const data: CollaborationActionRaw = {
+      action: 'feedback',
+      targetWriterId: 'writer_1',
+      feedback: 'もっと具体的に',
+      sentiment: 'disagree',
+      counterProposal: '代替案として情景描写を強化する',
+    };
+    const action = parseStructuredAction('writer_3', data);
+
+    expect(action.type).toBe('feedback');
+    if (action.type === 'feedback') {
+      expect(action.counterProposal).toBe('代替案として情景描写を強化する');
+    }
+  });
+
+  it('should parse feedback action without counterProposal when empty string', () => {
+    const data: CollaborationActionRaw = {
+      action: 'feedback',
+      targetWriterId: 'writer_1',
+      feedback: '問題なし',
+      sentiment: 'agree',
+      counterProposal: '',
+    };
+    const action = parseStructuredAction('writer_2', data);
+
+    expect(action.type).toBe('feedback');
+    if (action.type === 'feedback') {
+      expect(action.counterProposal).toBeUndefined();
+    }
+  });
+
+  it('should parse draft action', () => {
+    const data: CollaborationActionRaw = {
+      action: 'draft',
+      section: 'opening',
+      text: '透心は窓の外を見つめていた。',
+    };
+    const action = parseStructuredAction('writer_1', data);
+
     expect(action).toEqual({
       type: 'draft',
       writerId: 'writer_1',
@@ -100,12 +100,14 @@ describe('parseToolCallToAction', () => {
     });
   });
 
-  it('should parse volunteer_section tool call', () => {
-    const action = parseToolCallToAction(
-      'writer_3',
-      'volunteer_section',
-      '{"section":"climax","reason":"殺害シーンは得意です"}',
-    );
+  it('should parse volunteer action', () => {
+    const data: CollaborationActionRaw = {
+      action: 'volunteer',
+      section: 'climax',
+      reason: '殺害シーンは得意です',
+    };
+    const action = parseStructuredAction('writer_3', data);
+
     expect(action).toEqual({
       type: 'volunteer',
       writerId: 'writer_3',
@@ -114,9 +116,35 @@ describe('parseToolCallToAction', () => {
     });
   });
 
-  it('should throw for unknown tool name', () => {
-    expect(() =>
-      parseToolCallToAction('w1', 'unknown_tool', '{}'),
-    ).toThrow();
+  it('should validate all sentiment types for feedback', () => {
+    const sentiments = ['agree', 'disagree', 'suggest_revision', 'challenge'] as const;
+
+    for (const sentiment of sentiments) {
+      const data: CollaborationActionRaw = {
+        action: 'feedback',
+        targetWriterId: 'writer_1',
+        feedback: 'test',
+        sentiment,
+      };
+      const action = parseStructuredAction('writer_2', data);
+      expect(action.type).toBe('feedback');
+      if (action.type === 'feedback') {
+        expect(action.sentiment).toBe(sentiment);
+      }
+    }
+  });
+
+  it('should produce actions that pass CollaborationActionSchema validation', () => {
+    const testCases: CollaborationActionRaw[] = [
+      { action: 'proposal', content: 'test proposal' },
+      { action: 'feedback', targetWriterId: 'w1', feedback: 'test', sentiment: 'agree' },
+      { action: 'draft', section: 'opening', text: 'test text' },
+      { action: 'volunteer', section: 'climax', reason: 'test reason' },
+    ];
+
+    for (const data of testCases) {
+      const action = parseStructuredAction('writer_1', data);
+      expect(() => CollaborationActionSchema.parse(action)).not.toThrow();
+    }
   });
 });

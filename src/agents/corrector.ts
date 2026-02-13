@@ -41,7 +41,9 @@ export function createCorrector(deps: CorrectorDeps): Corrector {
     correct: async (text: string, violations: Violation[]): Promise<CorrectionResult> => {
       const context = buildCorrectorContext(soulText, text, violations, themeContext);
       const { system: systemPrompt, user: userPrompt } = buildPrompt('corrector', context);
-      const correctedText = await llmClient.complete(systemPrompt, userPrompt);
+      const correctedText = await llmClient.complete(systemPrompt, userPrompt, {
+        temperature: 1.0,
+      });
       const tokensUsed = llmClient.getTotalTokens();
 
       return { correctedText, tokensUsed };

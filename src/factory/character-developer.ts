@@ -1,42 +1,9 @@
 import { z } from 'zod';
-import type { LLMClient, ToolDefinition, ToolCallResponse } from '../llm/types.js';
-import { assertToolCallingClient, parseToolArguments } from '../llm/tooling.js';
+import type { LLMClient } from '../llm/types.js';
 import type { SoulText } from '../soul/manager.js';
 import type { GeneratedTheme } from '../schemas/generated-theme.js';
 import type { CharacterMacGuffin } from '../schemas/macguffin.js';
 import { buildPrompt } from '../template/composer.js';
-
-const SUBMIT_CHARACTERS_TOOL: ToolDefinition = {
-  type: 'function',
-  function: {
-    name: 'submit_characters',
-    description: 'キャラクターの詳細設定を提出する',
-    parameters: {
-      type: 'object',
-      properties: {
-        characters: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              name: { type: 'string' },
-              isNew: { type: 'boolean' },
-              role: { type: 'string' },
-              description: { type: 'string' },
-              voice: { type: 'string' },
-            },
-            required: ['name', 'isNew', 'role'],
-            additionalProperties: false,
-          },
-        },
-        castingRationale: { type: 'string' },
-      },
-      required: ['characters', 'castingRationale'],
-      additionalProperties: false,
-    },
-    strict: true,
-  },
-};
 
 const LLMCharacterResponseSchema = z.object({
   characters: z.array(z.object({
@@ -129,25 +96,6 @@ function charDevFallback(theme: GeneratedTheme): DevelopedCharacters {
   };
 }
 
-function parseCharDevToolResponse(response: ToolCallResponse, theme: GeneratedTheme): DevelopedCharacters {
-  let raw: unknown;
-  try {
-    raw = parseToolArguments<unknown>(response, 'submit_characters');
-  } catch (e) {
-    console.warn('[character-developer] Tool call parsing failed, using fallback:', e instanceof Error ? e.message : e);
-    return charDevFallback(theme);
-  }
-
-  const result = LLMCharacterResponseSchema.safeParse(raw);
-  if (!result.success || result.data.characters.length === 0) {
-    return charDevFallback(theme);
-  }
-  return {
-    characters: result.data.characters,
-    castingRationale: result.data.castingRationale,
-  };
-}
-
 // --- Factory function ---
 
 export function createCharacterDeveloper(llmClient: LLMClient, soulText: SoulText): CharacterDeveloperFn {
@@ -157,18 +105,31 @@ export function createCharacterDeveloper(llmClient: LLMClient, soulText: SoulTex
 
       const context = buildCharDevContext(soulText, theme, charMacGuffins);
       const { system: systemPrompt, user: userPrompt } = buildPrompt('character-developer', context);
-      assertToolCallingClient(llmClient);
-      const response = await llmClient.completeWithTools(
-        systemPrompt,
-        userPrompt,
-        [SUBMIT_CHARACTERS_TOOL],
-        {
-          toolChoice: { type: 'function', function: { name: 'submit_characters' } },
-          temperature: 0.8,
-        },
-      );
 
-      const developed = parseCharDevToolResponse(response, theme);
+      let developed: DevelopedCharacters;
+      try {
+        const response = await llmClient.completeStructured!(
+          [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          LLMCharacterResponseSchema,
+          { temperature: 1.0 },
+        );
+
+        if (response.data.characters.length === 0) {
+          developed = charDevFallback(theme);
+        } else {
+          developed = {
+            characters: response.data.characters,
+            castingRationale: response.data.castingRationale,
+          };
+        }
+      } catch (e) {
+        console.warn('[character-developer] completeStructured failed, using fallback:', e instanceof Error ? e.message : e);
+        developed = charDevFallback(theme);
+      }
+
       const tokensUsed = llmClient.getTotalTokens() - tokensBefore;
 
       return { developed, tokensUsed };

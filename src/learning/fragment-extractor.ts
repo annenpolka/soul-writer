@@ -97,6 +97,7 @@ export function createFragmentExtractor(llmClient: LLMClient): FragmentExtractor
         [SUBMIT_FRAGMENTS_TOOL],
         {
           toolChoice: { type: 'function', function: { name: 'submit_fragments' } },
+          temperature: 1.0,
         },
       );
 

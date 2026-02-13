@@ -8,6 +8,12 @@ import { createWorkRepo } from '../storage/work-repository.js';
 import { createCheckpointRepo } from '../storage/checkpoint-repository.js';
 import { createCheckpointManager } from '../storage/checkpoint-manager.js';
 import { createSoulCandidateRepo } from '../storage/soul-candidate-repository.js';
+import { createJudgeSessionRepo } from '../storage/judge-session-repository.js';
+import { createChapterEvalRepo } from '../storage/chapter-evaluation-repository.js';
+import { createSynthesisPlanRepo } from '../storage/synthesis-plan-repository.js';
+import { createCorrectionHistoryRepo } from '../storage/correction-history-repository.js';
+import { createCrossChapterStateRepo } from '../storage/cross-chapter-state-repository.js';
+import { createPhaseMetricsRepo } from '../storage/phase-metrics-repository.js';
 import { FactoryConfigSchema } from '../schemas/factory-config.js';
 import { createBatchRunner, type ProgressInfo, calculateAnalytics, generateCliReport, generateJsonReport } from '../factory/index.js';
 
@@ -79,7 +85,7 @@ export async function factory(options: FactoryOptions): Promise<void> {
 
   // 2. Check environment
   const apiKey = process.env.CEREBRAS_API_KEY;
-  const model = process.env.CEREBRAS_MODEL || 'llama-3.3-70b';
+  const model = process.env.CEREBRAS_MODEL || 'zai-glm-4.7';
 
   if (!apiKey) {
     console.error('Error: CEREBRAS_API_KEY environment variable is not set');
@@ -108,6 +114,14 @@ export async function factory(options: FactoryOptions): Promise<void> {
   const checkpointManager = createCheckpointManager(checkpointRepo);
   const candidateRepo = createSoulCandidateRepo(sqlite);
 
+  // 5b. Create analytics repositories
+  const judgeSessionRepo = createJudgeSessionRepo(sqlite);
+  const chapterEvalRepo = createChapterEvalRepo(sqlite);
+  const synthesisPlanRepo = createSynthesisPlanRepo(sqlite);
+  const correctionHistoryRepo = createCorrectionHistoryRepo(sqlite);
+  const crossChapterStateRepo = createCrossChapterStateRepo(sqlite);
+  const phaseMetricsRepo = createPhaseMetricsRepo(sqlite);
+
   // 6. Create LLM client
   const llmClient = new CerebrasClient({ apiKey, model });
 
@@ -119,6 +133,12 @@ export async function factory(options: FactoryOptions): Promise<void> {
     workRepo,
     checkpointManager,
     candidateRepo,
+    judgeSessionRepo,
+    chapterEvalRepo,
+    synthesisPlanRepo,
+    correctionHistoryRepo,
+    crossChapterStateRepo,
+    phaseMetricsRepo,
   }, { verbose: options.verbose });
 
   console.log('Starting batch generation...\n');

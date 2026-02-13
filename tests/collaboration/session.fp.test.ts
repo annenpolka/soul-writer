@@ -1,8 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createCollaborationSession, type CollaborationSessionDeps } from '../../src/collaboration/session.js';
 import { createMockSoulText } from '../helpers/mock-soul-text.js';
-import type { LLMClient } from '../../src/llm/types.js';
+import type { LLMClient, StructuredResponse } from '../../src/llm/types.js';
 import type { WriterConfig } from '../../src/agents/types.js';
+import type { FacilitationResult } from '../../src/collaboration/types.js';
+import type { CollaborationActionRaw } from '../../src/schemas/collaboration-action.js';
 
 function createWriterConfigs(): WriterConfig[] {
   return [
@@ -26,110 +28,89 @@ function createWriterConfigs(): WriterConfig[] {
 }
 
 /**
- * Creates a mock LLM that handles both tool-calling (for writers and moderator)
+ * Creates a mock LLM that handles both structured output (for writers and moderator)
  * and plain completion (for composeFinal).
  *
- * The moderator facilitateRound flow:
- *  - round 1: proposal phase → transitions to drafting, not terminate
- *  - round 2: drafting phase → transitions to review, terminate with consensus
+ * The completeStructured mock needs to distinguish between:
+ * - Writer calls (return CollaborationActionRaw)
+ * - Moderator calls (return FacilitationResult)
  *
- * Writers: always return a proposal or draft depending on phase.
+ * Since completeStructured takes a schema as 2nd arg, we use call count to determine behavior:
+ * Writers go first in each round, then moderator.
+ * Round 1: 2 writer proposals + 1 moderator facilitation (transition to drafting)
+ * Round 2: 2 writer drafts + 1 moderator facilitation (terminate with consensus)
  */
 function createCollaborationLLM(): LLMClient {
   let tokens = 0;
-  let facilitateCallCount = 0;
+  let structuredCallCount = 0;
 
   return {
     complete: vi.fn().mockImplementation(() => {
       tokens += 200;
       return Promise.resolve('統合された最終テキスト: 透心は息をひそめた。');
     }),
-    completeWithTools: vi.fn().mockImplementation((_sys: string, _user: string, tools: any[]) => {
+    completeStructured: vi.fn().mockImplementation(() => {
       tokens += 100;
+      structuredCallCount++;
 
-      // Detect if this is a moderator call (submit_facilitation tool)
-      const isModerator = tools.some((t: any) => t.function.name === 'submit_facilitation');
-
-      if (isModerator) {
-        facilitateCallCount++;
-        if (facilitateCallCount === 1) {
-          // First round: move to drafting
-          return Promise.resolve({
-            toolCalls: [{
-              id: 'tc-mod-1',
-              type: 'function',
-              function: {
-                name: 'submit_facilitation',
-                arguments: JSON.stringify({
-                  nextPhase: 'drafting',
-                  assignments: { opening: 'writer_1', climax: 'writer_2' },
-                  summary: '担当割り振り完了。草稿フェーズへ。',
-                  shouldTerminate: false,
-                  consensusScore: 0.4,
-                }),
-              },
-            }],
-            content: null,
-            tokensUsed: 100,
-          });
-        }
-        // Second round: terminate with consensus
+      // Calls 1-2: writer proposals (round 1)
+      if (structuredCallCount <= 2) {
+        const data: CollaborationActionRaw = {
+          action: 'proposal',
+          content: '冒頭は透心の内面独白から始める',
+        };
         return Promise.resolve({
-          toolCalls: [{
-            id: 'tc-mod-2',
-            type: 'function',
-            function: {
-              name: 'submit_facilitation',
-              arguments: JSON.stringify({
-                nextPhase: 'review',
-                assignments: {},
-                summary: '草稿完了。合意形成。',
-                shouldTerminate: true,
-                consensusScore: 0.9,
-              }),
-            },
-          }],
-          content: null,
-          tokensUsed: 100,
-        });
-      }
-
-      // Writer call - check if only submit_draft tool is available (drafting phase)
-      const hasDraftOnly = tools.length === 1 && tools[0].function.name === 'submit_draft';
-
-      if (hasDraftOnly) {
-        return Promise.resolve({
-          toolCalls: [{
-            id: 'tc-w-draft',
-            type: 'function',
-            function: {
-              name: 'submit_draft',
-              arguments: JSON.stringify({
-                section: 'opening',
-                text: '透心は息をひそめた。窓の外のARタグが、静かに剥がれ落ちていく。',
-              }),
-            },
-          }],
-          content: null,
+          data,
+          reasoning: null,
           tokensUsed: 50,
-        });
+        } satisfies StructuredResponse<CollaborationActionRaw>);
       }
 
-      // Writer call - proposal phase
+      // Call 3: moderator facilitation (transition to drafting)
+      if (structuredCallCount === 3) {
+        const data: FacilitationResult = {
+          nextPhase: 'drafting',
+          assignments: { opening: 'writer_1', climax: 'writer_2' },
+          summary: '担当割り振り完了。草稿フェーズへ。',
+          shouldTerminate: false,
+          consensusScore: 0.4,
+          continueRounds: 0,
+        };
+        return Promise.resolve({
+          data,
+          reasoning: null,
+          tokensUsed: 100,
+        } satisfies StructuredResponse<FacilitationResult>);
+      }
+
+      // Calls 4-5: writer drafts (round 2)
+      if (structuredCallCount <= 5) {
+        const data: CollaborationActionRaw = {
+          action: 'draft',
+          section: 'opening',
+          text: '透心は息をひそめた。窓の外のARタグが、静かに剥がれ落ちていく。',
+        };
+        return Promise.resolve({
+          data,
+          reasoning: null,
+          tokensUsed: 50,
+        } satisfies StructuredResponse<CollaborationActionRaw>);
+      }
+
+      // Call 6: moderator facilitation (terminate)
+      const data: FacilitationResult = {
+        nextPhase: 'review',
+        assignments: {},
+        summary: '草稿完了。合意形成。',
+        shouldTerminate: true,
+        consensusScore: 0.9,
+        continueRounds: 0,
+      };
       return Promise.resolve({
-        toolCalls: [{
-          id: 'tc-w-1',
-          type: 'function',
-          function: {
-            name: 'submit_proposal',
-            arguments: JSON.stringify({
-              content: '冒頭は透心の内面独白から始める',
-            }),
-          },
-        }],
-        content: null,
-        tokensUsed: 50,
-      });
+        data,
+        reasoning: null,
+        tokensUsed: 100,
+      } satisfies StructuredResponse<FacilitationResult>);
     }),
     getTotalTokens: vi.fn().mockImplementation(() => tokens),
   };
@@ -178,44 +159,36 @@ describe('createCollaborationSession', () => {
 
     it('should respect maxRounds limit', async () => {
       let tokens = 0;
+      let callCount = 0;
       const neverTerminateLLM: LLMClient = {
         complete: vi.fn().mockImplementation(() => {
           tokens += 100;
           return Promise.resolve('最終テキスト');
         }),
-        completeWithTools: vi.fn().mockImplementation((_sys: string, _user: string, tools: any[]) => {
+        completeStructured: vi.fn().mockImplementation(() => {
           tokens += 50;
-          const isModerator = tools.some((t: any) => t.function.name === 'submit_facilitation');
-          if (isModerator) {
+          callCount++;
+          // Every 3rd call is moderator (after 2 writers)
+          if (callCount % 3 === 0) {
             return Promise.resolve({
-              toolCalls: [{
-                id: 'tc-1',
-                type: 'function',
-                function: {
-                  name: 'submit_facilitation',
-                  arguments: JSON.stringify({
-                    nextPhase: 'proposal',
-                    assignments: {},
-                    summary: '続行',
-                    shouldTerminate: false,
-                    consensusScore: 0.1,
-                  }),
-                },
-              }],
-              content: null,
+              data: {
+                nextPhase: 'proposal',
+                assignments: {},
+                summary: '続行',
+                shouldTerminate: false,
+                consensusScore: 0.1,
+                continueRounds: 0,
+              },
+              reasoning: null,
               tokensUsed: 50,
             });
           }
           return Promise.resolve({
-            toolCalls: [{
-              id: 'tc-w',
-              type: 'function',
-              function: {
-                name: 'submit_proposal',
-                arguments: JSON.stringify({ content: '提案' }),
-              },
-            }],
-            content: null,
+            data: {
+              action: 'proposal',
+              content: '提案',
+            },
+            reasoning: null,
             tokensUsed: 50,
           });
         }),

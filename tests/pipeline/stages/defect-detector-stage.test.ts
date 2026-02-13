@@ -7,16 +7,9 @@ function makeDeps(overrides?: Partial<PipelineDeps>): PipelineDeps {
   return {
     llmClient: {
       complete: vi.fn().mockResolvedValue('retaken text'),
-      completeWithTools: vi.fn().mockResolvedValue({
-        toolCalls: [{
-          id: 'tc-1',
-          type: 'function',
-          function: {
-            name: 'submit_defects',
-            arguments: JSON.stringify({ verdict_level: 'publishable', defects: [] }),
-          },
-        }],
-        content: null,
+      completeStructured: vi.fn().mockResolvedValue({
+        data: { verdict_level: 'publishable', defects: [] },
+        reasoning: null,
         tokensUsed: 50,
       }),
       getTotalTokens: vi.fn().mockReturnValue(100),

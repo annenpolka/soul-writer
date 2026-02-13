@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { createCorrectionLoop } from '../../src/correction/loop.js';
 import type { Corrector, Violation, ComplianceResult } from '../../src/agents/types.js';
+import type { LLMClient } from '../../src/llm/types.js';
 
 interface Checker {
   check: (text: string) => ComplianceResult;
@@ -171,5 +172,96 @@ describe('createCorrectionLoop (FP)', () => {
 
     expect(checker.checkWithContext).toHaveBeenCalledWith('text', chapterContext);
     expect(checker.check).not.toHaveBeenCalled();
+  });
+
+  describe('multi-turn conversation accumulation', () => {
+    function createAlwaysFailChecker(): Checker {
+      return {
+        check: vi.fn().mockReturnValue({
+          isCompliant: false,
+          violations: [{
+            type: 'forbidden_word' as const,
+            position: { start: 0, end: 3 },
+            context: 'test violation',
+            rule: 'test rule',
+            severity: 'error' as const,
+          }],
+          errorCount: 1,
+          warningCount: 0,
+        }),
+        checkWithContext: vi.fn().mockResolvedValue({
+          isCompliant: false,
+          violations: [{
+            type: 'forbidden_word' as const,
+            position: { start: 0, end: 3 },
+            context: 'test violation',
+            rule: 'test rule',
+            severity: 'error' as const,
+          }],
+          errorCount: 1,
+          warningCount: 0,
+        }),
+      };
+    }
+
+    it('should accumulate messages across correction attempts when llmClient is provided', async () => {
+      // Track messages at each call time via snapshots
+      const messageSnapshots: Array<Array<{ role: string; content: string }>> = [];
+      const llmClient: LLMClient = {
+        complete: vi.fn().mockImplementation((messages: any) => {
+          // Snapshot the messages at call time (since array is mutated later)
+          messageSnapshots.push([...messages]);
+          return Promise.resolve(`correction attempt ${messageSnapshots.length + 1}`);
+        }),
+        getTotalTokens: vi.fn().mockReturnValue(50),
+      };
+      const corrector = createMockCorrector('first correction');
+      const checker = createAlwaysFailChecker();
+
+      const loop = createCorrectionLoop({
+        corrector,
+        checker,
+        maxAttempts: 3,
+        llmClient,
+      });
+      await loop.run('bad text');
+
+      // First call uses corrector (for backward compat), 2nd and 3rd use llmClient with accumulated messages
+      expect(corrector.correct).toHaveBeenCalledTimes(1);
+      expect(llmClient.complete).toHaveBeenCalledTimes(2);
+
+      // Check the first llmClient.complete call (2nd correction attempt)
+      const messages1 = messageSnapshots[0];
+      // Should have: system + user (initial) + assistant (first correction) + user (new violations)
+      expect(messages1).toHaveLength(4);
+      expect(messages1[0].role).toBe('system');
+      expect(messages1[1].role).toBe('user');
+      expect(messages1[2].role).toBe('assistant');
+      expect(messages1[2].content).toBe('first correction');
+      expect(messages1[3].role).toBe('user');
+      expect(messages1[3].content).toContain('まだ以下の違反があります');
+
+      // Check the second llmClient.complete call (3rd correction attempt) has accumulated messages
+      const messages2 = messageSnapshots[1];
+      // Should have: system + user + assistant + user + assistant + user
+      expect(messages2).toHaveLength(6);
+      expect(messages2[4].role).toBe('assistant'); // 2nd correction response
+      expect(messages2[5].role).toBe('user'); // 3rd violation list
+    });
+
+    it('should still use only corrector when llmClient is not provided (backward compat)', async () => {
+      const corrector = createMockCorrector('still bad');
+      const checker = createAlwaysFailChecker();
+
+      const loop = createCorrectionLoop({
+        corrector,
+        checker,
+        maxAttempts: 3,
+      });
+      await loop.run('bad text');
+
+      // All 3 attempts should use corrector
+      expect(corrector.correct).toHaveBeenCalledTimes(3);
+    });
   });
 });

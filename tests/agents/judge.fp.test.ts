@@ -1,33 +1,31 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createJudge } from '../../src/agents/judge.js';
 import type { JudgeDeps } from '../../src/agents/types.js';
-import { createMockLLMClientWithTools } from '../helpers/mock-deps.js';
+import { createMockLLMClientWithStructured } from '../helpers/mock-deps.js';
 import { createMockSoulText } from '../helpers/mock-soul-text.js';
+import type { JudgeRawResponse } from '../../src/schemas/judge-response.js';
 
 function createMockJudgeDeps(overrides?: {
-  toolResponse?: { name: string; arguments: Record<string, unknown> };
+  data?: JudgeRawResponse;
   tokenCount?: number;
 }): JudgeDeps {
-  const defaultToolResponse = {
-    name: 'submit_judgement',
-    arguments: {
-      winner: 'A',
-      reasoning: 'Text A has better style',
-      scores: {
-        A: { style: 0.8, compliance: 0.9, overall: 0.85, voice_accuracy: 0.8, originality: 0.7, structure: 0.8, amplitude: 0.7, agency: 0.6, stakes: 0.7 },
-        B: { style: 0.6, compliance: 0.7, overall: 0.65, voice_accuracy: 0.6, originality: 0.5, structure: 0.6, amplitude: 0.5, agency: 0.4, stakes: 0.5 },
-      },
-      praised_excerpts: {
-        A: ['excerpt 1'],
-        B: ['excerpt 2'],
-      },
+  const defaultData: JudgeRawResponse = {
+    winner: 'A',
+    reasoning: 'Text A has better style',
+    scores: {
+      A: { style: 0.8, compliance: 0.9, overall: 0.85, voice_accuracy: 0.8, originality: 0.7, structure: 0.8, amplitude: 0.7, agency: 0.6, stakes: 0.7 },
+      B: { style: 0.6, compliance: 0.7, overall: 0.65, voice_accuracy: 0.6, originality: 0.5, structure: 0.6, amplitude: 0.5, agency: 0.4, stakes: 0.5 },
+    },
+    praised_excerpts: {
+      A: ['excerpt 1'],
+      B: ['excerpt 2'],
     },
   };
 
   return {
-    llmClient: createMockLLMClientWithTools(
-      overrides?.toolResponse ?? defaultToolResponse,
-      overrides?.tokenCount ?? 100,
+    llmClient: createMockLLMClientWithStructured<JudgeRawResponse>(
+      overrides?.data ?? defaultData,
+      { tokenCount: overrides?.tokenCount ?? 100 },
     ),
     soulText: createMockSoulText(),
   };
@@ -44,11 +42,11 @@ describe('createJudge (FP)', () => {
     expect(judge.evaluate).toBeInstanceOf(Function);
   });
 
-  it('evaluate() should call completeWithTools', async () => {
+  it('evaluate() should call completeStructured', async () => {
     const deps = createMockJudgeDeps();
     const judge = createJudge(deps);
     await judge.evaluate('Text A content', 'Text B content');
-    expect(deps.llmClient.completeWithTools).toHaveBeenCalledTimes(1);
+    expect(deps.llmClient.completeStructured).toHaveBeenCalledTimes(1);
   });
 
   it('evaluate() should return JudgeResult with winner', async () => {
@@ -61,17 +59,14 @@ describe('createJudge (FP)', () => {
     expect(result.scores.B.style).toBe(0.6);
   });
 
-  it('evaluate() should return winner B when tool response says B', async () => {
+  it('evaluate() should return winner B when response says B', async () => {
     const deps = createMockJudgeDeps({
-      toolResponse: {
-        name: 'submit_judgement',
-        arguments: {
-          winner: 'B',
-          reasoning: 'Text B is superior',
-          scores: {
-            A: { style: 0.5, compliance: 0.5, overall: 0.5 },
-            B: { style: 0.9, compliance: 0.9, overall: 0.9 },
-          },
+      data: {
+        winner: 'B',
+        reasoning: 'Text B is superior',
+        scores: {
+          A: { style: 0.5, compliance: 0.5, overall: 0.5 },
+          B: { style: 0.9, compliance: 0.9, overall: 0.9 },
         },
       },
     });
@@ -90,15 +85,12 @@ describe('createJudge (FP)', () => {
 
   it('evaluate() should clamp scores to [0.05, 0.95]', async () => {
     const deps = createMockJudgeDeps({
-      toolResponse: {
-        name: 'submit_judgement',
-        arguments: {
-          winner: 'A',
-          reasoning: 'test',
-          scores: {
-            A: { style: 1.0, compliance: 0.0, overall: 0.5 },
-            B: { style: 0.5, compliance: 0.5, overall: 0.5 },
-          },
+      data: {
+        winner: 'A',
+        reasoning: 'test',
+        scores: {
+          A: { style: 1.0, compliance: 0.0, overall: 0.5 },
+          B: { style: 0.5, compliance: 0.5, overall: 0.5 },
         },
       },
     });

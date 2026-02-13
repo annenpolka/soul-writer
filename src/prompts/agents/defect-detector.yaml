@@ -248,6 +248,17 @@ system:
 
     - type: condition
       if:
+        has: judgeReasoning
+      then:
+        - type: heading
+          heading: "参考: 先行品質分析の推論"
+        - type: text
+          text: |
+            以下はJudgeの推論過程です。参考にしつつ、独自の判断で欠陥を検出してください。
+            {{ judgeReasoning }}
+
+    - type: condition
+      if:
         has: judgeAnalysis
       then:
         - type: heading

@@ -166,6 +166,27 @@ describe('buildWriterContext', () => {
 
     expect(ctx).not.toHaveProperty('motifAvoidanceList');
   });
+
+  it('should include previousChapterReasoning when provided', () => {
+    const input = makeInput({ previousChapterReasoning: '前章の推論: キャラクター状態が変化した' });
+    const ctx = buildWriterContext(input);
+
+    expect(ctx.previousChapterReasoning).toBe('前章の推論: キャラクター状態が変化した');
+  });
+
+  it('should not include previousChapterReasoning when null', () => {
+    const input = makeInput({ previousChapterReasoning: null });
+    const ctx = buildWriterContext(input);
+
+    expect(ctx).not.toHaveProperty('previousChapterReasoning');
+  });
+
+  it('should not include previousChapterReasoning when not provided', () => {
+    const input = makeInput();
+    const ctx = buildWriterContext(input);
+
+    expect(ctx).not.toHaveProperty('previousChapterReasoning');
+  });
 });
 
 describe('buildWriterContext tone resolution', () => {

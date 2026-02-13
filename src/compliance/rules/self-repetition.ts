@@ -77,7 +77,7 @@ export class SelfRepetitionRule implements AsyncComplianceRule {
       [REPORT_REPETITIONS_TOOL],
       {
         toolChoice: { type: 'function', function: { name: 'report_repetitions' } },
-        temperature: 0.3,
+        temperature: 1.0,
       },
     );
 

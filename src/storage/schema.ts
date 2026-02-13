@@ -82,6 +82,97 @@ export const judgeScores = sqliteTable('judge_scores', {
   styleScore: real('style_score').notNull(),
   complianceScore: real('compliance_score').notNull(),
   overallScore: real('overall_score').notNull(),
+  // 8-axis scoring (nullable for backward compatibility)
+  voiceAccuracyScore: real('voice_accuracy_score'),
+  originalityScore: real('originality_score'),
+  structureScore: real('structure_score'),
+  amplitudeScore: real('amplitude_score'),
+  agencyScore: real('agency_score'),
+  stakesScore: real('stakes_score'),
+});
+
+/**
+ * Judge session results table - stores full judge analysis per match
+ */
+export const judgeSessionResults = sqliteTable('judge_session_results', {
+  id: text('id').primaryKey(),
+  matchId: text('match_id').references(() => tournamentMatches.id),
+  scoresJson: text('scores_json').notNull(),
+  axisCommentsJson: text('axis_comments_json').notNull(),
+  weaknessesJson: text('weaknesses_json').notNull(),
+  sectionAnalysisJson: text('section_analysis_json').notNull(),
+  praisedExcerptsJson: text('praised_excerpts_json').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
+/**
+ * Chapter evaluations table - stores verdict-level quality assessments
+ */
+export const chapterEvaluations = sqliteTable('chapter_evaluations', {
+  id: text('id').primaryKey(),
+  chapterId: text('chapter_id').references(() => chapters.id),
+  verdictLevel: text('verdict_level').notNull(),
+  defectsJson: text('defects_json').notNull(),
+  criticalCount: integer('critical_count').notNull(),
+  majorCount: integer('major_count').notNull(),
+  minorCount: integer('minor_count').notNull(),
+  feedback: text('feedback').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
+/**
+ * Synthesis plans table - stores synthesis strategy for chapters
+ */
+export const synthesisPlans = sqliteTable('synthesis_plans', {
+  id: text('id').primaryKey(),
+  chapterId: text('chapter_id').references(() => chapters.id),
+  championAssessment: text('champion_assessment').notNull(),
+  preserveElementsJson: text('preserve_elements_json').notNull(),
+  actionsJson: text('actions_json').notNull(),
+  expressionSourcesJson: text('expression_sources_json').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
+/**
+ * Correction history table - tracks correction attempts per chapter
+ */
+export const correctionHistory = sqliteTable('correction_history', {
+  id: text('id').primaryKey(),
+  chapterId: text('chapter_id').references(() => chapters.id),
+  attemptNumber: integer('attempt_number').notNull(),
+  violationsCount: integer('violations_count').notNull(),
+  correctedSuccessfully: integer('corrected_successfully').notNull(), // boolean as 0/1
+  tokensUsed: integer('tokens_used').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
+/**
+ * Cross-chapter states table - tracks narrative state across chapters
+ */
+export const crossChapterStates = sqliteTable('cross_chapter_states', {
+  id: text('id').primaryKey(),
+  workId: text('work_id').references(() => works.id),
+  chapterIndex: integer('chapter_index').notNull(),
+  characterStatesJson: text('character_states_json').notNull(),
+  motifWearJson: text('motif_wear_json').notNull(),
+  variationHint: text('variation_hint').notNull(),
+  chapterSummary: text('chapter_summary').notNull(),
+  dominantTone: text('dominant_tone').notNull(),
+  peakIntensity: real('peak_intensity').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
+/**
+ * Phase metrics table - tracks performance metrics per generation phase
+ */
+export const phaseMetrics = sqliteTable('phase_metrics', {
+  id: text('id').primaryKey(),
+  workId: text('work_id').references(() => works.id),
+  chapterIndex: integer('chapter_index').notNull(),
+  phase: text('phase').notNull(),
+  durationMs: integer('duration_ms').notNull(),
+  tokensUsed: integer('tokens_used').notNull(),
+  createdAt: text('created_at').notNull(),
 });
 
 /**
@@ -184,3 +275,9 @@ export type Checkpoint = typeof checkpoints.$inferSelect;
 export type NewCheckpoint = typeof checkpoints.$inferInsert;
 export type SoulCandidate = typeof soulCandidates.$inferSelect;
 export type NewSoulCandidate = typeof soulCandidates.$inferInsert;
+export type JudgeSessionResult = typeof judgeSessionResults.$inferSelect;
+export type ChapterEvaluation = typeof chapterEvaluations.$inferSelect;
+export type SynthesisPlan = typeof synthesisPlans.$inferSelect;
+export type CorrectionHistoryEntry = typeof correctionHistory.$inferSelect;
+export type CrossChapterState = typeof crossChapterStates.$inferSelect;
+export type PhaseMetric = typeof phaseMetrics.$inferSelect;

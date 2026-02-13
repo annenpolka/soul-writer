@@ -179,6 +179,16 @@ system:
 
     - type: condition
       if:
+        has: previousChapterReasoning
+      then:
+        - type: heading
+          heading: "参考: 前章の状態分析推論"
+        - type: text
+          text: |
+            {{ previousChapterReasoning }}
+
+    - type: condition
+      if:
         has: rawSoultext
       then:
         - type: heading

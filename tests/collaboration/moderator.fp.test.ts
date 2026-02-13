@@ -1,30 +1,23 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createModerator, type ModeratorDeps } from '../../src/collaboration/moderator.js';
 import { createMockSoulText } from '../helpers/mock-soul-text.js';
-import type { LLMClient } from '../../src/llm/types.js';
-import type { CollaborationState, CollaborationAction } from '../../src/collaboration/types.js';
+import type { LLMClient, StructuredResponse, LLMMessage } from '../../src/llm/types.js';
+import type { CollaborationState, CollaborationAction, FacilitationResult } from '../../src/collaboration/types.js';
 
-function createMockLLMForModerator(toolArgsJson: string): LLMClient {
+function createMockLLMForModerator(facilitationData: FacilitationResult): LLMClient {
   let tokens = 0;
   return {
     complete: vi.fn().mockImplementation(() => {
       tokens += 100;
-      return Promise.resolve(toolArgsJson);
+      return Promise.resolve('composed text');
     }),
-    completeWithTools: vi.fn().mockImplementation(() => {
+    completeStructured: vi.fn().mockImplementation(() => {
       tokens += 100;
       return Promise.resolve({
-        toolCalls: [{
-          id: 'tc-1',
-          type: 'function',
-          function: {
-            name: 'submit_facilitation',
-            arguments: toolArgsJson,
-          },
-        }],
-        content: null,
+        data: facilitationData,
+        reasoning: null,
         tokensUsed: 100,
-      });
+      } satisfies StructuredResponse<FacilitationResult>);
     }),
     getTotalTokens: vi.fn().mockImplementation(() => tokens),
   };
@@ -43,13 +36,14 @@ function createEmptyState(overrides?: Partial<CollaborationState>): Collaboratio
 
 function createDeps(overrides?: Partial<ModeratorDeps>): ModeratorDeps {
   return {
-    llmClient: createMockLLMForModerator(JSON.stringify({
+    llmClient: createMockLLMForModerator({
       nextPhase: 'discussion',
       assignments: {},
       summary: 'デフォルト要約',
       shouldTerminate: false,
       consensusScore: 0.3,
-    })),
+      continueRounds: 0,
+    }),
     soulText: createMockSoulText(),
     ...overrides,
   };
@@ -64,15 +58,16 @@ describe('createModerator', () => {
   });
 
   describe('facilitateRound', () => {
-    it('should parse facilitation result from tool call', async () => {
+    it('should parse facilitation result from structured response', async () => {
       const deps = createDeps({
-        llmClient: createMockLLMForModerator(JSON.stringify({
+        llmClient: createMockLLMForModerator({
           nextPhase: 'discussion',
           assignments: { opening: 'writer_1', climax: 'writer_2' },
           summary: 'Writer 1が冒頭を提案。',
           shouldTerminate: false,
           consensusScore: 0.3,
-        })),
+          continueRounds: 0,
+        }),
       });
       const moderator = createModerator(deps);
 
@@ -90,18 +85,19 @@ describe('createModerator', () => {
       expect(result.assignments).toEqual({ opening: 'writer_1', climax: 'writer_2' });
       expect(result.shouldTerminate).toBe(false);
       expect(result.consensusScore).toBe(0.3);
-      expect(deps.llmClient.completeWithTools).toHaveBeenCalledTimes(1);
+      expect(deps.llmClient.completeStructured).toHaveBeenCalledTimes(1);
     });
 
     it('should handle shouldTerminate=true with high consensus', async () => {
       const deps = createDeps({
-        llmClient: createMockLLMForModerator(JSON.stringify({
+        llmClient: createMockLLMForModerator({
           nextPhase: 'review',
           assignments: {},
           summary: '合意形成完了',
           shouldTerminate: true,
           consensusScore: 0.9,
-        })),
+          continueRounds: 0,
+        }),
       });
       const moderator = createModerator(deps);
 
@@ -115,9 +111,13 @@ describe('createModerator', () => {
       expect(result.consensusScore).toBe(0.9);
     });
 
-    it('should fallback on invalid tool arguments', async () => {
+    it('should fallback on completeStructured failure', async () => {
       const deps = createDeps({
-        llmClient: createMockLLMForModerator('not json'),
+        llmClient: {
+          complete: vi.fn().mockResolvedValue(''),
+          completeStructured: vi.fn().mockRejectedValue(new Error('parse error')),
+          getTotalTokens: vi.fn().mockReturnValue(0),
+        },
       });
       const moderator = createModerator(deps);
 
@@ -128,19 +128,15 @@ describe('createModerator', () => {
       expect(result.consensusScore).toBe(0);
     });
 
-    it('should throw when llmClient does not support tool calling', async () => {
-      const deps = createDeps({
-        llmClient: {
-          complete: vi.fn().mockResolvedValue(''),
-          getTotalTokens: vi.fn().mockReturnValue(0),
-          // no completeWithTools
-        },
-      });
+    it('should use temperature 1.0', async () => {
+      const deps = createDeps();
       const moderator = createModerator(deps);
 
-      await expect(
-        moderator.facilitateRound(createEmptyState(), [], []),
-      ).rejects.toThrow('LLMClient does not support tool calling');
+      await moderator.facilitateRound(createEmptyState(), [], []);
+
+      const call = (deps.llmClient.completeStructured as ReturnType<typeof vi.fn>).mock.calls[0];
+      const options = call[2] as { temperature?: number };
+      expect(options.temperature).toBe(1.0);
     });
   });
 
@@ -154,7 +150,7 @@ describe('createModerator', () => {
             tokens += 100;
             return Promise.resolve(responseText);
           }),
-          completeWithTools: vi.fn(),
+          completeStructured: vi.fn(),
           getTotalTokens: vi.fn().mockImplementation(() => tokens),
         },
       });
@@ -178,6 +174,124 @@ describe('createModerator', () => {
 
       expect(result.text).toContain('透心');
       expect(result.tokensUsed).toBeGreaterThan(0);
+      expect(deps.llmClient.complete).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('multi-turn conversation accumulation', () => {
+    function createMultiTurnModeratorDeps(): { deps: ModeratorDeps; messageSnapshots: Array<Array<{ role: string; content: string }>> } {
+      const messageSnapshots: Array<Array<{ role: string; content: string }>> = [];
+      let callCount = 0;
+      let tokens = 0;
+
+      const responses: FacilitationResult[] = [
+        { nextPhase: 'discussion', assignments: { opening: 'writer_1' }, summary: 'Round 1 done', shouldTerminate: false, consensusScore: 0.3, continueRounds: 0 },
+        { nextPhase: 'drafting', assignments: {}, summary: 'Round 2 done', shouldTerminate: false, consensusScore: 0.6, continueRounds: 0 },
+        { nextPhase: 'review', assignments: {}, summary: 'Round 3 done', shouldTerminate: true, consensusScore: 0.9, continueRounds: 0 },
+      ];
+
+      const llmClient: LLMClient = {
+        complete: vi.fn().mockImplementation(() => {
+          tokens += 100;
+          return Promise.resolve('composed text');
+        }),
+        completeStructured: vi.fn().mockImplementation((messages: any) => {
+          messageSnapshots.push([...messages]);
+          const data = responses[callCount] ?? responses[0];
+          callCount++;
+          tokens += 100;
+          return Promise.resolve({
+            data,
+            reasoning: callCount === 1 ? 'facilitation reasoning round 1' : null,
+            tokensUsed: 100,
+          } satisfies StructuredResponse<FacilitationResult>);
+        }),
+        getTotalTokens: vi.fn().mockImplementation(() => tokens),
+      };
+
+      return {
+        deps: { llmClient, soulText: createMockSoulText() },
+        messageSnapshots,
+      };
+    }
+
+    const sampleActions: CollaborationAction[] = [
+      { type: 'proposal', writerId: 'writer_1', content: 'テスト提案' },
+    ];
+    const sampleWriters = [{ id: 'writer_1', name: '語り手' }];
+
+    it('should accumulate messages across multiple facilitateRound() calls', async () => {
+      const { deps, messageSnapshots } = createMultiTurnModeratorDeps();
+      const moderator = createModerator(deps);
+
+      // Round 1
+      await moderator.facilitateRound(createEmptyState(), sampleActions, sampleWriters);
+      // Round 2
+      await moderator.facilitateRound(
+        createEmptyState({ currentPhase: 'discussion' }),
+        sampleActions,
+        sampleWriters,
+      );
+
+      // First call: system + user = 2 messages
+      expect(messageSnapshots[0]).toHaveLength(2);
+      expect(messageSnapshots[0][0].role).toBe('system');
+      expect(messageSnapshots[0][1].role).toBe('user');
+
+      // Second call: system + user + assistant + user = 4 messages
+      expect(messageSnapshots[1]).toHaveLength(4);
+      expect(messageSnapshots[1][0].role).toBe('system');
+      expect(messageSnapshots[1][1].role).toBe('user');
+      expect(messageSnapshots[1][2].role).toBe('assistant');
+      expect(messageSnapshots[1][3].role).toBe('user');
+    });
+
+    it('should include reasoning from prior round in assistant message', async () => {
+      const { deps, messageSnapshots } = createMultiTurnModeratorDeps();
+      const moderator = createModerator(deps);
+
+      // Round 1 (returns reasoning: 'facilitation reasoning round 1')
+      await moderator.facilitateRound(createEmptyState(), sampleActions, sampleWriters);
+      // Round 2
+      await moderator.facilitateRound(
+        createEmptyState({ currentPhase: 'discussion' }),
+        sampleActions,
+        sampleWriters,
+      );
+
+      const assistantMsg = messageSnapshots[1][2] as any;
+      expect(assistantMsg.role).toBe('assistant');
+      expect(assistantMsg.reasoning).toBe('facilitation reasoning round 1');
+    });
+
+    it('should accumulate 3 rounds correctly (6 messages on 3rd call)', async () => {
+      const { deps, messageSnapshots } = createMultiTurnModeratorDeps();
+      const moderator = createModerator(deps);
+
+      await moderator.facilitateRound(createEmptyState(), sampleActions, sampleWriters);
+      await moderator.facilitateRound(createEmptyState({ currentPhase: 'discussion' }), sampleActions, sampleWriters);
+      await moderator.facilitateRound(createEmptyState({ currentPhase: 'drafting' }), sampleActions, sampleWriters);
+
+      // 3rd call: system + user + assistant + user + assistant + user = 6
+      expect(messageSnapshots[2]).toHaveLength(6);
+      expect(messageSnapshots[2][4].role).toBe('assistant');
+      expect(messageSnapshots[2][5].role).toBe('user');
+    });
+
+    it('composeFinal should NOT share conversation state with facilitateRound (separate conversation)', async () => {
+      const { deps } = createMultiTurnModeratorDeps();
+      const moderator = createModerator(deps);
+
+      // Do one facilitation round
+      await moderator.facilitateRound(createEmptyState(), sampleActions, sampleWriters);
+
+      // composeFinal should use fresh conversation, not accumulated messages
+      await moderator.composeFinal(
+        { opening: 'テスト草稿' },
+        [],
+      );
+
+      // complete() should have been called (not completeStructured), confirming separate conversation
       expect(deps.llmClient.complete).toHaveBeenCalledTimes(1);
     });
   });
