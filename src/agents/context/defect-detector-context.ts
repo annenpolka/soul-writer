@@ -26,6 +26,7 @@ const DEFECT_CATEGORIES = [
   { name: 'plot_contradiction', description: 'プロットの論理的矛盾、因果関係の破綻' },
   { name: 'pacing_issue', description: 'テンポの不均衡、冗長または唐突な展開' },
   { name: 'motif_fatigue', description: 'モチーフ・比喩の過度な繰り返し' },
+  { name: 'motif_overuse', description: '身体的モチーフの過剰使用（3回ルール違反）。同一身体動作・感覚描写の作品内での過度な反復' },
   { name: 'style_deviation', description: '文体の逸脱、リズム・トーンの不整合' },
   { name: 'worldbuilding_error', description: '世界観設定との矛盾、用語の誤用' },
   { name: 'emotional_flatness', description: '感情表現の平板化、心理描写の浅さ' },

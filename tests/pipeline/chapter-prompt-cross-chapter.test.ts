@@ -87,43 +87,38 @@ describe('buildChapterPrompt — cross-chapter state', () => {
     expect(result).not.toContain('関係変化:');
   });
 
-  it('should show motif wear warnings for worn and exhausted motifs only', () => {
+  it('should show all motif wear entries with 3-time budget', () => {
     const crossChapterState: CrossChapterState = {
       characterStates: [],
       motifWear: [
         { motif: 'ARタグ', usageCount: 1, lastUsedChapter: 1, wearLevel: 'fresh' },
         { motif: 'ノイズ', usageCount: 2, lastUsedChapter: 2, wearLevel: 'used' },
-        { motif: '空白', usageCount: 4, lastUsedChapter: 3, wearLevel: 'worn' },
-        { motif: '殺意', usageCount: 8, lastUsedChapter: 4, wearLevel: 'exhausted' },
+        { motif: '空白', usageCount: 3, lastUsedChapter: 3, wearLevel: 'used' },
+        { motif: '殺意', usageCount: 5, lastUsedChapter: 4, wearLevel: 'worn' },
       ],
       variationHint: null,
       chapterSummaries: [],
     };
 
     const result = buildChapterPrompt(makeMinimalInput({ crossChapterState }));
-    expect(result).toContain('## モチーフ摩耗警告');
-    // fresh and used should NOT appear in warnings
-    expect(result).not.toContain('ARタグ');
-    expect(result).not.toContain('ノイズ');
-    // worn should appear
-    expect(result).toContain('空白 [worn: 4回使用] → 感覚の一部を欠落させること');
-    // exhausted should appear
-    expect(result).toContain('殺意 [exhausted: 8回使用] → 単語レベルに記号化すること');
+    expect(result).toContain('## モチーフ使用状況（3回ルール）');
+    // All motifs should appear with budget info
+    expect(result).toContain('ARタグ: 1回使用済み → 残り2回');
+    expect(result).toContain('ノイズ: 2回使用済み → 残り1回（クライマックス専用）');
+    expect(result).toContain('空白: 3回使用済み → ★使用禁止（別のモチーフに切り替えよ）★');
+    expect(result).toContain('殺意: 5回使用済み → ★使用禁止（別のモチーフに切り替えよ）★');
   });
 
-  it('should not show motif wear section when no worn/exhausted motifs', () => {
+  it('should not show motif section when motifWear is empty', () => {
     const crossChapterState: CrossChapterState = {
       characterStates: [],
-      motifWear: [
-        { motif: 'ARタグ', usageCount: 1, lastUsedChapter: 1, wearLevel: 'fresh' },
-        { motif: 'ノイズ', usageCount: 2, lastUsedChapter: 2, wearLevel: 'used' },
-      ],
+      motifWear: [],
       variationHint: null,
       chapterSummaries: [],
     };
 
     const result = buildChapterPrompt(makeMinimalInput({ crossChapterState }));
-    expect(result).not.toContain('モチーフ摩耗警告');
+    expect(result).not.toContain('モチーフ使用状況');
   });
 });
 
