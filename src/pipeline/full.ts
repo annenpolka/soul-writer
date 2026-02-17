@@ -491,6 +491,8 @@ export function createFullPipeline(deps: FullPipelineDeps): FullPipelineRunner {
         chapterContext: chapterCtx,
         plotChapter,
         detectorReasoning: defectResult.llmReasoning,
+        retakeIteration: retakeCount,
+        previousDefectSummary: retakeCount > 0 ? defectResult.feedback : undefined,
       });
       const retakeResult = await retakeAgent.retake(finalText, feedback, defectResult.defects);
       finalText = retakeResult.retakenText;

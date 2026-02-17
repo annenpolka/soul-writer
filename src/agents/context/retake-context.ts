@@ -10,13 +10,17 @@ export interface RetakeSystemPromptInput {
   defectCategories?: string[];
   /** LLM reasoning from DefectDetector — reference context for retake */
   detectorReasoning?: string | null;
+  /** 0-indexed retake iteration (0 = first retake, 1 = second retake) */
+  retakeIteration?: number;
+  /** Summary of defects from previous retake attempt */
+  previousDefectSummary?: string;
 }
 
 /**
  * Pure function: build the system prompt for retake.
  */
 export function buildRetakeSystemPrompt(input: RetakeSystemPromptInput): string {
-  const { soulText, narrativeRules, themeContext, defectCategories, detectorReasoning } = input;
+  const { soulText, narrativeRules, themeContext, defectCategories, detectorReasoning, retakeIteration, previousDefectSummary } = input;
   const constitution = soulText.constitution;
   const parts: string[] = [];
 
@@ -66,6 +70,19 @@ export function buildRetakeSystemPrompt(input: RetakeSystemPromptInput): string 
     parts.push('- 反復を別表現に差し替えるのではなく、不要な反復は純粋に削除せよ');
     parts.push('- 一段落に詰め込む感覚モダリティは1-2種まで');
     parts.push('- テーマを語り手に直接言語化させず、行為と構造で伝えよ');
+    parts.push('');
+  }
+
+  // Re-retake iteration context
+  if (retakeIteration !== undefined && retakeIteration > 0) {
+    parts.push('## ⚠ これは再リテイクです');
+    parts.push(`前回のリテイク（${retakeIteration}回目）でも以下の問題が改善されませんでした。`);
+    parts.push('今回は特にこれらの問題に集中して修正してください。');
+    if (previousDefectSummary) {
+      parts.push(previousDefectSummary);
+    }
+    parts.push('');
+    parts.push('重要: 前回のリテイクで新たに導入された問題がある場合、該当箇所を元に戻すか別の方法で修正してください。');
     parts.push('');
   }
 

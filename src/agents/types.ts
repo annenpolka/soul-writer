@@ -609,6 +609,10 @@ export interface RetakeDeps extends AgentDeps {
   plotChapter?: { summary: string; keyEvents: string[]; decisionPoint?: { action: string; stakes: string; irreversibility: string } };
   /** LLM reasoning from DefectDetector — reference context for retake */
   detectorReasoning?: string | null;
+  /** 0-indexed retake iteration (0 = first retake, 1 = second retake) */
+  retakeIteration?: number;
+  /** Summary of defects from previous retake attempt */
+  previousDefectSummary?: string;
 }
 
 /**

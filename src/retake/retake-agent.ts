@@ -28,6 +28,8 @@ export function createRetakeAgent(deps: RetakeDeps): Retaker {
         themeContext,
         defectCategories,
         detectorReasoning: deps.detectorReasoning,
+        retakeIteration: deps.retakeIteration,
+        previousDefectSummary: deps.previousDefectSummary,
       });
 
       const userPrompt = buildRetakeUserPrompt({
