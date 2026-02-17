@@ -24,7 +24,7 @@ export function createPlotter(deps: PlotterDeps): Plotter {
 
   return {
     generatePlot: async (): Promise<Plot> => {
-      // Phase 1: Generate plot skeleton
+      // Phase 1: Generate plot skeleton (with chapter count validation + retry)
       const skeletonContext = buildPlotterContext({ soulText, config });
       const { system: skeletonSystem, user: skeletonUser } = buildPrompt('plotter', skeletonContext);
 
@@ -33,13 +33,32 @@ export function createPlotter(deps: PlotterDeps): Plotter {
         { role: 'user', content: skeletonUser },
       ];
 
-      const skeletonResponse = await llmClient.completeStructured!(
+      const MAX_PLOTTER_RETRIES = 2;
+      let skeletonResponse = await llmClient.completeStructured!(
         phase1Messages,
         PlotSkeletonSchema,
         { temperature: 1.0 },
       );
+      let skeleton = parsePlotSkeletonResponse(skeletonResponse);
 
-      const skeleton = parsePlotSkeletonResponse(skeletonResponse);
+      for (let attempt = 0; attempt < MAX_PLOTTER_RETRIES && skeleton.chapters.length < config.chapterCount; attempt++) {
+        console.warn(
+          `[plotter] Chapter count mismatch: expected ${config.chapterCount}, got ${skeleton.chapters.length}. Retrying (${attempt + 1}/${MAX_PLOTTER_RETRIES})...`
+        );
+
+        skeletonResponse = await llmClient.completeStructured!(
+          phase1Messages,
+          PlotSkeletonSchema,
+          { temperature: 1.0 },
+        );
+        skeleton = parsePlotSkeletonResponse(skeletonResponse);
+      }
+
+      if (skeleton.chapters.length < config.chapterCount) {
+        console.warn(
+          `[plotter] Chapter count mismatch after ${MAX_PLOTTER_RETRIES} retries: expected ${config.chapterCount}, got ${skeleton.chapters.length}. Proceeding with ${skeleton.chapters.length} chapters.`
+        );
+      }
 
       // Phase 2: Generate chapter constraints (multi-turn conversation continuation)
       const constraintContext = buildChapterConstraintContext({ skeleton, config });
