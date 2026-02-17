@@ -55,6 +55,20 @@ export function buildRetakeSystemPrompt(input: RetakeSystemPromptInput): string 
     parts.push('');
   }
 
+  // Density-excess guidance when density-related defects detected
+  const densityCategories = ['motif_overuse', 'sensory_flooding', 'chapter_redundancy', 'thematic_over_verbalization', 'motif_fatigue', 'motif_exhaustion'];
+  if (defectCategories?.some(c => densityCategories.includes(c))) {
+    parts.push('## 密度制御（この修正で特に重要）');
+    parts.push('このリテイクでは「削除」と「圧縮」を優先すること。');
+    parts.push('- 新しい描写・モチーフ・比喩を追加してはならない');
+    parts.push('- 読者は前のページの内容を記憶している前提で書くこと');
+    parts.push('- 一度提示した情報を再度提示する必要はない');
+    parts.push('- 反復を別表現に差し替えるのではなく、不要な反復は純粋に削除せよ');
+    parts.push('- 一段落に詰め込む感覚モダリティは1-2種まで');
+    parts.push('- テーマを語り手に直接言語化させず、行為と構造で伝えよ');
+    parts.push('');
+  }
+
   if (themeContext) {
     parts.push('## テーマ・トーン');
     parts.push(`- 感情: ${themeContext.emotion}`);
@@ -183,6 +197,10 @@ function getRelevantAntiSoulPatterns(
     agency_absence: ['passive_narrative'],
     forbidden_pattern: ['structural_monotony', 'ar_reality_cliche'],
     motif_fatigue: ['structural_monotony'],
+    motif_overuse: ['structural_monotony'],
+    sensory_flooding: ['structural_monotony'],
+    chapter_redundancy: ['structural_monotony'],
+    thematic_over_verbalization: ['generic_literary'],
     emotional_flatness: ['passive_narrative'],
     style_deviation: ['generic_literary'],
   };
@@ -221,6 +239,10 @@ function getRelevantFragments(
     agency_absence: ['action', 'killing', 'dialogue'],
     emotional_flatness: ['dialogue', 'killing', 'introspection'],
     motif_fatigue: ['opening', 'world_building', 'symbolism'],
+    motif_overuse: ['opening', 'world_building', 'symbolism'],
+    sensory_flooding: ['opening', 'world_building'],
+    chapter_redundancy: ['opening', 'world_building'],
+    thematic_over_verbalization: ['introspection', 'character_voice'],
     style_deviation: ['introspection', 'character_voice'],
     pacing_issue: ['opening', 'dialogue'],
   };
