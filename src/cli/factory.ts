@@ -32,6 +32,7 @@ export interface FactoryOptions {
   verbose?: boolean;
   mode?: string;
   includeRawSoultext?: boolean;
+  excludeLearned?: boolean;
 }
 
 export async function factory(options: FactoryOptions): Promise<void> {
@@ -94,7 +95,9 @@ export async function factory(options: FactoryOptions): Promise<void> {
 
   // 3. Load soul text
   console.log(`Loading soul text from "${config.soulPath}"...`);
-  const soulManager = await loadSoulTextManager(config.soulPath);
+  const soulManager = await loadSoulTextManager(config.soulPath, {
+    includeLearned: !options.excludeLearned,
+  });
   if (!options.includeRawSoultext) {
     soulManager.clearRawSoultext();
   }

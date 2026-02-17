@@ -1,5 +1,9 @@
 import type { SoulExpanderFn } from '../learning/soul-expander.js';
 import type { SoulCandidate } from '../storage/soul-candidate-repository.js';
+import type {
+  FragmentIntegratorFn,
+  IntegrateOneResult,
+} from '../learning/fragment-integrator.js';
 
 export interface ReviewStats {
   pending: number;
@@ -8,18 +12,32 @@ export interface ReviewStats {
   total: number;
 }
 
+export interface ReviewResult extends SoulCandidate {
+  integrationResult?: IntegrateOneResult;
+}
+
+export interface CLIReviewOptions {
+  integrator?: FragmentIntegratorFn;
+  soulDir?: string;
+}
+
 // =====================
 // FP API
 // =====================
 
 export interface CLIReviewFn {
   getPendingCandidates: (soulId: string) => Promise<SoulCandidate[]>;
-  reviewCandidate: (candidateId: string, decision: 'approve' | 'reject', notes?: string) => Promise<SoulCandidate | undefined>;
+  reviewCandidate: (candidateId: string, decision: 'approve' | 'reject', notes?: string) => Promise<ReviewResult | undefined>;
   formatCandidateForDisplay: (candidate: SoulCandidate) => string;
   getReviewStats: (soulId: string) => Promise<ReviewStats>;
 }
 
-export function createCLIReview(expander: SoulExpanderFn): CLIReviewFn {
+export function createCLIReview(
+  expander: SoulExpanderFn,
+  options?: CLIReviewOptions
+): CLIReviewFn {
+  const { integrator, soulDir } = options ?? {};
+
   return {
     getPendingCandidates: async (soulId) => {
       return expander.getPendingCandidates(soulId);
@@ -27,9 +45,18 @@ export function createCLIReview(expander: SoulExpanderFn): CLIReviewFn {
 
     reviewCandidate: async (candidateId, decision, notes?) => {
       if (decision === 'approve') {
-        return expander.approveCandidate(candidateId, notes);
+        const candidate = await expander.approveCandidate(candidateId, notes);
+        if (!candidate) return undefined;
+
+        let integrationResult: IntegrateOneResult | undefined;
+        if (integrator && soulDir) {
+          integrationResult = await integrator.integrateOne(candidate, soulDir);
+        }
+
+        return { ...candidate, integrationResult };
       } else {
-        return expander.rejectCandidate(candidateId, notes);
+        const candidate = await expander.rejectCandidate(candidateId, notes);
+        return candidate ? { ...candidate } : undefined;
       }
     },
 

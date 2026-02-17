@@ -20,10 +20,18 @@ export interface SoulTextLoadResult extends SoulText {
   collabPersonas: WriterPersona[];
 }
 
+export interface LoadOptions {
+  includeLearned?: boolean;
+}
+
 /**
  * Load soul text from a directory (pure I/O function).
  */
-export async function loadSoulText(soulDir: string): Promise<SoulTextLoadResult> {
+export async function loadSoulText(
+  soulDir: string,
+  options?: LoadOptions
+): Promise<SoulTextLoadResult> {
+  const { includeLearned = true } = options ?? {};
   if (!existsSync(soulDir)) {
     throw new Error(`Soul directory not found: ${soulDir}`);
   }
@@ -60,6 +68,26 @@ export async function loadSoulText(soulDir: string): Promise<SoulTextLoadResult>
       const fragmentJson = JSON.parse(readFileSync(fragmentPath, 'utf-8'));
       const collection = FragmentCollectionSchema.parse(fragmentJson);
       fragments.set(collection.category, collection.fragments);
+    }
+
+    // Load learned fragments
+    if (includeLearned) {
+      const learnedDir = join(fragmentsDir, 'learned');
+      if (existsSync(learnedDir)) {
+        const learnedFiles = readdirSync(learnedDir).filter((f) =>
+          f.endsWith('.json')
+        );
+        for (const file of learnedFiles) {
+          const filePath = join(learnedDir, file);
+          const json = JSON.parse(readFileSync(filePath, 'utf-8'));
+          const collection = FragmentCollectionSchema.parse(json);
+          const existing = fragments.get(collection.category) ?? [];
+          fragments.set(collection.category, [
+            ...existing,
+            ...collection.fragments,
+          ]);
+        }
+      }
     }
   }
 
