@@ -3,6 +3,7 @@ import { loadSoulTextManager } from '../soul/manager.js';
 import { DatabaseConnection } from '../storage/database.js';
 import { createSoulCandidateRepo } from '../storage/soul-candidate-repository.js';
 import { createSoulExpander } from '../learning/soul-expander.js';
+import { createFragmentIntegrator } from '../learning/fragment-integrator.js';
 import * as readline from 'readline';
 
 dotenv.config();
@@ -48,9 +49,10 @@ export async function review(options: ReviewOptions): Promise<void> {
   db.runMigrations();
   console.log(`✓ Database ready\n`);
 
-  // Create repository and expander
+  // Create repository, expander, and integrator
   const candidateRepo = createSoulCandidateRepo(db.getSqlite());
   const expander = createSoulExpander(candidateRepo);
+  const integrator = createFragmentIntegrator();
 
   // Get counts
   const counts = await expander.getCountsByStatus(soulId);
@@ -99,7 +101,12 @@ export async function review(options: ReviewOptions): Promise<void> {
       case 'approve': {
         const notes = await askQuestion(rl, 'Notes (optional, press Enter to skip): ');
         await expander.approveCandidate(candidate.id, notes || undefined);
-        console.log('✓ Approved\n');
+        const intResult = await integrator.integrateOne(candidate, soul);
+        if (intResult.success) {
+          console.log(`✓ Approved → ${intResult.category}/${intResult.fragmentId} に統合\n`);
+        } else {
+          console.log(`✓ Approved (統合スキップ: ${intResult.error})\n`);
+        }
         approved++;
         reviewed++;
         break;

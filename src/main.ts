@@ -27,6 +27,7 @@ generate Options:
   --soul         Path to soul text directory (default: "soul")
   --db           Path to SQLite database (default: "soul-writer.db")
   --include-raw-soultext  Include raw soultext.md in writer prompts (default: off)
+  --exclude-learned       Exclude learned fragments from generation (default: off)
 
 resume Options:
   --task-id   Task ID to resume (required)
@@ -42,6 +43,7 @@ factory Options:
   --task-delay          Delay ms between tasks per worker (default: 1000)
   --mode                Generation mode: "tournament" (default) or "collaboration"
   --include-raw-soultext  Include raw soultext.md in writer prompts (default: off)
+  --exclude-learned       Exclude learned fragments from generation (default: off)
   --resume              Resume interrupted batch generation
 
 Examples:
@@ -115,6 +117,7 @@ async function main(): Promise<void> {
       const verbose = options.verbose === 'true';
       const mode = options.mode as 'tournament' | 'collaboration' | undefined;
       const includeRawSoultext = options['include-raw-soultext'] === 'true';
+      const excludeLearned = options['exclude-learned'] === 'true';
 
       if (!prompt && !autoTheme) {
         console.error('Error: --prompt or --auto-theme is required');
@@ -122,7 +125,7 @@ async function main(): Promise<void> {
         process.exit(1);
       }
 
-      await generate({ soul, prompt, autoTheme, chapters, dbPath, simple, verbose, mode, includeRawSoultext });
+      await generate({ soul, prompt, autoTheme, chapters, dbPath, simple, verbose, mode, includeRawSoultext, excludeLearned });
       break;
     }
 
@@ -166,6 +169,7 @@ async function main(): Promise<void> {
         dbPath: options.db,
         taskDelayMs: options['task-delay'] ? parseInt(options['task-delay'], 10) : undefined,
         mode: options.mode,
+        excludeLearned: options['exclude-learned'] === 'true',
       });
       break;
     }

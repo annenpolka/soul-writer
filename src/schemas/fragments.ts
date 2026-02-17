@@ -13,11 +13,15 @@ export const FragmentCategory = z.enum([
   'generated_dialogue',
 ]);
 
+// Fragment origin
+export const FragmentOrigin = z.enum(['original', 'learned']);
+
 // Single fragment
 export const FragmentSchema = z.object({
   id: z.string(),
   text: z.string(),
   source: z.string().optional(),
+  origin: FragmentOrigin.optional().default('original'),
   tags: z.array(z.string()),
   added_at: z.string(),
 });
@@ -29,5 +33,6 @@ export const FragmentCollectionSchema = z.object({
 });
 
 export type FragmentCategoryType = z.infer<typeof FragmentCategory>;
+export type FragmentOriginType = z.infer<typeof FragmentOrigin>;
 export type Fragment = z.infer<typeof FragmentSchema>;
 export type FragmentCollection = z.infer<typeof FragmentCollectionSchema>;

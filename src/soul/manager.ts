@@ -7,9 +7,10 @@ import type {
   PromptConfig,
   WriterPersona,
 } from '../schemas/index.js';
-import { loadSoulText, type SoulTextLoadResult } from './loader.js';
+import { loadSoulText, type SoulTextLoadResult, type LoadOptions } from './loader.js';
 
 export { loadSoulText } from './loader.js';
+export type { LoadOptions } from './loader.js';
 
 /**
  * Complete soul text structure
@@ -158,8 +159,11 @@ export function createSoulTextManager(data: SoulTextLoadResult): SoulTextManager
 /**
  * Load soul text from a directory and create a manager.
  */
-export async function loadSoulTextManager(soulDir: string): Promise<SoulTextManagerFn> {
-  const data = await loadSoulText(soulDir);
+export async function loadSoulTextManager(
+  soulDir: string,
+  options?: LoadOptions
+): Promise<SoulTextManagerFn> {
+  const data = await loadSoulText(soulDir, options);
   return createSoulTextManager(data);
 }
 

@@ -34,6 +34,7 @@ export interface GenerateOptions {
   verbose?: boolean;
   mode?: 'tournament' | 'collaboration';
   includeRawSoultext?: boolean;
+  excludeLearned?: boolean;
 }
 
 export async function generate(options: GenerateOptions): Promise<void> {
@@ -47,6 +48,7 @@ export async function generate(options: GenerateOptions): Promise<void> {
     verbose = false,
     mode,
     includeRawSoultext = false,
+    excludeLearned = false,
   } = options;
 
   const logger = createLogger({
@@ -65,7 +67,9 @@ export async function generate(options: GenerateOptions): Promise<void> {
 
   // Load soul text
   console.log(`Loading soul text from "${soul}"...`);
-  const soulManager = await loadSoulTextManager(soul);
+  const soulManager = await loadSoulTextManager(soul, {
+    includeLearned: !excludeLearned,
+  });
   if (!includeRawSoultext) {
     soulManager.clearRawSoultext();
   }
