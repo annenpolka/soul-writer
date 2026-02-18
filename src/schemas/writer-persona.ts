@@ -6,6 +6,8 @@ export const WriterPersonaSchema = z.object({
   name: z.string(),
   directive: z.string().optional(),
   focusCategories: z.array(z.string()).optional(),
+  /** Aesthetic stance: how this persona interprets the aesthetic creed */
+  aestheticStance: z.string().optional(),
 });
 
 // Collection of writer personas

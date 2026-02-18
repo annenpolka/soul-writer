@@ -6,7 +6,7 @@ import { loadSoulText, createSoulTextManager } from '../src/soul/manager.js';
 import type { SoulTextManagerFn } from '../src/soul/manager.js';
 
 describe('WS2: Writer prompt - 動作の美学', () => {
-  it('should include 動作の美学 section in rendered writer template', () => {
+  it('should include 不可逆の信条 section in rendered writer template', () => {
     // Build the writer prompt with minimal context
     const result = buildPrompt('writer', {
       criticalRules: 'test rules',
@@ -15,8 +15,7 @@ describe('WS2: Writer prompt - 動作の美学', () => {
       prompt: 'test prompt',
     });
 
-    expect(result.system).toContain('動作の美学');
-    expect(result.system).toContain('Action Aesthetics');
+    expect(result.system).toContain('不可逆の信条');
   });
 
   it('should include action aesthetics principles in rendered output', () => {
@@ -27,11 +26,11 @@ describe('WS2: Writer prompt - 動作の美学', () => {
       prompt: 'test prompt',
     });
 
-    expect(result.system).toContain('不可逆性');
+    expect(result.system).toContain('不可逆に変える');
     expect(result.system).toContain('身体感覚');
   });
 
-  it('should place 動作の美学 after 引き算の美学', () => {
+  it('should place 不可逆の信条 after 引き算の信条', () => {
     const result = buildPrompt('writer', {
       criticalRules: 'test rules',
       constitution: {},
@@ -39,8 +38,8 @@ describe('WS2: Writer prompt - 動作の美学', () => {
       prompt: 'test prompt',
     });
 
-    const subtractionIndex = result.system.indexOf('引き算の美学');
-    const actionIndex = result.system.indexOf('動作の美学');
+    const subtractionIndex = result.system.indexOf('引き算の信条');
+    const actionIndex = result.system.indexOf('不可逆の信条');
 
     expect(subtractionIndex).toBeGreaterThan(-1);
     expect(actionIndex).toBeGreaterThan(-1);
