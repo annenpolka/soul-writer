@@ -202,6 +202,15 @@
         "added_at": "2026-02-08T00:00:00Z"
       }
     ],
+    "resolution_formula": [
+      {
+        "id": "anti-resolution-001",
+        "text": "その冷たさだけが、二人を隔てる沈黙を埋める唯一の架け橋だった。",
+        "reason": "「○○だけが、唯一の△△だった」構文。感覚描写の総括として多用されるが、読者が自分で到達すべき結論を語り手が代弁してしまう。body descriptionの直後にこの構文が来ると、描写の効果を打ち消す。",
+        "source": "pattern_analysis",
+        "added_at": "2026-02-18"
+      }
+    ],
     "symbolic_explanation": [
       {
         "id": "anti-symbolic-001",
