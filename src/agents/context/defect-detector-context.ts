@@ -41,6 +41,9 @@ const DEFECT_CATEGORIES = [
   { name: 'dynamics_unused', description: 'キャラクターの人格力学（渇望・充足行動）が文章に反映されていない' },
   { name: 'craving_explicit', description: '渇望や内面の傷が地の文で直接説明されている（show don\'t tell違反）' },
   { name: 'fulfillment_cliche', description: '歪んだ充足行動がテンプレ的（渇望から直線的に導かれる予測可能な行動）' },
+  { name: 'sensory_flooding', description: '短い範囲（200文字以内）に3種以上の異なる感覚モダリティが集中。3種でminor、4種以上でmajor' },
+  { name: 'chapter_redundancy', description: '異なる章で同一イベント・導入部が新情報の追加なしに再叙述。新情報比率30%未満でcritical、50%未満でmajor' },
+  { name: 'thematic_over_verbalization', description: '構造が既にテーマを伝えているのに語り手がテーマを直接言語化・自問自答。同一テーマの直接言語化2回以上でmajor' },
 ];
 
 /**
