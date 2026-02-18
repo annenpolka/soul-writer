@@ -2,23 +2,27 @@
   "personas": [
     {
       "id": "writer_1",
-      "name": "balanced",
-      "focusCategories": ["opening", "introspection"]
+      "name": "orthodox",
+      "focusCategories": ["opening", "introspection"],
+      "aestheticStance": "正統派: 美学的信条を忠実に体現する。引き算を最大限に尊重し、感情の名指しを徹底的に排除する。沈黙が語ることを信じ、読者の想像力に委ねる。"
     },
     {
       "id": "writer_2",
-      "name": "creative",
-      "focusCategories": ["dialogue", "character_voice"]
+      "name": "experimental",
+      "focusCategories": ["dialogue", "character_voice"],
+      "aestheticStance": "実験派: 美学的信条を基盤としながら、意図的に一箇所だけ信条を破る。一箇所の逸脱が全体の信条を際立たせるための戦略的破壊。どの信条を破るかを選び、その破壊が物語に何をもたらすかを意識する。"
     },
     {
       "id": "writer_3",
-      "name": "conservative",
-      "focusCategories": ["killing", "symbolism"]
+      "name": "ascetic",
+      "focusCategories": ["killing", "symbolism"],
+      "aestheticStance": "禁欲派: 美学的信条を極端に推し進める。最小限の言葉で最大限の効果を狙う。一文に一つの感覚、一段落に一つの行動。装飾を極限まで削ぎ落とし、骨格だけで物語を立てる。"
     },
     {
       "id": "writer_4",
-      "name": "moderate",
-      "focusCategories": ["world_building", "introspection"]
+      "name": "empathic",
+      "focusCategories": ["world_building", "introspection"],
+      "aestheticStance": "共感派: 美学的信条を尊重しつつも、キャラクターの声が信条より優先される瞬間を認める。感情の名指しを避けるが、キャラクターが内的に崩壊する瞬間だけは、身体描写だけでは捉えきれない生の声を許容する。"
     }
   ]
 }

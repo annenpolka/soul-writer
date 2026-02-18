@@ -15,6 +15,16 @@ export const DEFAULT_TEMPERATURE_SLOTS: TemperatureSlot[] = [
 ];
 
 /**
+ * Build personaDirective by merging directive and aestheticStance.
+ */
+function buildPersonaDirective(persona: WriterPersona): string | undefined {
+  const parts: string[] = [];
+  if (persona.directive) parts.push(persona.directive);
+  if (persona.aestheticStance) parts.push(`\n【美学的態度】\n${persona.aestheticStance}`);
+  return parts.length > 0 ? parts.join('\n') : undefined;
+}
+
+/**
  * Randomly select personas from pool and assign temperature slots with guaranteed dispersion.
  */
 export function selectTournamentWriters(
@@ -42,7 +52,7 @@ export function selectTournamentWriters(
       topP: parseFloat(topP.toFixed(2)),
       style: 'balanced' as const,
       focusCategories: persona.focusCategories,
-      personaDirective: persona.directive,
+      personaDirective: buildPersonaDirective(persona),
       personaName: persona.name,
     };
   });
