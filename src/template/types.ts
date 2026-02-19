@@ -1,5 +1,7 @@
 // Template engine type definitions
 
+export type TemplateKind = 'agent' | 'section' | 'pipeline';
+
 // --- Conditions ---
 
 export interface HasCondition {
@@ -76,27 +78,50 @@ export interface SchemaSection {
   label?: string;
 }
 
+export interface LetSection {
+  type: 'let';
+  let: Record<string, unknown>;
+  sections: Section[];
+}
+
+export interface SwitchCase {
+  when: unknown;
+  then: Section[];
+}
+
+export interface SwitchSection {
+  type: 'switch';
+  switch: string;
+  cases: SwitchCase[];
+  default?: Section[];
+}
+
 export type Section =
   | TextSection
   | HeadingSection
   | IncludeSection
   | EachSection
   | ConditionSection
-  | SchemaSection;
+  | SchemaSection
+  | LetSection
+  | SwitchSection;
 
 // --- Document ---
 
+export interface TemplateBlock {
+  sections: Section[];
+}
+
 export interface TemplateDocument {
   meta: {
-    agent: string;
+    agent?: string;
+    name?: string;
     version: number;
   };
-  system: {
-    sections: Section[];
-  };
-  user: {
-    sections: Section[];
-  };
+  system?: TemplateBlock;
+  user?: TemplateBlock;
+  blocks?: Record<string, TemplateBlock>;
+  templates?: Record<string, string>;
 }
 
 // --- Context ---

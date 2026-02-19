@@ -1,0 +1,111 @@
+meta:
+  name: chapter-generation
+  version: 1
+
+templates:
+  title: "# {{ plot.title }}"
+  theme: "テーマ: {{ plot.theme }}"
+  toneDirective: "文体トーン: {{ toneDirective }}"
+
+  narrativeHeading: "## ナラティブ"
+  narrativeType: "- 型: {{ narrativeType }}"
+  narrativePovDescription: "- {{ narrativeRules.povDescription }}"
+
+  developedCharactersHeading: "## 登場人物"
+  developedCharacterLine: "- {{ character.name }}{{ characterTag }}: {{ character.role }}"
+  developedCharacterBackground: "  背景: {{ character.description }}"
+  developedCharacterVoice: "  口調: {{ character.voice }}"
+
+  enrichedCharactersHeading: "## キャラクターの身体性と態度"
+  enrichedCharacterHeading: "### {{ character.name }}"
+  enrichedCharacterPhysicalHabitsLabel: "身体の癖:"
+  enrichedCharacterPhysicalHabitLine: "  - {{ habit.habit }}（{{ habit.trigger }}、{{ habit.sensoryDetail }}）"
+  enrichedCharacterStance: "テーマへの態度: {{ character.stance.type }}（{{ character.stance.manifestation }}）"
+  enrichedCharacterBlindSpot: "盲点: {{ character.stance.blindSpot }}"
+  enrichedCharacterDialogueSamplesLabel: "台詞サンプル（コピー禁止、声の質感を吸収すること）:"
+  enrichedCharacterDialogueSampleLine: "  - 「{{ dialogue.line }}」（{{ dialogue.situation }}）— {{ dialogue.voiceNote }}"
+
+  chapterHeading: "## {{ chapter.title }}（第{{ chapter.index }}章）"
+  chapterSummary: "概要: {{ chapter.summary }}"
+  keyEventsHeading: "### キーイベント"
+  keyEventItem: "- {{ keyEvent }}"
+
+  characterMacGuffinsHeading: "## キャラクターの秘密（表出サインとして描写に織り込むこと）"
+  characterMacGuffinItem: "- {{ characterMacGuffin.characterName }}: {{ characterMacGuffin.surfaceSigns | join: \"、\" }}"
+
+  plotMacGuffinsHeading: "## 物語の謎（解決不要、雰囲気として漂わせること）"
+  plotMacGuffinItem: "- {{ plotMacGuffin.name }}: {{ plotMacGuffin.tensionQuestions | join: \"、\" }}（{{ plotMacGuffin.presenceHint }}）"
+
+  previousChapterHeading: "## 前章からの接続と変奏"
+  previousChapterSummaryHeading: "### 前章の概要"
+  previousChapterAvoidanceHeading: "### この章で避けるべきパターン（前章で使用済み）"
+  previousChapterEmotionalBeats: "- 感情遷移: {{ previousChapterAnalysis.avoidanceDirective.emotionalBeats | join: \" → \" }}"
+  previousChapterDominantImagery: "- 支配的イメージ: {{ previousChapterAnalysis.avoidanceDirective.dominantImagery | join: \"、\" }}"
+  previousChapterRhythmProfile: "- リズム: {{ previousChapterAnalysis.avoidanceDirective.rhythmProfile }}"
+  previousChapterStructuralPattern: "- 構造: {{ previousChapterAnalysis.avoidanceDirective.structuralPattern }}"
+  previousChapterAvoidanceInstruction: "上記と異なるアプローチで執筆すること。"
+
+  dramaBlueprintHeading: "### ドラマブループリント"
+  dramaBlueprintStructureType: "- 構造型: {{ plot.drama_blueprint }}"
+  dramaBlueprintTurningPoint: "- 転機: {{ plot.turning_point }}"
+  dramaBlueprintStakes: "- 賭け金: {{ plot.stakes_description }}"
+  dramaBlueprintProtagonistChoice: "- 主人公の選択: {{ plot.protagonist_choice }}"
+  dramaBlueprintPointOfNoReturn: "- 引き返せないポイント: {{ plot.point_of_no_return }}"
+
+  motifAvoidanceHeading: "### 回避すべきモチーフ（過去作品で頻出のため使用禁止）"
+  motifAvoidanceItem: "- {{ motif }}"
+
+  decisionPointHeading: "### この章の決定的行動"
+  decisionPointAction: "行動: {{ chapter.decision_point.action }}"
+  decisionPointStakes: "賭け金: {{ chapter.decision_point.stakes }}"
+  decisionPointIrreversibility: "不可逆な変化: {{ chapter.decision_point.irreversibility }}"
+  decisionPointInstruction: "この行動を必ず物語に組み込むこと。"
+
+  dramaturgyHeading: "### ドラマトゥルギー（起動装置）"
+  arcRoleHeading: "### 物語的機能"
+
+  variationConstraintsHeading: "### バリエーション制約"
+  variationStructureType: "- 構造型: {{ variationConstraints.structure_type }}"
+  variationEmotionalArc: "- 感情曲線: {{ variationConstraints.emotional_arc }}"
+  variationPacing: "- テンポ: {{ variationConstraints.pacing }}"
+  variationDeviation: "- 前章との差分: {{ variationConstraints.deviation_from_previous }}"
+  variationMotifBudgetHeading: "- モチーフ使用上限:"
+  variationMotifBudgetItem: "  - 「{{ motifBudget.motif }}」: 最大{{ motifBudget.max_uses }}回"
+  variationEmotionalBeats: "- 感情ビート（この順序で遷移させること）: {{ variationConstraints.emotional_beats | join: \" → \" }}"
+  variationForbiddenPatternsHeading: "- 禁止パターン（以下は使用禁止）:"
+  variationForbiddenPatternItem: "  - {{ forbiddenPattern }}"
+
+  epistemicConstraintsHeading: "### 認識制約（epistemic constraints）"
+  epistemicConstraintsInstruction: "この章の各視点キャラクターは以下を知らない/見ない。厳守すること:"
+  epistemicConstraintItem: "- {{ epistemicConstraint.perspective }}: {{ epistemicConstraint.constraints | join: \" / \" }}"
+
+  establishedInsightsHeading: "## この物語で既に確立された認識（再発見禁止）"
+  establishedInsightItem: "- Ch{{ establishedInsight.chapter }}: {{ establishedInsight.insight }} → {{ establishedInsight.rule }}"
+  establishedInsightsInstruction: "上記の認識は既に確立済み。再度「発見」させたり「気づき」として描いてはいけない。"
+
+  themeControlHeading: "## この章のテーマ制御"
+  themeControlSurface: "表層感情: {{ chapter.emotion_surface }}"
+  themeControlSubtext: "底流（描写しない、動作で暗示のみ）: {{ chapter.emotion_subtext }}"
+  themeControlNoInsight: "テーマ的認識: ★この章では認識に到達しない★ 疑問を提示するだけに留めること。"
+  themeControlInsight: "テーマ的認識: この章で到達する認識 → 「{{ chapter.thematic_insight }}」"
+
+  crossChapterCharacterStatesHeading: "## キャラクター状態の継続（初見紹介禁止）"
+  crossChapterCharacterStatesInstruction: "以下のキャラクターは既に登場済みです。外見描写の再紹介は禁止。前章の最終状態から開始すること。"
+  crossChapterCharacterStateLine: "- {{ characterState.characterName }}: 最終状態「{{ characterState.emotionalState }}」{{ physicalStateSegment }}{{ relationshipChangesSegment }}"
+  crossChapterCharacterStatePhysicalSegment: "、身体状態「{{ characterState.physicalState }}」"
+  crossChapterCharacterStateRelationshipSegment: "、関係変化: {{ characterState.relationshipChanges | join: \", \" }}"
+
+  motifWearHeading: "## モチーフ使用状況（3回ルール）"
+  motifWearInstruction: "身体的モチーフは作品全体で最大3回まで（導入→深化→決定的使用）。使用予算を意識して執筆すること。"
+  motifWearLineForbidden: "- {{ motifWear.motif }}: {{ motifWear.usageCount }}回使用済み → ★使用禁止（別のモチーフに切り替えよ）★"
+  motifWearLineClimax: "- {{ motifWear.motif }}: {{ motifWear.usageCount }}回使用済み → 残り1回（クライマックス専用）"
+  motifWearLineRemaining: "- {{ motifWear.motif }}: {{ motifWear.usageCount }}回使用済み → 残り{{ remainingUses }}回"
+
+  variationAxisHeading: "## この章の変奏軸"
+  variationAxisCurveType: "- 曲線タイプ: {{ variationAxis.curve_type }}"
+  variationAxisIntensity: "- 強度目標: {{ variationAxis.intensity_target }}/5"
+  variationAxisTechnique: "- 差別化技法: {{ variationAxis.differentiation_technique }}"
+  variationAxisInternalBeats: "- 章内変化ポイント: {{ variationAxis.internal_beats | join: \" → \" }}"
+
+  targetLength: "目標文字数: {{ chapter.target_length }}字"
+  finalInstruction: "この章を執筆してください。"

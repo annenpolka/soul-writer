@@ -1,5 +1,5 @@
-export { buildPrompt } from './composer.js';
-export type { PromptResult } from './composer.js';
+export { buildPrompt, buildTemplateBlocks, buildTemplateBlock } from './composer.js';
+export type { PromptResult, NonAgentTemplateKind, TemplateBlockResult } from './composer.js';
 export { renderSections } from './renderer.js';
 export { evaluateCondition } from './condition-evaluator.js';
 export { applyFilter } from './filters.js';

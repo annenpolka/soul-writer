@@ -1,5 +1,6 @@
 import type { LLMClient, ToolDefinition } from '../llm/types.js';
 import { assertToolCallingClient, parseToolArguments } from '../llm/tooling.js';
+import { buildTemplateBlock } from '../template/composer.js';
 
 export interface PreviousChapterAnalysis {
   storySummary: string;
@@ -39,12 +40,7 @@ export async function analyzePreviousChapter(
 ): Promise<PreviousChapterAnalysis> {
   assertToolCallingClient(llmClient);
 
-  const systemPrompt = `あなたは小説の章を分析する専門家です。次章の執筆者が「前章と異なるアプローチ」を取れるよう、以下の観点で前章を分析してください:
-1. storySummary: 何が起きたかの物語的要約（200字程度）
-2. emotionalBeats: 感情の遷移列（例: ["疎外", "怒り", "麻痺"]）
-3. dominantImagery: 支配的なイメージ群（例: ["金属", "冷たさ", "振動"]）
-4. rhythmProfile: 文章リズムの特徴（例: "短文連打のスタッカート"）
-5. structuralPattern: 章内の展開構造（例: "観察→異常発見→内省→未解決"）`;
+  const systemPrompt = buildTemplateBlock('pipeline', 'previous-chapter-analysis', 'systemPrompt', {});
 
   const response = await llmClient.completeWithTools(
     systemPrompt,
@@ -131,16 +127,7 @@ export async function extractEstablishedInsights(
 ): Promise<EstablishedInsight[]> {
   assertToolCallingClient(llmClient);
 
-  const systemPrompt = `あなたは小説の章を分析する専門家です。この章のテキストを読み、物語が到達した「既知の認識」を3〜5個抽出してください。
-
-抽出すべきもの:
-- キャラクターが気づいた事実・認識
-- キャラクター間で確立された関係性の変化
-- 明らかになった世界の仕組みや真実
-- キャラクターの態度・姿勢の変化
-
-各認識には「次章以降への制約（rule）」を付けてください。
-rule例: "再度「発見」させないこと", "恐怖に戻さないこと", "再度「出会い」を演出しないこと"`;
+  const systemPrompt = buildTemplateBlock('pipeline', 'established-insights-extraction', 'systemPrompt', {});
 
   const response = await llmClient.completeWithTools(
     systemPrompt,
