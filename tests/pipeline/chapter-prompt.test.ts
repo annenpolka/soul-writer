@@ -1,6 +1,27 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import yaml from 'js-yaml';
 import { describe, it, expect } from 'vitest';
 import { buildChapterPrompt, type ChapterPromptInput } from '../../src/pipeline/chapter-prompt.js';
 import type { Chapter, Plot } from '../../src/schemas/plot.js';
+import { renderSections } from '../../src/template/renderer.js';
+import type { Section } from '../../src/template/types.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+interface PipelinePromptTemplate {
+  templates: Record<string, string>;
+}
+
+function renderChapterTemplateLine(templateKey: string, context: Record<string, unknown>): string {
+  const filePath = join(__dirname, '..', '..', 'src', 'prompts', 'pipeline', 'chapter-generation.yaml');
+  const raw = readFileSync(filePath, 'utf-8');
+  const doc = yaml.load(raw) as PipelinePromptTemplate;
+  const template = doc.templates[templateKey];
+  const sections: Section[] = [{ type: 'text', text: template }];
+  return renderSections(sections, context);
+}
 
 const mockChapter: Chapter = {
   index: 1,
@@ -31,6 +52,46 @@ describe('buildChapterPrompt', () => {
     expect(result).toContain('この章を執筆してください。');
     // ナラティブセクションが無い
     expect(result).not.toContain('## ナラティブ');
+  });
+
+  it('基本プロンプトの全文フォーマットを維持する', () => {
+    const input: ChapterPromptInput = { chapter: mockChapter, plot: mockPlot };
+    const result = buildChapterPrompt(input);
+
+    expect(result).toBe(`# テスト作品
+テーマ: テストテーマ
+
+## テスト章（第1章）
+概要: テスト概要
+
+### キーイベント
+- イベント1
+- イベント2
+
+目標文字数: 5000字
+
+この章を執筆してください。`);
+  });
+
+  it('chapter-generation.yaml から基本プロンプトをレンダリングする', () => {
+    const input: ChapterPromptInput = { chapter: mockChapter, plot: mockPlot };
+    const expected = [
+      renderChapterTemplateLine('title', { plot: mockPlot }),
+      renderChapterTemplateLine('theme', { plot: mockPlot }),
+      '',
+      renderChapterTemplateLine('chapterHeading', { chapter: mockChapter }),
+      renderChapterTemplateLine('chapterSummary', { chapter: mockChapter }),
+      '',
+      renderChapterTemplateLine('keyEventsHeading', {}),
+      renderChapterTemplateLine('keyEventItem', { keyEvent: 'イベント1' }),
+      renderChapterTemplateLine('keyEventItem', { keyEvent: 'イベント2' }),
+      '',
+      renderChapterTemplateLine('targetLength', { chapter: mockChapter }),
+      '',
+      renderChapterTemplateLine('finalInstruction', {}),
+    ].join('\n');
+
+    expect(buildChapterPrompt(input)).toBe(expected);
   });
 
   it('ナラティブルール注入時のプロンプト', () => {

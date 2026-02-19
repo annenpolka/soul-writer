@@ -31,6 +31,24 @@ function interpolate(template: string, context: TemplateContext): string {
   });
 }
 
+function resolveParamValue(value: unknown, context: TemplateContext): unknown {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  // Pure reference like "{{ path }}" -> keep original value shape.
+  const refMatch = value.match(/^\{\{\s*(.+?)\s*\}\}$/);
+  if (refMatch && !value.includes('|')) {
+    return resolvePath(context as Record<string, unknown>, refMatch[1]);
+  }
+
+  if (value.includes('{{')) {
+    return interpolate(value, context);
+  }
+
+  return value;
+}
+
 function renderSection(section: Section, context: TemplateContext): string {
   switch (section.type) {
     case 'text':
@@ -74,24 +92,32 @@ function renderSection(section: Section, context: TemplateContext): string {
       if (section.params) {
         const resolvedParams: Record<string, unknown> = {};
         for (const [key, val] of Object.entries(section.params)) {
-          if (typeof val === 'string') {
-            // Pure reference like "{{ path }}" → resolve to actual value (may be object/array)
-            const refMatch = val.match(/^\{\{\s*(.+?)\s*\}\}$/);
-            if (refMatch && !val.includes('|')) {
-              const resolved = resolvePath(context as Record<string, unknown>, refMatch[1]);
-              resolvedParams[key] = resolved;
-            } else if (val.includes('{{')) {
-              resolvedParams[key] = interpolate(val, context);
-            } else {
-              resolvedParams[key] = val;
-            }
-          } else {
-            resolvedParams[key] = val;
-          }
+          resolvedParams[key] = resolveParamValue(val, context);
         }
         childCtx = { ...context, ...resolvedParams };
       }
       return renderSections(doc.system.sections, childCtx);
+    }
+
+    case 'let': {
+      const bound: Record<string, unknown> = {};
+      for (const [key, val] of Object.entries(section.let)) {
+        bound[key] = resolveParamValue(val, context);
+      }
+      return renderSections(section.sections, { ...context, ...bound });
+    }
+
+    case 'switch': {
+      const value = resolvePath(context as Record<string, unknown>, section.switch);
+      for (const switchCase of section.cases) {
+        if (value === switchCase.when || String(value) === String(switchCase.when)) {
+          return renderSections(switchCase.then, context);
+        }
+      }
+      if (section.default) {
+        return renderSections(section.default, context);
+      }
+      return '';
     }
 
     case 'schema':

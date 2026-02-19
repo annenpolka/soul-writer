@@ -5,6 +5,7 @@ import type { EnrichedCharacter } from '../factory/character-enricher.js';
 import type { CharacterMacGuffin, PlotMacGuffin } from '../schemas/macguffin.js';
 import type { PreviousChapterAnalysis, EstablishedInsight } from './chapter-summary.js';
 import type { CrossChapterState } from '../agents/types.js';
+import { buildTemplateBlock } from '../template/composer.js';
 
 export interface ChapterPromptInput {
   chapter: Chapter;
@@ -35,163 +36,165 @@ export interface ChapterPromptInput {
 export function buildChapterPrompt(input: ChapterPromptInput): string {
   const { chapter, plot } = input;
   const parts: string[] = [];
+  const t = (templateKey: string, context: Record<string, unknown> = {}): string =>
+    buildTemplateBlock('pipeline', 'chapter-generation', templateKey, context);
 
-  parts.push(`# ${plot.title}`);
-  parts.push(`テーマ: ${plot.theme}`);
+  parts.push(t('title', { plot }));
+  parts.push(t('theme', { plot }));
   if (input.toneDirective) {
-    parts.push(`文体トーン: ${input.toneDirective}`);
+    parts.push(t('toneDirective', { toneDirective: input.toneDirective }));
   }
   parts.push('');
 
   // Inject narrative rules
   if (input.narrativeType && input.narrativeRules) {
-    parts.push(`## ナラティブ`);
-    parts.push(`- 型: ${input.narrativeType}`);
-    parts.push(`- ${input.narrativeRules.povDescription}`);
+    parts.push(t('narrativeHeading'));
+    parts.push(t('narrativeType', { narrativeType: input.narrativeType }));
+    parts.push(t('narrativePovDescription', { narrativeRules: input.narrativeRules }));
     parts.push('');
   }
 
   // Inject developed characters
   if (input.developedCharacters && input.developedCharacters.length > 0) {
-    parts.push('## 登場人物');
+    parts.push(t('developedCharactersHeading'));
     for (const c of input.developedCharacters) {
       const tag = c.isNew ? '（新規）' : '（既存）';
-      parts.push(`- ${c.name}${tag}: ${c.role}`);
-      if (c.description) parts.push(`  背景: ${c.description}`);
-      if (c.voice) parts.push(`  口調: ${c.voice}`);
+      parts.push(t('developedCharacterLine', { character: c, characterTag: tag }));
+      if (c.description) parts.push(t('developedCharacterBackground', { character: c }));
+      if (c.voice) parts.push(t('developedCharacterVoice', { character: c }));
     }
     parts.push('');
   }
 
   // Inject enriched character physicality and stance
   if (input.enrichedCharacters && input.enrichedCharacters.length > 0) {
-    parts.push('## キャラクターの身体性と態度');
+    parts.push(t('enrichedCharactersHeading'));
     for (const c of input.enrichedCharacters) {
-      parts.push(`### ${c.name}`);
-      parts.push('身体の癖:');
+      parts.push(t('enrichedCharacterHeading', { character: c }));
+      parts.push(t('enrichedCharacterPhysicalHabitsLabel'));
       for (const h of c.physicalHabits) {
-        parts.push(`  - ${h.habit}（${h.trigger}、${h.sensoryDetail}）`);
+        parts.push(t('enrichedCharacterPhysicalHabitLine', { habit: h }));
       }
-      parts.push(`テーマへの態度: ${c.stance.type}（${c.stance.manifestation}）`);
-      parts.push(`盲点: ${c.stance.blindSpot}`);
+      parts.push(t('enrichedCharacterStance', { character: c }));
+      parts.push(t('enrichedCharacterBlindSpot', { character: c }));
       if ('dialogueSamples' in c && c.dialogueSamples && c.dialogueSamples.length > 0) {
-        parts.push('台詞サンプル（コピー禁止、声の質感を吸収すること）:');
+        parts.push(t('enrichedCharacterDialogueSamplesLabel'));
         for (const s of c.dialogueSamples) {
-          parts.push(`  - 「${s.line}」（${s.situation}）— ${s.voiceNote}`);
+          parts.push(t('enrichedCharacterDialogueSampleLine', { dialogue: s }));
         }
       }
     }
     parts.push('');
   }
 
-  parts.push(`## ${chapter.title}（第${chapter.index}章）`);
-  parts.push(`概要: ${chapter.summary}`);
+  parts.push(t('chapterHeading', { chapter }));
+  parts.push(t('chapterSummary', { chapter }));
   parts.push('');
-  parts.push('### キーイベント');
-  for (const event of chapter.key_events) {
-    parts.push(`- ${event}`);
+  parts.push(t('keyEventsHeading'));
+  for (const keyEvent of chapter.key_events) {
+    parts.push(t('keyEventItem', { keyEvent }));
   }
   parts.push('');
 
   // Inject character MacGuffins as surface signs
   if (input.characterMacGuffins && input.characterMacGuffins.length > 0) {
-    parts.push('## キャラクターの秘密（表出サインとして描写に織り込むこと）');
-    for (const m of input.characterMacGuffins) {
-      parts.push(`- ${m.characterName}: ${m.surfaceSigns.join('、')}`);
+    parts.push(t('characterMacGuffinsHeading'));
+    for (const characterMacGuffin of input.characterMacGuffins) {
+      parts.push(t('characterMacGuffinItem', { characterMacGuffin }));
     }
     parts.push('');
   }
 
   // Inject plot MacGuffins as tension questions
   if (input.plotMacGuffins && input.plotMacGuffins.length > 0) {
-    parts.push('## 物語の謎（解決不要、雰囲気として漂わせること）');
-    for (const m of input.plotMacGuffins) {
-      parts.push(`- ${m.name}: ${m.tensionQuestions.join('、')}（${m.presenceHint}）`);
+    parts.push(t('plotMacGuffinsHeading'));
+    for (const plotMacGuffin of input.plotMacGuffins) {
+      parts.push(t('plotMacGuffinItem', { plotMacGuffin }));
     }
     parts.push('');
   }
 
   // Previous chapter analysis
   if (input.previousChapterAnalysis) {
-    const pca = input.previousChapterAnalysis;
-    parts.push('## 前章からの接続と変奏');
-    parts.push('### 前章の概要');
-    parts.push(pca.storySummary);
+    const previousChapterAnalysis = input.previousChapterAnalysis;
+    parts.push(t('previousChapterHeading'));
+    parts.push(t('previousChapterSummaryHeading'));
+    parts.push(previousChapterAnalysis.storySummary);
     parts.push('');
-    parts.push('### この章で避けるべきパターン（前章で使用済み）');
-    parts.push(`- 感情遷移: ${pca.avoidanceDirective.emotionalBeats.join(' → ')}`);
-    parts.push(`- 支配的イメージ: ${pca.avoidanceDirective.dominantImagery.join('、')}`);
-    parts.push(`- リズム: ${pca.avoidanceDirective.rhythmProfile}`);
-    parts.push(`- 構造: ${pca.avoidanceDirective.structuralPattern}`);
-    parts.push('上記と異なるアプローチで執筆すること。');
+    parts.push(t('previousChapterAvoidanceHeading'));
+    parts.push(t('previousChapterEmotionalBeats', { previousChapterAnalysis }));
+    parts.push(t('previousChapterDominantImagery', { previousChapterAnalysis }));
+    parts.push(t('previousChapterRhythmProfile', { previousChapterAnalysis }));
+    parts.push(t('previousChapterStructuralPattern', { previousChapterAnalysis }));
+    parts.push(t('previousChapterAvoidanceInstruction'));
     parts.push('');
   }
 
   // Drama blueprint context
   if (plot.drama_blueprint) {
-    parts.push('### ドラマブループリント');
-    parts.push(`- 構造型: ${plot.drama_blueprint}`);
-    if (plot.turning_point) parts.push(`- 転機: ${plot.turning_point}`);
-    if (plot.stakes_description) parts.push(`- 賭け金: ${plot.stakes_description}`);
-    if (plot.protagonist_choice) parts.push(`- 主人公の選択: ${plot.protagonist_choice}`);
-    if (plot.point_of_no_return) parts.push(`- 引き返せないポイント: ${plot.point_of_no_return}`);
+    parts.push(t('dramaBlueprintHeading'));
+    parts.push(t('dramaBlueprintStructureType', { plot }));
+    if (plot.turning_point) parts.push(t('dramaBlueprintTurningPoint', { plot }));
+    if (plot.stakes_description) parts.push(t('dramaBlueprintStakes', { plot }));
+    if (plot.protagonist_choice) parts.push(t('dramaBlueprintProtagonistChoice', { plot }));
+    if (plot.point_of_no_return) parts.push(t('dramaBlueprintPointOfNoReturn', { plot }));
     parts.push('');
   }
 
   // Motif avoidance
   if (input.motifAvoidanceList && input.motifAvoidanceList.length > 0) {
-    parts.push('### 回避すべきモチーフ（過去作品で頻出のため使用禁止）');
+    parts.push(t('motifAvoidanceHeading'));
     for (const motif of input.motifAvoidanceList) {
-      parts.push(`- ${motif}`);
+      parts.push(t('motifAvoidanceItem', { motif }));
     }
     parts.push('');
   }
 
   // Decision point (decisive action)
   if (chapter.decision_point) {
-    parts.push(`### この章の決定的行動`);
-    parts.push(`行動: ${chapter.decision_point.action}`);
-    parts.push(`賭け金: ${chapter.decision_point.stakes}`);
-    parts.push(`不可逆な変化: ${chapter.decision_point.irreversibility}`);
-    parts.push(`この行動を必ず物語に組み込むこと。`);
+    parts.push(t('decisionPointHeading'));
+    parts.push(t('decisionPointAction', { chapter }));
+    parts.push(t('decisionPointStakes', { chapter }));
+    parts.push(t('decisionPointIrreversibility', { chapter }));
+    parts.push(t('decisionPointInstruction'));
     parts.push('');
   }
 
   // Dramaturgy and arc role
   if (chapter.dramaturgy) {
-    parts.push(`### ドラマトゥルギー（起動装置）`);
+    parts.push(t('dramaturgyHeading'));
     parts.push(chapter.dramaturgy);
     parts.push('');
   }
   if (chapter.arc_role) {
-    parts.push(`### 物語的機能`);
+    parts.push(t('arcRoleHeading'));
     parts.push(chapter.arc_role);
     parts.push('');
   }
 
   // Variation constraints
   if (chapter.variation_constraints) {
-    const vc = chapter.variation_constraints;
-    parts.push('### バリエーション制約');
-    parts.push(`- 構造型: ${vc.structure_type}`);
-    parts.push(`- 感情曲線: ${vc.emotional_arc}`);
-    parts.push(`- テンポ: ${vc.pacing}`);
-    if (vc.deviation_from_previous) {
-      parts.push(`- 前章との差分: ${vc.deviation_from_previous}`);
+    const variationConstraints = chapter.variation_constraints;
+    parts.push(t('variationConstraintsHeading'));
+    parts.push(t('variationStructureType', { variationConstraints }));
+    parts.push(t('variationEmotionalArc', { variationConstraints }));
+    parts.push(t('variationPacing', { variationConstraints }));
+    if (variationConstraints.deviation_from_previous) {
+      parts.push(t('variationDeviation', { variationConstraints }));
     }
-    if (vc.motif_budget && vc.motif_budget.length > 0) {
-      parts.push('- モチーフ使用上限:');
-      for (const mb of vc.motif_budget) {
-        parts.push(`  - 「${mb.motif}」: 最大${mb.max_uses}回`);
+    if (variationConstraints.motif_budget && variationConstraints.motif_budget.length > 0) {
+      parts.push(t('variationMotifBudgetHeading'));
+      for (const motifBudget of variationConstraints.motif_budget) {
+        parts.push(t('variationMotifBudgetItem', { motifBudget }));
       }
     }
-    if (vc.emotional_beats && vc.emotional_beats.length > 0) {
-      parts.push(`- 感情ビート（この順序で遷移させること）: ${vc.emotional_beats.join(' → ')}`);
+    if (variationConstraints.emotional_beats && variationConstraints.emotional_beats.length > 0) {
+      parts.push(t('variationEmotionalBeats', { variationConstraints }));
     }
-    if (vc.forbidden_patterns && vc.forbidden_patterns.length > 0) {
-      parts.push('- 禁止パターン（以下は使用禁止）:');
-      for (const fp of vc.forbidden_patterns) {
-        parts.push(`  - ${fp}`);
+    if (variationConstraints.forbidden_patterns && variationConstraints.forbidden_patterns.length > 0) {
+      parts.push(t('variationForbiddenPatternsHeading'));
+      for (const forbiddenPattern of variationConstraints.forbidden_patterns) {
+        parts.push(t('variationForbiddenPatternItem', { forbiddenPattern }));
       }
     }
     parts.push('');
@@ -199,66 +202,73 @@ export function buildChapterPrompt(input: ChapterPromptInput): string {
 
   // Epistemic constraints
   if (chapter.epistemic_constraints && chapter.epistemic_constraints.length > 0) {
-    parts.push('### 認識制約（epistemic constraints）');
-    parts.push('この章の各視点キャラクターは以下を知らない/見ない。厳守すること:');
-    for (const ec of chapter.epistemic_constraints) {
-      parts.push(`- ${ec.perspective}: ${ec.constraints.join(' / ')}`);
+    parts.push(t('epistemicConstraintsHeading'));
+    parts.push(t('epistemicConstraintsInstruction'));
+    for (const epistemicConstraint of chapter.epistemic_constraints) {
+      parts.push(t('epistemicConstraintItem', { epistemicConstraint }));
     }
     parts.push('');
   }
 
   // WS4: Established insights (cumulative "known" list)
   if (input.establishedInsights && input.establishedInsights.length > 0) {
-    parts.push('## この物語で既に確立された認識（再発見禁止）');
-    for (const insight of input.establishedInsights) {
-      parts.push(`- Ch${insight.chapter}: ${insight.insight} → ${insight.rule}`);
+    parts.push(t('establishedInsightsHeading'));
+    for (const establishedInsight of input.establishedInsights) {
+      parts.push(t('establishedInsightItem', { establishedInsight }));
     }
-    parts.push('上記の認識は既に確立済み。再度「発見」させたり「気づき」として描いてはいけない。');
+    parts.push(t('establishedInsightsInstruction'));
     parts.push('');
   }
 
   // WS5: Chapter-level theme control
   if (chapter.emotion_surface || chapter.emotion_subtext || chapter.thematic_insight !== undefined) {
-    parts.push('## この章のテーマ制御');
+    parts.push(t('themeControlHeading'));
     if (chapter.emotion_surface) {
-      parts.push(`表層感情: ${chapter.emotion_surface}`);
+      parts.push(t('themeControlSurface', { chapter }));
     }
     if (chapter.emotion_subtext) {
-      parts.push(`底流（描写しない、動作で暗示のみ）: ${chapter.emotion_subtext}`);
+      parts.push(t('themeControlSubtext', { chapter }));
     }
     if (chapter.thematic_insight === null) {
-      parts.push('テーマ的認識: ★この章では認識に到達しない★ 疑問を提示するだけに留めること。');
+      parts.push(t('themeControlNoInsight'));
     } else if (chapter.thematic_insight) {
-      parts.push(`テーマ的認識: この章で到達する認識 → 「${chapter.thematic_insight}」`);
+      parts.push(t('themeControlInsight', { chapter }));
     }
     parts.push('');
   }
 
   // Cross-chapter character state continuity
   if (input.crossChapterState && input.crossChapterState.characterStates.length > 0) {
-    parts.push('## キャラクター状態の継続（初見紹介禁止）');
-    parts.push('以下のキャラクターは既に登場済みです。外見描写の再紹介は禁止。前章の最終状態から開始すること。');
-    for (const cs of input.crossChapterState.characterStates) {
-      let line = `- ${cs.characterName}: 最終状態「${cs.emotionalState}」`;
-      if (cs.physicalState) line += `、身体状態「${cs.physicalState}」`;
-      if (cs.relationshipChanges.length > 0) line += `、関係変化: ${cs.relationshipChanges.join(', ')}`;
-      parts.push(line);
+    parts.push(t('crossChapterCharacterStatesHeading'));
+    parts.push(t('crossChapterCharacterStatesInstruction'));
+    for (const characterState of input.crossChapterState.characterStates) {
+      const physicalStateSegment = characterState.physicalState
+        ? t('crossChapterCharacterStatePhysicalSegment', { characterState })
+        : '';
+      const relationshipChangesSegment = characterState.relationshipChanges.length > 0
+        ? t('crossChapterCharacterStateRelationshipSegment', { characterState })
+        : '';
+      parts.push(t('crossChapterCharacterStateLine', {
+        characterState,
+        physicalStateSegment,
+        relationshipChangesSegment,
+      }));
     }
     parts.push('');
   }
 
   // Motif budget display — all motif wear entries with 3-time budget
   if (input.crossChapterState && input.crossChapterState.motifWear.length > 0) {
-    parts.push('## モチーフ使用状況（3回ルール）');
-    parts.push('身体的モチーフは作品全体で最大3回まで（導入→深化→決定的使用）。使用予算を意識して執筆すること。');
-    for (const m of input.crossChapterState.motifWear) {
-      const remaining = Math.max(0, 3 - m.usageCount);
-      if (remaining === 0) {
-        parts.push(`- ${m.motif}: ${m.usageCount}回使用済み → ★使用禁止（別のモチーフに切り替えよ）★`);
-      } else if (remaining === 1) {
-        parts.push(`- ${m.motif}: ${m.usageCount}回使用済み → 残り1回（クライマックス専用）`);
+    parts.push(t('motifWearHeading'));
+    parts.push(t('motifWearInstruction'));
+    for (const motifWear of input.crossChapterState.motifWear) {
+      const remainingUses = Math.max(0, 3 - motifWear.usageCount);
+      if (remainingUses === 0) {
+        parts.push(t('motifWearLineForbidden', { motifWear }));
+      } else if (remainingUses === 1) {
+        parts.push(t('motifWearLineClimax', { motifWear }));
       } else {
-        parts.push(`- ${m.motif}: ${m.usageCount}回使用済み → 残り${remaining}回`);
+        parts.push(t('motifWearLineRemaining', { motifWear, remainingUses }));
       }
     }
     parts.push('');
@@ -266,19 +276,19 @@ export function buildChapterPrompt(input: ChapterPromptInput): string {
 
   // Variation axis
   if (input.variationAxis) {
-    parts.push('## この章の変奏軸');
-    parts.push(`- 曲線タイプ: ${input.variationAxis.curve_type}`);
-    parts.push(`- 強度目標: ${input.variationAxis.intensity_target}/5`);
-    parts.push(`- 差別化技法: ${input.variationAxis.differentiation_technique}`);
+    parts.push(t('variationAxisHeading'));
+    parts.push(t('variationAxisCurveType', { variationAxis: input.variationAxis }));
+    parts.push(t('variationAxisIntensity', { variationAxis: input.variationAxis }));
+    parts.push(t('variationAxisTechnique', { variationAxis: input.variationAxis }));
     if (input.variationAxis.internal_beats && input.variationAxis.internal_beats.length > 0) {
-      parts.push(`- 章内変化ポイント: ${input.variationAxis.internal_beats.join(' → ')}`);
+      parts.push(t('variationAxisInternalBeats', { variationAxis: input.variationAxis }));
     }
     parts.push('');
   }
 
-  parts.push(`目標文字数: ${chapter.target_length}字`);
+  parts.push(t('targetLength', { chapter }));
   parts.push('');
-  parts.push('この章を執筆してください。');
+  parts.push(t('finalInstruction'));
 
   return parts.join('\n');
 }

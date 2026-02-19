@@ -207,4 +207,39 @@ describe('renderSections', () => {
     const result = renderSections(sections, context);
     expect(result).toBe('x\ny');
   });
+
+  it('renders let section with interpolated bindings', () => {
+    const context: TemplateContext = {
+      chapter: { index: 3 },
+      mode: 'review',
+    };
+    const sections: Section[] = [{
+      type: 'let',
+      let: {
+        chapterNo: '{{ chapter.index }}',
+        label: 'Phase {{ mode }}',
+      },
+      sections: [{ type: 'text', text: 'C{{ chapterNo }} {{ label }}' }],
+    }];
+
+    const result = renderSections(sections, context);
+    expect(result).toBe('C3 Phase review');
+  });
+
+  it('renders switch section with matching case and default', () => {
+    const draftContext: TemplateContext = { stage: 'draft' };
+    const unknownContext: TemplateContext = { stage: 'publish' };
+    const switchSection: Section = {
+      type: 'switch',
+      switch: 'stage',
+      cases: [
+        { when: 'draft', then: [{ type: 'text', text: 'DRAFT MODE' }] },
+        { when: 'revise', then: [{ type: 'text', text: 'REVISE MODE' }] },
+      ],
+      default: [{ type: 'text', text: 'OTHER MODE' }],
+    };
+
+    expect(renderSections([switchSection], draftContext)).toBe('DRAFT MODE');
+    expect(renderSections([switchSection], unknownContext)).toBe('OTHER MODE');
+  });
 });

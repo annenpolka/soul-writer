@@ -27,8 +27,8 @@ describe('loadTemplate', () => {
     clearTemplateCache();
   });
 
-  it('loads and parses a YAML template file', () => {
-    (existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+  it('loads and parses a YAML template file (backward compatibility: loadTemplate(name))', () => {
+    (existsSync as ReturnType<typeof vi.fn>).mockImplementation((path: string) => path.endsWith('.yaml'));
     (readFileSync as ReturnType<typeof vi.fn>).mockReturnValue('yaml content');
     (yaml.load as ReturnType<typeof vi.fn>).mockReturnValue(sampleDoc);
 
@@ -55,7 +55,7 @@ describe('loadTemplate', () => {
   });
 
   it('loads section templates with section: prefix', () => {
-    (existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (existsSync as ReturnType<typeof vi.fn>).mockImplementation((path: string) => path.endsWith('.yaml'));
     (readFileSync as ReturnType<typeof vi.fn>).mockReturnValue('yaml');
     (yaml.load as ReturnType<typeof vi.fn>).mockReturnValue(sampleDoc);
 
@@ -63,5 +63,39 @@ describe('loadTemplate', () => {
     const callPath = (readFileSync as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
     expect(callPath).toContain('sections');
     expect(callPath).toContain('constitution');
+  });
+
+  it('loads templates by explicit kind and name', () => {
+    (existsSync as ReturnType<typeof vi.fn>).mockImplementation((path: string) => path.endsWith('.yaml'));
+    (readFileSync as ReturnType<typeof vi.fn>).mockReturnValue('yaml');
+    (yaml.load as ReturnType<typeof vi.fn>).mockReturnValue(sampleDoc);
+
+    loadTemplate('section', 'constitution');
+    const callPath = (readFileSync as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(callPath).toContain('sections');
+    expect(callPath).toContain('constitution.yaml');
+  });
+
+  it('resolves .yml when .yaml does not exist', () => {
+    (existsSync as ReturnType<typeof vi.fn>).mockImplementation((path: string) => path.endsWith('.yml'));
+    (readFileSync as ReturnType<typeof vi.fn>).mockReturnValue('yaml');
+    (yaml.load as ReturnType<typeof vi.fn>).mockReturnValue(sampleDoc);
+
+    loadTemplate('pipeline', 'chapter-builder');
+    const callPath = (readFileSync as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(callPath).toContain('pipeline');
+    expect(callPath).toContain('chapter-builder.yml');
+  });
+
+  it('resolves .json and parses JSON templates', () => {
+    (existsSync as ReturnType<typeof vi.fn>).mockImplementation((path: string) => path.endsWith('.json'));
+    (readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(sampleDoc));
+
+    const result = loadTemplate('agent', 'writer-json');
+    const callPath = (readFileSync as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(callPath).toContain('agents');
+    expect(callPath).toContain('writer-json.json');
+    expect(result).toEqual(sampleDoc);
+    expect(yaml.load).not.toHaveBeenCalled();
   });
 });
