@@ -68,7 +68,7 @@ function parseFragmentResponse(response: ToolCallResponse): ExtractedFragment[] 
     const result = parseToolArguments<{ fragments: ExtractedFragment[] }>(
       response, 'submit_fragments',
     );
-    return result.fragments || [];
+    return Array.isArray(result.fragments) ? result.fragments : [];
   } catch {
     return [];
   }
