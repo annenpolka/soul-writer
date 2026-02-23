@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { CerebrasClient } from '../llm/cerebras.js';
+import { createLLMClient, type LLMProvider } from '../llm/provider-factory.js';
 import { loadSoulTextManager } from '../soul/manager.js';
 import { DatabaseConnection } from '../storage/database.js';
 import { createTaskRepo } from '../storage/task-repository.js';
@@ -41,13 +41,7 @@ export async function resume(options: ResumeOptions): Promise<void> {
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
 
   // Check environment
-  const apiKey = process.env.CEREBRAS_API_KEY;
-  const model = process.env.CEREBRAS_MODEL || 'zai-glm-4.7';
-
-  if (!apiKey) {
-    console.error('Error: CEREBRAS_API_KEY environment variable is not set');
-    process.exit(1);
-  }
+  const provider = (process.env.LLM_PROVIDER || 'cerebras') as LLMProvider;
 
   // Load soul text
   console.log(`Loading soul text from "${soul}"...`);
@@ -84,7 +78,12 @@ export async function resume(options: ResumeOptions): Promise<void> {
   }
 
   // Create LLM client
-  const llmClient = new CerebrasClient({ apiKey, model });
+  const llmClient = await createLLMClient({
+    provider,
+    cerebrasApiKey: process.env.CEREBRAS_API_KEY,
+    cerebrasModel: process.env.CEREBRAS_MODEL || 'zai-glm-4.7',
+    codexModel: process.env.CODEX_MODEL || 'gpt-5.2',
+  });
 
   // Create analytics repositories
   const judgeSessionRepo = createJudgeSessionRepo(sqlite);

@@ -2,6 +2,7 @@ import { generate } from './cli/generate.js';
 import { resume } from './cli/resume.js';
 import { review } from './cli/review.js';
 import { factory } from './cli/factory.js';
+import { auth } from './cli/auth.js';
 
 const args = process.argv.slice(2);
 
@@ -17,6 +18,7 @@ Commands:
   resume      Resume an interrupted story generation
   review      Review and approve learning candidates
   factory     Run batch generation with random themes
+  auth        Authenticate with OpenAI Codex (login/logout/status)
 
 generate Options:
   --prompt       Generation prompt (required unless --auto-theme)
@@ -71,8 +73,14 @@ Examples:
   # Config file with CLI overrides
   npx tsx src/main.ts factory --config factory-config.json --count 20
 
+auth Options:
+  auth login     Authenticate with OpenAI Codex via OAuth
+  auth logout    Clear stored authentication tokens
+  auth status    Check authentication status
+
 Global Options:
-  --verbose    Enable detailed logging of each pipeline step
+  --provider     LLM provider: "cerebras" (default) or "codex" (env: LLM_PROVIDER)
+  --verbose      Enable detailed logging of each pipeline step
   `);
 }
 
@@ -171,6 +179,13 @@ async function main(): Promise<void> {
         mode: options.mode,
         excludeLearned: options['exclude-learned'] === 'true',
       });
+      break;
+    }
+
+    case 'auth': {
+      const subcommand = args[1] || 'status';
+      const action = (['login', 'logout', 'status'].includes(subcommand) ? subcommand : 'status') as 'login' | 'logout' | 'status';
+      await auth({ action });
       break;
     }
 
