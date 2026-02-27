@@ -1,4 +1,5 @@
 import type { LLMClient } from './types.js';
+import type { CodexReasoningEffort } from './codex/types.js';
 
 export type LLMProvider = 'cerebras' | 'codex';
 
@@ -7,6 +8,7 @@ export interface ProviderConfig {
   cerebrasApiKey?: string;
   cerebrasModel?: string;
   codexModel?: string;
+  codexReasoningEffort?: CodexReasoningEffort;
 }
 
 export async function createLLMClient(config: ProviderConfig): Promise<LLMClient> {
@@ -26,6 +28,7 @@ export async function createLLMClient(config: ProviderConfig): Promise<LLMClient
       const { createFileTokenStore } = await import('./codex/token-store.js');
       return new CodexClient({
         model: config.codexModel ?? 'gpt-5.2',
+        reasoningEffort: config.codexReasoningEffort,
         tokenStore: createFileTokenStore(),
       });
     }

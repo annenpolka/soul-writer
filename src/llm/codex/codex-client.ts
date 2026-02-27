@@ -10,7 +10,13 @@ import type {
   CompletionOptions,
   StructuredResponse,
 } from '../types.js';
-import { CODEX_BASE_URL, type CodexConfig, type CodexToken, type TokenStore } from './types.js';
+import {
+  CODEX_BASE_URL,
+  type CodexConfig,
+  type CodexReasoningEffort,
+  type CodexToken,
+  type TokenStore,
+} from './types.js';
 import { refreshAccessToken } from './auth.js';
 import { parseSSEStream } from './sse-parser.js';
 
@@ -18,6 +24,15 @@ const DEFAULT_MAX_RETRIES = 5;
 const DEFAULT_INITIAL_RETRY_DELAY_MS = 2000;
 const DEFAULT_MAX_RETRY_DELAY_MS = 60000;
 const DEFAULT_INSTRUCTIONS = 'You are a helpful assistant.';
+const DEFAULT_REASONING_EFFORT: CodexReasoningEffort = 'medium';
+const VALID_REASONING_EFFORTS = ['low', 'medium', 'high', 'xhigh'] as const;
+
+function resolveReasoningEffort(raw?: string): CodexReasoningEffort {
+  const normalized = raw?.trim().toLowerCase();
+  return normalized && (VALID_REASONING_EFFORTS as readonly string[]).includes(normalized)
+    ? (normalized as CodexReasoningEffort)
+    : DEFAULT_REASONING_EFFORT;
+}
 
 /**
  * Convert a JSON Schema to OpenAI strict mode format.
@@ -94,6 +109,7 @@ interface ResponsesInputItem {
 export class CodexClient implements LLMClient {
   private model: string;
   private instructions: string;
+  private reasoningEffort: CodexReasoningEffort;
   private totalTokens: number = 0;
   private maxRetries: number;
   private initialRetryDelayMs: number;
@@ -106,6 +122,7 @@ export class CodexClient implements LLMClient {
   constructor(config: CodexConfig) {
     this.model = config.model;
     this.instructions = config.instructions ?? DEFAULT_INSTRUCTIONS;
+    this.reasoningEffort = resolveReasoningEffort(config.reasoningEffort);
     this.maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
     this.initialRetryDelayMs = config.initialRetryDelayMs ?? DEFAULT_INITIAL_RETRY_DELAY_MS;
     this.maxRetryDelayMs = config.maxRetryDelayMs ?? DEFAULT_MAX_RETRY_DELAY_MS;
@@ -222,7 +239,7 @@ export class CodexClient implements LLMClient {
       input,
       store: false,
       stream: true,
-      reasoning: { effort: 'medium', summary: 'auto' },
+      reasoning: { effort: this.reasoningEffort, summary: 'auto' },
       include: ['reasoning.encrypted_content'],
       ...extra,
     };

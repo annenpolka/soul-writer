@@ -36,6 +36,11 @@ soul-writerは、作家の文体・世界観・キャラクターの「魂」を
 ```bash
 npm install
 # .env に CEREBRAS_API_KEY を設定
+
+# Codex を使う場合
+LLM_PROVIDER=codex
+CODEX_MODEL=gpt-5.2
+CODEX_REASONING_EFFORT=medium  # low / medium / high / xhigh
 ```
 
 ### CLIコマンド
