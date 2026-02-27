@@ -42,10 +42,12 @@ describe('createLLMClient', () => {
     const client = await createLLMClient({
       provider: 'codex',
       codexModel: 'gpt-5.2',
+      codexReasoningEffort: 'high',
     });
 
     const result = await client.complete('sys', 'user');
     expect(result).toBe('codex');
+    expect(((client as unknown) as { config: { reasoningEffort: string } }).config.reasoningEffort).toBe('high');
   });
 
   it('cerebrasでAPIキー未設定時にエラー', async () => {

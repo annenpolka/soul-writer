@@ -27,9 +27,12 @@ export interface TokenStore {
   clear(): Promise<void>;
 }
 
+export type CodexReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh';
+
 export interface CodexConfig {
   model: string;
   instructions?: string;
+  reasoningEffort?: CodexReasoningEffort;
   maxRetries?: number;
   initialRetryDelayMs?: number;
   maxRetryDelayMs?: number;

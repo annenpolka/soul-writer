@@ -4,6 +4,7 @@ import { loadSoulTextManager, type SoulTextManagerFn } from '../soul/manager.js'
 import { generateSimple } from '../pipeline/simple.js';
 import { createFullPipeline } from '../pipeline/full.js';
 import { createLogger, type LoggerFn } from '../logger.js';
+import type { CodexReasoningEffort } from '../llm/codex/types.js';
 import { DatabaseConnection } from '../storage/database.js';
 import { createTaskRepo } from '../storage/task-repository.js';
 import { createWorkRepo } from '../storage/work-repository.js';
@@ -75,6 +76,7 @@ export async function generate(options: GenerateOptions): Promise<void> {
     cerebrasApiKey: process.env.CEREBRAS_API_KEY,
     cerebrasModel: process.env.CEREBRAS_MODEL || 'zai-glm-4.7',
     codexModel: process.env.CODEX_MODEL || 'gpt-5.2',
+    codexReasoningEffort: process.env.CODEX_REASONING_EFFORT as CodexReasoningEffort | undefined,
   });
 
   // Simple mode: tournament only, no DB

@@ -15,6 +15,7 @@ import { createCrossChapterStateRepo } from '../storage/cross-chapter-state-repo
 import { createPhaseMetricsRepo } from '../storage/phase-metrics-repository.js';
 import { createFullPipeline } from '../pipeline/full.js';
 import { createLogger } from '../logger.js';
+import type { CodexReasoningEffort } from '../llm/codex/types.js';
 
 dotenv.config();
 
@@ -83,6 +84,7 @@ export async function resume(options: ResumeOptions): Promise<void> {
     cerebrasApiKey: process.env.CEREBRAS_API_KEY,
     cerebrasModel: process.env.CEREBRAS_MODEL || 'zai-glm-4.7',
     codexModel: process.env.CODEX_MODEL || 'gpt-5.2',
+    codexReasoningEffort: process.env.CODEX_REASONING_EFFORT as CodexReasoningEffort | undefined,
   });
 
   // Create analytics repositories

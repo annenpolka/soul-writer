@@ -16,6 +16,7 @@ import { createCrossChapterStateRepo } from '../storage/cross-chapter-state-repo
 import { createPhaseMetricsRepo } from '../storage/phase-metrics-repository.js';
 import { FactoryConfigSchema } from '../schemas/factory-config.js';
 import { createBatchRunner, type ProgressInfo, calculateAnalytics, generateCliReport, generateJsonReport } from '../factory/index.js';
+import type { CodexReasoningEffort } from '../llm/codex/types.js';
 
 dotenv.config();
 
@@ -125,6 +126,7 @@ export async function factory(options: FactoryOptions): Promise<void> {
     cerebrasApiKey: process.env.CEREBRAS_API_KEY,
     cerebrasModel: process.env.CEREBRAS_MODEL || 'zai-glm-4.7',
     codexModel: process.env.CODEX_MODEL || 'gpt-5.2',
+    codexReasoningEffort: process.env.CODEX_REASONING_EFFORT as CodexReasoningEffort | undefined,
   });
 
   // 7. Create and run batch runner

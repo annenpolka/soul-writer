@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
 import { CodexClient } from './codex-client.js';
-import type { CodexToken, TokenStore, CodexConfig } from './types.js';
+import type { CodexToken, TokenStore, CodexConfig, CodexReasoningEffort } from './types.js';
 import { CODEX_BASE_URL } from './types.js';
 
 // --- Test helpers ---
@@ -92,10 +92,12 @@ function createClient(opts?: {
   token?: CodexToken | null;
   fetchFn?: typeof fetch;
   model?: string;
+  reasoningEffort?: CodexReasoningEffort;
   maxRetries?: number;
 }): CodexClient {
   const config: CodexConfig = {
     model: opts?.model ?? 'gpt-5.2',
+    reasoningEffort: opts?.reasoningEffort,
     maxRetries: opts?.maxRetries ?? 1,
     initialRetryDelayMs: 1, // fast retries for tests
     maxRetryDelayMs: 1,
@@ -168,22 +170,67 @@ describe('CodexClient', () => {
     });
   });
 
-  describe('リクエストフォーマット', () => {
-    it('正しいヘッダでリクエストを送信する', async () => {
-      const token = createMockToken({ chatgpt_account_id: 'acct_header_test' });
-      const mockFetch = createMockFetch(makeCompletedSSE('ok'));
-      const client = createClient({ token, fetchFn: mockFetch });
+    describe('リクエストフォーマット', () => {
+      it('デフォルトのreasoning.effortがmediumになる', async () => {
+        const mockFetch = createMockFetch(makeCompletedSSE('ok'));
+        const client = createClient({ fetchFn: mockFetch });
 
-      await client.complete('sys', 'user');
+        await client.complete('sys', 'user');
 
-      const [url, opts] = (mockFetch as ReturnType<typeof vi.fn>).mock.calls[0];
-      expect(url).toBe(`${CODEX_BASE_URL}/codex/responses`);
-      const headers = opts.headers;
-      expect(headers['Authorization']).toBe('Bearer test_access_token');
-      expect(headers['chatgpt-account-id']).toBe('acct_header_test');
-      expect(headers['originator']).toBe('codex_cli_rs');
-      expect(headers['OpenAI-Beta']).toBe('responses=experimental');
-    });
+        const [, opts] = (mockFetch as ReturnType<typeof vi.fn>).mock.calls[0];
+        const body = JSON.parse(opts.body);
+        expect(body.reasoning).toEqual({
+          effort: 'medium',
+          summary: 'auto',
+        });
+      });
+
+      it('reasoning.effortにxhighを送れる', async () => {
+        const mockFetch = createMockFetch(makeCompletedSSE('ok'));
+        const client = createClient({ fetchFn: mockFetch, reasoningEffort: 'xhigh' });
+
+        await client.complete('sys', 'user');
+
+        const [, opts] = (mockFetch as ReturnType<typeof vi.fn>).mock.calls[0];
+        const body = JSON.parse(opts.body);
+        expect(body.reasoning).toEqual({
+          effort: 'xhigh',
+          summary: 'auto',
+        });
+      });
+
+      it('不正なreasoningEffortはmediumにフォールバック', async () => {
+        const mockFetch = createMockFetch(makeCompletedSSE('ok'));
+        const client = createClient({
+          fetchFn: mockFetch,
+          reasoningEffort: 'invalid' as unknown as CodexReasoningEffort,
+        });
+
+        await client.complete('sys', 'user');
+
+        const [, opts] = (mockFetch as ReturnType<typeof vi.fn>).mock.calls[0];
+        const body = JSON.parse(opts.body);
+        expect(body.reasoning).toEqual({
+          effort: 'medium',
+          summary: 'auto',
+        });
+      });
+
+      it('正しいヘッダでリクエストを送信する', async () => {
+        const token = createMockToken({ chatgpt_account_id: 'acct_header_test' });
+        const mockFetch = createMockFetch(makeCompletedSSE('ok'));
+        const client = createClient({ token, fetchFn: mockFetch });
+
+        await client.complete('sys', 'user');
+
+        const [url, opts] = (mockFetch as ReturnType<typeof vi.fn>).mock.calls[0];
+        expect(url).toBe(`${CODEX_BASE_URL}/codex/responses`);
+        const headers = opts.headers;
+        expect(headers['Authorization']).toBe('Bearer test_access_token');
+        expect(headers['chatgpt-account-id']).toBe('acct_header_test');
+        expect(headers['originator']).toBe('codex_cli_rs');
+        expect(headers['OpenAI-Beta']).toBe('responses=experimental');
+      });
 
     it('store: falseとstream: trueがリクエストボディに含まれる', async () => {
       const mockFetch = createMockFetch(makeCompletedSSE('ok'));
