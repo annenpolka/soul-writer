@@ -1,0 +1,1822 @@
+{
+  "timestamp": "2026-02-26T21:18:22.213Z",
+  "summary": {
+    "totalTasks": 100,
+    "completed": 100,
+    "failed": 0,
+    "skipped": 0,
+    "totalTokensUsed": 319675629
+  },
+  "analytics": {
+    "successRate": 1,
+    "compliancePassRate": 0.94,
+    "verdictDistribution": {
+      "publishable": 94,
+      "exceptional": 6
+    },
+    "byEmotion": [
+      {
+        "emotion": "忘却への安堵と、更新されない記憶に対する微かな嗜癖",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "空虚な衝動と受動的な同意",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "虚無と、欺かれていたことへの乾いた受容",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "世界の安っぽさに対する共犯的な愉悦と、作り物の日常に対する倒錯した安堵",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "親密なる操作欲と静かな依存",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "粘着質な嫉妬と、虚無に触れた指先からの冷たい疼き",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "崩去への冷めた受容と、不協和音に生じる奇妙な親密さ",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "美的めまいと、因果律の崩壊に対する甘美な諦観",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "剥奪による支配的充足と、不在を永遠に独占する微かな陶酔",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "感覚の分断带来的眩暈と、ズレの中で見出した歪んだ信頼",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "灼熱的な静寂と、過負荷回路への倒錯した憧憬",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "外科的な冷徹さと、世界との秘密的な共犯関係に浸る微かな陶酔",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "自己消去への甘美な諦念と、物理的な拘束による奇妙な鎮静",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "視界遮断への静かな共犯と、補正されない熱信号への倒錯した執着",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "不可視なる親密の甘美な被虐性と、愛着の喪失によって「可視化」されることへの冷たい恐怖",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "他者の視界への不法侵入と、拒絶すらも愛おしく映る倒錯した独占欲",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "干上がった安堵と、真空状態における特異な心地よさ",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "誤配られた所有権への歪んだ安泰感と、信号源の近接にだけ依存する幽霊のような実存",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "生体反応の予期せぬ遅延と、未処理の接触信号に残る微かな粘着感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "exceptional": 1
+        }
+      },
+      {
+        "emotion": "剥奪による浮遊感と、消去された偽物への中庸な郷愁",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "接続解除の後味と、記録媒体の中で発酵する不完全な温熱への忌まわしい愛着",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "許されない共有への恥じらいと、他者の生の余韻に溺れていく湿った寂寥感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "解凍された情動の熱量への生理的な嫌悪と、冷媒としての機能不全に浸る微かな虚無感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "摩擦なき滑走に対する生理的な飽食と、共有された肉体的『重さ』からのみ滲み出る静謐な連帯感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "機能不全の温もりを失った時の痺れような静寂と、人間関係のメンテナンス作業に対する無機質な諦観",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "暴力的な視線接続と、ノイズの中にしか存在しない他者への幻肢的な思慕",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 0,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "無害なはずの身体が抱え込む異物感への冷ややかな恐怖と、逃走本能を凌駕する「誰かの意志」に飲み込まれる倒錯した安堵",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "回路の焼き切れる焦げ臭さを連想させる吐き気と、エラー終了を自動的に修復するシステムへの冷めた愛着",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "処理遅延した情報の湿り気に対する生理的な重苦しさと、機能不全の空白に抱かれた存在への共犯的な安寧",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "不可視の障害物に依存する際の潜行的な安定感と、座標系のズレに対する無言の共鳴",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "排除不能な異物音に対する無力な苛立ちと、その規則性に無意識に同調してしまう退屈な共鳴",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "完全な隔離への無関心な受容と、監視されない死角での微かな全能感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "進行中の浸水への静かな諦観と、誤算の上に形成された景観への微かな敬意",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "栄養摂取というシステム効率への冷ややかな違和感と、不完全な廃棄物を取り込むことでしか満たされない胃袋の暗い渇望",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "更新によって上書きされた過去への未だ整理がつかない渇望と、物理的な熱だけがシステムの抜け穴を埋める際の微かな居心地の悪さ",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "焦燥的な乾渇感と、不完全な物理痕跡を共有する際の背徳的な静寂",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "社会的な実体から解離した際の冷徹な解脱感と、他者と接触を持たない身体の生々しい孤独",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "exceptional": 1
+        }
+      },
+      {
+        "emotion": "感情の自動補正に対する無力な嫌悪と、書き換えられる直前の生の反応だけを密かに貪るような病的な執着",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "視覚情報を構成する光の粒子が持つ湿った粘着力と、見知らぬ他者の属性データが真皮レベルで接触する際に生じる麻痺的な恐怖と微かな陶酔",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "終わらない放課後の余韻への耽美的な陶酔と、物理的座標が過去の記憶データに侵食されていくことへの冷めた諦観",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "削除された時空の熱痕に対する飢餓感と、実在しない振動を内臓へ充填することで得られる偽装された満腹感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "不在の痕跡を保存しようとする病的な愛着と、自己の加害性を無機質なデータへ還元していく際の冷ややかな安堵感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "他者の生理的機能回復を間接的に消費することで得られる麻痺的な充足感と、互いに時間を浪費する行為にのみ成立する共犯的な甘美さ",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "exceptional": 1
+        }
+      },
+      {
+        "emotion": "共犯的な捏造への嗜虐的な安らぎと、物理現実がデータとして再解釈される際の陶酔的な浮遊感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "機械的な同期信号にだけ依存した生存実感と、自らの肉質が無機質な「消音デバイス」へと還元されていくことへの粘着嫌悪",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "共有された現象の崩壊に対する冷ややかな興味と、他者の知覚から解放された隙間で感じる静かな優越感、そしてその背後にある世界の消失への漠然とした予感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "exceptional": 1
+        }
+      },
+      {
+        "emotion": "存在しない視線による過剰な監視感と、その完璧な模倣行為に見出した倒錯的な安寧",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "他者の神経系을借被して初めて知覚できる感覚への依存と、物理的には無傷な自分の身体に対する麻痺的な猜疑心",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "身体の自律的な記憶への甘やかしと、管理対象外の空間で見出す、責任を免れたような罪悪感なき安らぎ",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "システムが放棄した『残響ノイズ』を皮膚感覚として消化し続けることへの微かな甘美と、完璧な無関心という社会規範を内側から侵食する際の共犯的な陶酔",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "他人の余剰な熱量をビデオフィードとして消費する際の乾いた全能感と、自らの肉体が冷え切っていくことへの無関心な受容",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "禁止された「湿り気」への密かな共鳴と、時間経過に伴う物理的痕跡の消失を観測するだけの乾いた諦観",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "完全なる無知覚への安堵と、他者の意識消失サイクルを観測する際の冷徹な好奇心",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "平滑化された都市の皮膚に対する暴力的な接触欲求と、物理的な重量による窒息的な安心感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "時代遅れの季節に対する病的な執着と、世界の進行からこぼれ落ちた時間の共有に対する背徳的な安らぎ",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "処理タスクの完了義務と、オーバーヒートする回路から感じる擬似的な熱中症のような倒錯した快感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "知らぬ他者の抑圧された悪意が、消失した愛人という器を通じて聴取される際の背徳的な安堵と、暴力的なまでに穏やかな食事のリズムが生み出す不協和音への陶酔",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "生理的な同期を通じて捏造した『湿気』への病的な愛着と、同期が外れた瞬間に訪れる乾燥した諦観",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "過剰な管理から解き放たれた四肢の鈍重な痛みと、システムによる安易な救済を拒絶した瞬間の背徳的な高揚感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "世界からの接続遮断に伴う乾いた静寂と、他者の意識への干渉権限を放棄したことへの奇妙な安堵",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "共有された認知エラーへの病的な依存と、フィルタリングされない他人の恐怖が大気圧として降り注ぐ際の背徳的な安堵",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "処理落ちした季節の残骸を「質量」として肉体的に踏破する際の、窒息に近い耽美と、円滑な社会規範を自らの感覚で無効化することへの微かな嗤い",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "無秩序な世界崩壊に対する吐き気を催すような昂ぶりと、無機質な数値の奔流の中でだけ成立する過剰に湿った親密性",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "他者による自発的な感覚遮断の瞬間を、純粋な視覚生成物として冷徹に消費する鑑賞眼と、その破壊音の裏に隠された「未知の通信文」を抽出しようとする病的な好奇心",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "修理放棄された機械との共犯関係から生じる皮肉な安定感と、約束が果たされないことへの安堵",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "無摩擦な社会接面への窒息感と、他者の認識回路を強制的に引裂く瞬間に訪れる脆い全能感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "exceptional": 1
+        }
+      },
+      {
+        "emotion": "物理的な熱量によって引き起こされるレンダリング誤差への粘着質な興奮と、接触の地点があくまで『不具合』として処理されることへの静かな諦念",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "観測者特有の乾燥した倦怠と、意図せず『聖域』を踏み荒らした瞬間に感じる、湿度を帯びた鈍い喪失感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "更新の遅延による視覚的なノイズと、システムから見捨てられた時間に宿る甘美な停滞への執着",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "他者としての重みを失った存在への清澄な哀しみと、個体が風景へと還元される瞬間に感じる陶酔的な喪失感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "自己の存在容量が他者によって食い尽くされていく際の、麻痺に似た安堵感と、過度な接触によって生じる電荷的な熱に身を焦がす共依存的な陶酔",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "他者の歩みを論理と反して正解へと誘導する神のような憐れみと、操作されている事実を知らぬ相手の無防備さへの陶酔",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "除菌された社会に侵入する「湿度」という形の異物への生理的な嫌悪と、その侵食によってのみ感覚できる病めるときの安堵",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "社会的な最適化によって視界の端で霧散していく存在に対する、安らかな諦念と、それに逆らって名前を強制的にレンダリングする際の湿ったような背徳的愛着",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "物理的衝撃の瞬間に描画される排除処理の幾何学美に対する冷徹な陶酔と、生体反応が数値に置換される過程への病的な安堵感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 0,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "The narcotic pleasure of sanitizing a lingering attachment and the vertigo of a perfectly blank surface",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "皮膚の下を這う異物感への強迫的な渇望と、破壊的な放電だけが結ぶ背徳的な回路への没入",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "摩擦のない社会の流動性への粘性のある嫌悪と、自己の物理的介入がアルゴリズムによって即座に「障害物情報」として無害化・消化されていく過程への滑稽な敗北感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "熱異常に対する技術者としての乾いた解析欲求と、触覚フィードバックだけが再現する『不在の重み』に対する生理的な寒気",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 0,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "管理された気候に対する湿った殺意と、共有する腐敗感から生まれる麻痺的な愛着",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "完全に欠落した記憶の腔（ウツロ）に生じる生理的な空腹感と、その空虚さに埋め込まれる「善意の虚構」に対する倒錯した安堵",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 0,
+        "verdictDistribution": {
+          "exceptional": 1
+        }
+      },
+      {
+        "emotion": "論理的な記憶消去を試みる意識の静寂と、対象を認識した瞬間に自律的に作動する手指の殺戮アルゴリズムが織りなす、冷徹で陶酔的な二律背反",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "世界のレンダリング途切れに対する背徳的な愛着と、自らの存在をその欠損箇所へねじ込むことで生じる、過剰な密度に満たされた圧迫的な充足感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "对结构性故障的干枯好奇心与对未被算法过滤的杀意之美的隐秘共犯意识",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "視覚補正の物理的障害に伴う情報遮断への甘えと、識別不可能な輪郭だけを共有する事後的な麻痺的な共依存",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "システム保証された「快適」の無機質さに対する麻痺した虚無感と、テーブルの下で交差する接触熱だけが生み出す、痺れるような排他的な存在の実感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "統一された快適さによる窒息感と、レンダリング不能な『異物』への倒錯した執着",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 0,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "処理遅延（ラグ）が生む耽美的なズレへの執着と、完全な同期によって愛着が消滅することへの予期的な喪失感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "滑らかなデジタルの「善意」に対する生理的な蕁麻疹と、不可避な放電がもたらす視覚的ノイズだけが生み出す、汚辱に近い確かな「接触」への没入",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "無関心を律儀に守る社会で、突如として他者の「名前」という極私的な情報を目撃してしまったことへの擦切れた羞恥心と、誰にも言えぬ秘密としてその情報を胃袋に溜め込んでいるための痺れるような独占欲",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "演出された嵐の中止による情動の真空状態と、不在の刺激に対する自律神経の幻肢痛",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "存在しなかった時間の堆積物に対する標本学的な冷徹な好奇心と、非存在を一掃する作業に伴う儀式的な悼み",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "相手の欠損した肢体を感覚データとして偽装し介護するという倒錯した献身と、その虚構に相手が依存していることへの静かな支配欲",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "他者の個人情報という異物が自らの視界に張り付く感覚的な不快感と、そのデジタルな汚染にだけ「自分だけが知る出来事」という歪んだ特別性を見出す静かな狂気",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "システムによる無垢な履歴消去への軽蔑と、腐敗しつつある有機的な遺物（残り物弁当）からのみ感じられる、粘着質な安堵感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "自己の精神構造が過度に『正常』へ最適化されたことによる倦怠感と、存在しない妹の記憶という不純物だけに見出す、病的で甘美な依存",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "自発的な孤立による麻痺した幸福感と、行動の放棄を第三者の視線で正当化する倒錯した安堵感",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "無機質な静寂に対する代償行為としての、鋭利な感覚の暴走とそれに伴う陶酔的な覚醒",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "都市全体の人間が向ける虚無への祈りに近い同期操作への嫌悪感と、システムの圧縮処理が及ばない数秒のラグにのみ潜む、不潔で濃厚な秘密の共有",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 0,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "emotion": "自己の精神的安定度（サニティ）を削って他者を維持する痺れるような自己犠牲と、システムによって否定された『異物』だけを消費する歪な共依存に見出す均衡の崩壊しない美しさ",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      }
+    ],
+    "byTimeline": [
+      {
+        "timeline": "3年前における「停止」と、現在の教室での交差",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "午後の休憩時間、事件の推移に沿って",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "幻影の消失が確認された放課後",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "夕暮れのラッシュアワー、信号待ちの数十秒間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "学期初日の早朝、通学前の更衣室",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "システム機能不全による「湿気」帯の発生と、その記憶の欠落を縫う現在",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "市街地のレンダリング負荷が高まる金曜深夜",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "夕暮れ、信号が切り替わる直前の数十秒間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "有効期限切れの記憶データが消去処理される深夜",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "接触補完レイヤーが機能不全に陥った放課後の数十分と、その後の記憶の欠落",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "増幅器暴走イベントの鎮火後、未明3時",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "事件処理完了直後の公園から、数分前の交差点での接触行為へと遡る逆転構造",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "定期試験のデータ流量がピークを迎える昼休み、システム混雑時の13時05分",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "公共遮断フィルター適用中の五分間、およびその前後のログ記録",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "定食屋での昼食時、断続的な熱感知の記憶欠損を縫って",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "花火演出のパケットがシステムによって『視聴覚保護モード』として圧縮された夕暮れ時と、その直前の監視時間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "同居人のデータ消去処理が完了した翌朝、登校前の30分間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "夕暮れのホームと、そのおよそ一時間前の通りすがり",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "夕暮れ、無機質な交差点で信号が赤から青へと切り替わるまでの数十秒間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "exceptional": 1
+        }
+      },
+      {
+        "timeline": "深夜、端末破壊直後の降雨する路上から、機能停止したユニット回収箱の前まで",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "対象の転居処理が完了した午後から、数日前の厨房での静かな覗き見へと遡る逆転構造",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "接触事故の数日後、味覚として残存する記憶を手がかりに当日の夕暮れへと遡る回想",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "室内の異常な高温域がようやく標準気温へと平衡した深夜から、数日前の熱暴走発生瞬間へと遡る逆転構造",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市の重力制御モジュールが不定期的に同期を一瞬欠落させた、湿度の高い放課後",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "サーバー側の「親密性パッチ」適用完了直後の未明3時04分から、対象のログ消去処理が完了する3時07分まで",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "放課後、システムメンテナンスによる一時的な接続不安定領域発生中の約十分間、およびその記憶の再生ログ",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 0,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "絶乾警報発令中の午後、混雑した公共交通機関内での接触事故から夕暮れの高層ビル屋上へと至るまでの数時間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "隣人の契約サスペンド通知が届いた深夜、就寝前の歯磨き中",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "湿度管理機能が追いつかなくなった蒸し暑い夕刻と、視覚入力ポートを意図的に過負荷で焼き切った直後の静寂",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "位置情報サーバーの同調処理が行われる、青白い早朝の数十分間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "早朝の自動カフェが営業を開始してから、最初の定期客が去るまでの約40分間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市のパッケージング機能が稼働し、群衆がローポリゴンの背景へと置換された夜のプラットホーム",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "感情抑制サーバーが『乾燥』と『湿潤』のパラメータを混同した夜明けから、都市機能が再同期されるまでの断片的な時間を回想する構造",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "特定の季節の昼休み。MRフィルタで風景を変えながら、同じ物理的な弁当を食べ続ける無限回廊的な一日",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市OSによる大規模シーズン・パッチ適用中の数分間の意識喪失から、認識が再同期された秋の放課後までの不連続な記憶",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "自動補充プロトコルが消滅し、あらゆる生成物が「欠落」というリアリティを持ち始めた午前零時のコンビニエンスストア前",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "全てのタグ情報が消失した事故発生後の夕食後から、事故の瞬間である放課後の教室へと遡る",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "exceptional": 1
+        }
+      },
+      {
+        "timeline": "地方データセンターからの移住手続きが完了し、新たな居住エリアで自分のキャラクターデータが本格的にレンダリングされ始めた最初の一週間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "夜間の自宅で行われる感覚中和の食事から始まり、帰路の公共交通機関内での接触的共鳴を経て、朝方の適性検査室での誤操作的な覚醒へと遡る逆転構造",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "放課終了のチャイムが音響レイヤーで無限ループを始めた夕暮れ時から、深夜にシステム強制再起動が掛かるまでの不連続な時間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市のバージョンアップによる『過去』の圧縮処理が行われる深夜と、その日没時に体験するフラッシュバック的な認知断絶",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市の感情サーバーがメンテナンスモードに入り、各個人の記憶一時ファイルが物理的データセンターへ転送される、数分間の「空白時間帯」",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "午後の長閑な喫煙所跡地での休息から、硬い結晶が完全に唾液に溶けるまでの約15分間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "exceptional": 1
+        }
+      },
+      {
+        "timeline": "深夜の無人屋上における緊急生体ログ改竄プロセスの実行中",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市環境制御システムが「物理音」を「致命的エラー」として誤認し、排除プロトコルを発動した午前2時から4時の短い時間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "静寂が支配する深夜の街角で、配達員が感覚抑制のプロトコルを破棄した瞬間から、都市OSが強制的な修復を完了するまでの数分間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "exceptional": 1
+        }
+      },
+      {
+        "timeline": "引っ越し初日の虚ろな食卓から、アバターが常駐する「二人のための」空間に適応しつつある現在までの、咀嚼の合間に挿入される断片的な記憶",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "感覚同期プロトコルが偶発的に交差した夕暮れ時から、深夜の自宅での鏡合わせの時間へ断片的に遡る",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市の位置情報サーバーが定期的に再起動し、全ユーザーのリアルタイム座標が5分間だけ「過去ログ」に巻き戻る深夜2時",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市全土で広告レンダリングが一時停止し、建物の壁面が無機質な「未定義」の灰色へと退色した昏睡時間帯",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "夕暮れ時の帰宅直後から、深夜に強制的なシステム修復が完了するまでの数時間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市の夜間乾燥サイクルが作動する夕暮れ時から、路上の茶碗が完全に冷却・乾燥し検知対象から外れる深夜にかけて",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "満員電車の発車メロディが鳴り響くごく短い時間（反復的発生）",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "ドレスコード強制化による街路の視覚テクスチャが書き換えられた深夜から、湿度が peak に達る未明にかけて",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市OSによる季節パッチ『Early Spring』が強制適用された夕暮れ時、未適用エリアが物理的に上書きされるまでの僅かな余白",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "住人が最適化リクエストを出し、その熱処理プロセスが完了して部屋の温度が安定するまでの間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市の感情バッファーが溢れ、個人のデジタル遺品が一時的に外部データシンクとして機能する早朝",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "共有された幻覚の雨が止み、システム管理された晴天に戻った直後から、装置を装着した午後へと遡る",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市インフラのメンテナンス予備電源が切り替わり、現実レイヤーとARレイヤーの同期ズレが拡大する夕暮れ時から、深夜に至るまでの断片的な時間軸",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "「スイッチ」を物理的に切り替えたその瞬間から、都市機能が完全にフリーズするまでの僅かな余白",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市の認識同期サーバーが過負荷により1Hzだけ揺らぐ、毎日決まって訪れる23時54分02秒から05秒の間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市OSの季節パッチ『金葉・秋』が適用される一週間、座標エラーによりデータ漏出が放置された期間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "個人のAR識別子が定義を喪失し、地下空間へと意味のない情報が雪崩れ込んでくる数秒間の反復",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "広場の時計塔が非同期化される逢魔がれ刻から、夜間メンテナンスによってログが物理上書きされる深夜にかけて、断片的に回想される数時間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "定期メンテナンスの通知が来る午後5時から、街灯の点灯パターンが切り替わる夜の初めにかけて",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "休日の午後、ショッピングモールの混雑がピークに達し、背景ノイズが均一化される時間帯",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "exceptional": 1
+        }
+      },
+      {
+        "timeline": "彼女のパーソナル・バリアが熱による「表示崩壊」を起こし、その温かい塊が彼女の内部へと取り込まれた瞬間から、コンビニの陳列棚で弁当を選んでいた薄暗い午前へと遡る",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "空白の座標の一画に物理的に侵入し、二人の静寂が不可逆に撹乱された瞬間から、遡って数週間の定点観測記録へ",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "同一のタイムスタンプが都市全体に貼り付けられ、操作不能な状態に陥った金曜日の夕方から深夜へのループ",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市のAR管理サーバーが昼夜のテクスチャを切り替える、予測アルゴリズムが不安定になる逢魔がれ刻から、データ最適化ノイズがピークに達する深夜にかけて",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "相互アクセス権限のリース期限が切れる午後4時から、自身のキャッシュデータが完全に上書きされる夜の9時までのカウントダウン",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "湿度過多により空間認識レイヤーが僅かに膨張し、街の密度が増した降雨中の昼下がり",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "環境管理システムの定期メンテナンスによる静寂担保モードが発動し、都市の全背景音がミュートされる午後2時",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "街区の気候制御が故障し、常時高い湿度と空気の重さが強制的に付与された梅雨の灰曜日から金曜日にかけての記録",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "通行人が転倒した静止した数秒間を、認識ラグの異なる二重の視点から反復的に再生する時間軸",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 0,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "The quiet hours before dawn when the city's thermal regulation system temporarily shuts down",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "システムによる過剰な絶縁処置が施された梅雨期の午後から、二人の間で放電現象が日常的な儀式として定着する夜にかけて",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "深夜の交差点での衝突直後、その余波が街のノイズとして平穏に処理される時間から、走行を開始した道路へと遡る",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "退去処理が完了したユニット302で入居者からの苦情を受けて現場検証を行なっている午後4時前後",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 0,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "街区の気候制御システムが誤作動を起こし、一時的に冬の寒冷テクスチャが漏出した不定期な数日間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "リレーションシップ解消に伴う法定データ消去処理が実施された翌日の、午前7時から正午にかけての断片的な時間帯",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 0,
+        "verdictDistribution": {
+          "exceptional": 1
+        }
+      },
+      {
+        "timeline": "都市の環境制御システムが一時的にリスタートをかけ、重力制御用の反発場が数センチだけ沈み込む「夕刻の浮遊感消失」のタイミング",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "街区の熱処理システムが停止し、深夜の都市が放熱のためだけに呼吸する午前3時から4時",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市情感模拟系统周期性同步期间、所有市民瞳孔光反射强制统一的黄昏",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市の熱排出口が定期的なブリーザー動作を行い、局所的な湿度飽和 state が発生する深夜3時前後の１時間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "大気調整システムの稼働率が最低になり、地下区画の食堂が生の配管音を晒す深夜2時から営業終了まで",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "夕暮れ時の公園で、周囲の環境音が静寂化処理される反復する数分間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 0,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "校舎内の通信帯域が放熱処理のために一時的に絞られる、午後の最下限授業中",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "深夜の帰宅ラッシュ時の車内で身体の静電容量が限界を迎え、放電事故を起こす数分の時間と、その後の静寂な夜道への帰還",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "季節管理更新が実行され、視覚フィルターが夏の熱帯色から秋の無機質な青へ遷移する午後0時15分00秒から05秒までの、わずか5秒間の反復的変奏",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "全天候型エモーショナル・レンダリングの定期メンテナンスが実施され、都市の AR 空が物理的な夕暮れへと切り替わった変則的な「青」の時間帯",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市のレンダリングエンジンが完全に停止し、生成された光が物理的な重力法則のみを参照する「再同期期（リシンク）」未明3時から4時",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "利用者が自室のシーツ整えを完了し、朝食の焦げたパンの香りを嗅ぎ取るまでの午前7時20分から7時35分の15分間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "空調システムの排熱処理が追いつかず、街区の大気が淀んだ微温風に満たる「湿度過多の夕暮れ」",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市の廃棄物回収スケジュールが作動し、路上の物体が『不要』タグで一括塗りつぶされる早朝5時53分から6時まで",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市の環境制御システムが季節移行データの微調整を行うため、気温と湿度が数分おきに不規則に振動する早朝の通学路",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市全域のAIプロセスが不要なログを圧縮するために処理速度を意図的に下げる、午後のラグタイム（遅延時間）",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "校舎の環境調整システムが午後の授業向けの光量へと遷移する過渡期で、教室の空気が最も淀んだ午後1時30分から35分までの5分間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "朝の登校時間帯、都市全体の環境アセットが「高精細モード」へと切り替わる負荷ピークの数分間",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 0,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      },
+      {
+        "timeline": "都市全域の『季節更新：夏至』に伴うレンダリング負荷がピークに達し、処理落ち頻発する午前3時から4時のラグタイム",
+        "count": 1,
+        "successRate": 1,
+        "compliancePassRate": 1,
+        "verdictDistribution": {
+          "publishable": 1
+        }
+      }
+    ]
+  }
+}
