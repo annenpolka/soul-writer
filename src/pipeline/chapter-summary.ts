@@ -1,5 +1,5 @@
-import type { LLMClient, ToolDefinition } from '../llm/types.js';
-import { assertToolCallingClient, parseToolArguments } from '../llm/tooling.js';
+import { z } from 'zod';
+import type { LLMClient } from '../llm/types.js';
 import { buildTemplateBlock } from '../template/composer.js';
 
 export interface PreviousChapterAnalysis {
@@ -12,53 +12,32 @@ export interface PreviousChapterAnalysis {
   };
 }
 
-// Tool definition for structured output
-const ANALYZE_CHAPTER_TOOL: ToolDefinition = {
-  type: 'function',
-  function: {
-    name: 'report_chapter_analysis',
-    description: '前章の分析結果を報告する',
-    parameters: {
-      type: 'object',
-      properties: {
-        storySummary: { type: 'string', description: '物語的要約（200字程度）' },
-        emotionalBeats: { type: 'array', items: { type: 'string' }, description: '感情遷移列' },
-        dominantImagery: { type: 'array', items: { type: 'string' }, description: '支配的イメージ群' },
-        rhythmProfile: { type: 'string', description: 'リズム特徴' },
-        structuralPattern: { type: 'string', description: '章内構造パターン' },
-      },
-      required: ['storySummary', 'emotionalBeats', 'dominantImagery', 'rhythmProfile', 'structuralPattern'],
-      additionalProperties: false,
-    },
-    strict: true,
-  },
-};
+const StringArrayOrStringSchema = z.union([z.array(z.string()), z.string()]);
+
+const PreviousChapterAnalysisSchema = z.object({
+  storySummary: z.string(),
+  emotionalBeats: StringArrayOrStringSchema,
+  dominantImagery: StringArrayOrStringSchema,
+  rhythmProfile: z.string(),
+  structuralPattern: z.string(),
+});
 
 export async function analyzePreviousChapter(
   llmClient: LLMClient,
   chapterText: string,
 ): Promise<PreviousChapterAnalysis> {
-  assertToolCallingClient(llmClient);
-
   const systemPrompt = buildTemplateBlock('pipeline', 'previous-chapter-analysis', 'systemPrompt', {});
 
-  const response = await llmClient.completeWithTools(
-    systemPrompt,
-    chapterText,
-    [ANALYZE_CHAPTER_TOOL],
-    {
-      toolChoice: { type: 'function', function: { name: 'report_chapter_analysis' } },
-      temperature: 1.0,
-    },
+  const response = await llmClient.completeStructured(
+    [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: chapterText },
+    ],
+    PreviousChapterAnalysisSchema,
+    { temperature: 1.0 },
   );
 
-  const parsed = parseToolArguments<{
-    storySummary: string;
-    emotionalBeats: string[];
-    dominantImagery: string[];
-    rhythmProfile: string;
-    structuralPattern: string;
-  }>(response, 'report_chapter_analysis');
+  const parsed = response.data;
 
   return {
     storySummary: parsed.storySummary,
@@ -87,34 +66,12 @@ export interface EstablishedInsight {
   rule: string;
 }
 
-const EXTRACT_INSIGHTS_TOOL: ToolDefinition = {
-  type: 'function',
-  function: {
-    name: 'report_established_insights',
-    description: 'この章で確立された認識・発見・関係変化を報告する',
-    parameters: {
-      type: 'object',
-      properties: {
-        insights: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              insight: { type: 'string', description: '確立された認識・発見・関係変化（例: "語り手はARの歪みに気づいている"）' },
-              rule: { type: 'string', description: '次章以降への制約（例: "再度「発見」させないこと"）' },
-            },
-            required: ['insight', 'rule'],
-            additionalProperties: false,
-          },
-          description: '確立された認識リスト（3〜5個）',
-        },
-      },
-      required: ['insights'],
-      additionalProperties: false,
-    },
-    strict: true,
-  },
-};
+const EstablishedInsightsSchema = z.object({
+  insights: z.array(z.object({
+    insight: z.string(),
+    rule: z.string(),
+  })),
+});
 
 /**
  * Extract established insights from a completed chapter.
@@ -125,23 +82,18 @@ export async function extractEstablishedInsights(
   chapterText: string,
   chapterIndex: number,
 ): Promise<EstablishedInsight[]> {
-  assertToolCallingClient(llmClient);
-
   const systemPrompt = buildTemplateBlock('pipeline', 'established-insights-extraction', 'systemPrompt', {});
 
-  const response = await llmClient.completeWithTools(
-    systemPrompt,
-    chapterText,
-    [EXTRACT_INSIGHTS_TOOL],
-    {
-      toolChoice: { type: 'function', function: { name: 'report_established_insights' } },
-      temperature: 1.0,
-    },
+  const response = await llmClient.completeStructured(
+    [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: chapterText },
+    ],
+    EstablishedInsightsSchema,
+    { temperature: 1.0 },
   );
 
-  const parsed = parseToolArguments<{
-    insights: Array<{ insight: string; rule: string }>;
-  }>(response, 'report_established_insights');
+  const parsed = response.data;
 
   return (parsed.insights ?? []).map(i => ({
     chapter: chapterIndex,

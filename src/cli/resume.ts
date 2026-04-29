@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
-import { createLLMClient, type LLMProvider } from '../llm/provider-factory.js';
+import { createLLMClientFromResolvedConfig } from '../llm/provider-factory.js';
+import { resolveLLMConfig } from '../llm/config.js';
 import { loadSoulTextManager } from '../soul/manager.js';
 import { DatabaseConnection } from '../storage/database.js';
 import { createTaskRepo } from '../storage/task-repository.js';
@@ -15,7 +16,6 @@ import { createCrossChapterStateRepo } from '../storage/cross-chapter-state-repo
 import { createPhaseMetricsRepo } from '../storage/phase-metrics-repository.js';
 import { createFullPipeline } from '../pipeline/full.js';
 import { createLogger } from '../logger.js';
-import type { CodexReasoningEffort } from '../llm/codex/types.js';
 
 dotenv.config();
 
@@ -24,6 +24,9 @@ export interface ResumeOptions {
   soul: string;
   dbPath?: string;
   verbose?: boolean;
+  provider?: string;
+  model?: string;
+  reasoningEffort?: string;
 }
 
 export async function resume(options: ResumeOptions): Promise<void> {
@@ -40,9 +43,6 @@ export async function resume(options: ResumeOptions): Promise<void> {
   console.log(`Soul: ${soul}`);
   console.log(`Database: ${dbPath}`);
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
-
-  // Check environment
-  const provider = (process.env.LLM_PROVIDER || 'cerebras') as LLMProvider;
 
   // Load soul text
   console.log(`Loading soul text from "${soul}"...`);
@@ -79,13 +79,12 @@ export async function resume(options: ResumeOptions): Promise<void> {
   }
 
   // Create LLM client
-  const llmClient = await createLLMClient({
-    provider,
-    cerebrasApiKey: process.env.CEREBRAS_API_KEY,
-    cerebrasModel: process.env.CEREBRAS_MODEL || 'zai-glm-4.7',
-    codexModel: process.env.CODEX_MODEL || 'gpt-5.2',
-    codexReasoningEffort: process.env.CODEX_REASONING_EFFORT as CodexReasoningEffort | undefined,
+  const llmConfig = resolveLLMConfig(process.env, {
+    provider: options.provider,
+    model: options.model,
+    reasoningEffort: options.reasoningEffort,
   });
+  const llmClient = await createLLMClientFromResolvedConfig(llmConfig);
 
   // Create analytics repositories
   const judgeSessionRepo = createJudgeSessionRepo(sqlite);

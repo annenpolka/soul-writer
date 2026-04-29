@@ -1,12 +1,26 @@
 import Cerebras from '@cerebras/cerebras_cloud_sdk';
 import type { ChatCompletion } from '@cerebras/cerebras_cloud_sdk/resources/chat/completions.js';
 import { z, type ZodType } from 'zod';
-import type { LLMClient, CompletionOptions, CerebrasConfig, ToolDefinition, ToolCallOptions, ToolCallResponse, ToolCallResult, LLMMessage, StructuredResponse } from './types.js';
+import type { LLMClient, CompletionOptions, LLMClientMetadata, ToolDefinition, ToolCallOptions, ToolCallResponse, ToolCallResult, LLMMessage, StructuredResponse } from './types.js';
 import type { CircuitBreaker } from './circuit-breaker.js';
 
 const DEFAULT_MAX_RETRIES = 5;
 const DEFAULT_INITIAL_RETRY_DELAY_MS = 2000;
 const DEFAULT_MAX_RETRY_DELAY_MS = 60000;
+
+/**
+ * Configuration for Cerebras client.
+ */
+export interface CerebrasConfig {
+  apiKey: string;
+  model: string;
+  /** Maximum app-level retries for empty responses or transient errors (default: 5). SDK handles its own retries separately. */
+  maxRetries?: number;
+  /** Initial retry delay in ms (default: 2000). */
+  initialRetryDelayMs?: number;
+  /** Maximum retry delay in ms (default: 60000). */
+  maxRetryDelayMs?: number;
+}
 
 // Keywords not supported by Cerebras strict mode JSON Schema
 const UNSUPPORTED_KEYWORDS = new Set([
@@ -88,6 +102,7 @@ export class CerebrasClient implements LLMClient {
   private initialRetryDelayMs: number;
   private maxRetryDelayMs: number;
   private circuitBreaker?: CircuitBreaker;
+  readonly metadata: LLMClientMetadata;
 
   constructor(config: CerebrasConfig, client?: Cerebras, circuitBreaker?: CircuitBreaker) {
     this.client = client ?? new Cerebras({
@@ -100,6 +115,17 @@ export class CerebrasClient implements LLMClient {
     this.initialRetryDelayMs = config.initialRetryDelayMs ?? DEFAULT_INITIAL_RETRY_DELAY_MS;
     this.maxRetryDelayMs = config.maxRetryDelayMs ?? DEFAULT_MAX_RETRY_DELAY_MS;
     this.circuitBreaker = circuitBreaker;
+    this.metadata = {
+      providerId: 'cerebras',
+      providerName: 'Cerebras',
+      model: this.model,
+      capabilities: {
+        text: true,
+        structuredOutput: true,
+        toolCalling: true,
+        reasoning: true,
+      },
+    };
   }
 
   async complete(

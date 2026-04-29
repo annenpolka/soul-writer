@@ -111,11 +111,12 @@ export function parsePhase1Response(
       };
     });
 
-    return { characters, tokensUsed: 0 };
+    return { characters, tokensUsed: 0, reasoning: null };
   } catch {
     return {
       characters: originalCharacters.map(createDefaultPhase1),
       tokensUsed: 0,
+      reasoning: null,
     };
   }
 }

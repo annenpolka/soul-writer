@@ -6,6 +6,7 @@
 import { z, type ZodType } from 'zod';
 import type {
   LLMClient,
+  LLMClientMetadata,
   LLMMessage,
   CompletionOptions,
   StructuredResponse,
@@ -118,6 +119,7 @@ export class CodexClient implements LLMClient {
   private fetchFn: typeof fetch;
   private cachedToken: CodexToken | null = null;
   private refreshPromise: Promise<CodexToken> | null = null;
+  readonly metadata: LLMClientMetadata;
 
   constructor(config: CodexConfig) {
     this.model = config.model;
@@ -132,6 +134,17 @@ export class CodexClient implements LLMClient {
     }
     this.tokenStore = config.tokenStore;
     this.fetchFn = config.fetchFn ?? globalThis.fetch;
+    this.metadata = {
+      providerId: 'codex',
+      providerName: 'OpenAI Codex',
+      model: this.model,
+      capabilities: {
+        text: true,
+        structuredOutput: true,
+        toolCalling: false,
+        reasoning: true,
+      },
+    };
   }
 
   async complete(

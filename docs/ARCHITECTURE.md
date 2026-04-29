@@ -46,7 +46,7 @@
 │                     │                                                │
 │          ┌──────────▼──────────┐                                    │
 │          │     LLM Client      │                                    │
-│          │  (OpenAI互換API)    │                                    │
+│          │  Provider Registry  │                                    │
 │          └─────────────────────┘                                    │
 │                                                                      │
 └─────────────────────────────────────────────────────────────────────┘
@@ -315,6 +315,18 @@
 
 ```
 interface LLMClient {
+  // 実行時メタデータと能力
+  metadata: {
+    provider_id: string,
+    model: string,
+    capabilities: {
+      text: true,
+      structured_output: boolean,
+      tool_calling: boolean,
+      reasoning: boolean
+    }
+  }
+
   // 基本的な補完
   complete(
     system_prompt: string,
@@ -326,13 +338,20 @@ interface LLMClient {
     }
   ): string
 
-  // 構造化出力（JSON Schema対応）
+  // 構造化出力（JSON Schema対応、標準能力）
   complete_structured<T>(
-    system_prompt: string,
-    user_prompt: string,
+    messages: Message[],
     schema: JSONSchema,
     options: CompletionOptions
   ): T
+
+  // ツール呼び出し（対応providerのみ）
+  complete_with_tools?(
+    system_prompt: string,
+    user_prompt: string,
+    tools: ToolDefinition[],
+    options: ToolCallOptions
+  ): ToolCallResponse
 
   // トークン消費量の取得
   get_total_tokens(): number

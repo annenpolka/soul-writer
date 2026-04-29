@@ -3,7 +3,7 @@ import {
   createFragmentExtractor,
   type FragmentExtractorFn,
 } from '../../src/learning/fragment-extractor.js';
-import { createMockLLMClientWithTools } from '../helpers/mock-deps.js';
+import { createMockLLMClientWithStructured } from '../helpers/mock-deps.js';
 
 const sampleFragments = [
   {
@@ -24,11 +24,8 @@ describe('createFragmentExtractor (FP)', () => {
   let extractor: FragmentExtractorFn;
 
   describe('extract', () => {
-    it('should extract fragments from text via tool calling', async () => {
-      const llm = createMockLLMClientWithTools({
-        name: 'submit_fragments',
-        arguments: { fragments: sampleFragments },
-      }, 200);
+    it('should extract fragments from text via structured output', async () => {
+      const llm = createMockLLMClientWithStructured({ fragments: sampleFragments }, { tokenCount: 200 });
       extractor = createFragmentExtractor(llm);
 
       const result = await extractor.extract('Long chapter text...', {
@@ -42,10 +39,7 @@ describe('createFragmentExtractor (FP)', () => {
     });
 
     it('should return tokens used', async () => {
-      const llm = createMockLLMClientWithTools({
-        name: 'submit_fragments',
-        arguments: { fragments: sampleFragments },
-      }, 200);
+      const llm = createMockLLMClientWithStructured({ fragments: sampleFragments }, { tokenCount: 200 });
       extractor = createFragmentExtractor(llm);
 
       const result = await extractor.extract('Test', {
@@ -56,11 +50,8 @@ describe('createFragmentExtractor (FP)', () => {
       expect(result.tokensUsed).toBe(0);
     });
 
-    it('should fallback to empty fragments on wrong tool name', async () => {
-      const llm = createMockLLMClientWithTools({
-        name: 'wrong_tool',
-        arguments: {},
-      }, 50);
+    it('should fallback to empty fragments on malformed structured data', async () => {
+      const llm = createMockLLMClientWithStructured({ wrong: [] }, { tokenCount: 50 });
       extractor = createFragmentExtractor(llm);
 
       const result = await extractor.extract('Text', {
@@ -72,10 +63,7 @@ describe('createFragmentExtractor (FP)', () => {
     });
 
     it('should handle empty fragments response', async () => {
-      const llm = createMockLLMClientWithTools({
-        name: 'submit_fragments',
-        arguments: { fragments: [] },
-      }, 30);
+      const llm = createMockLLMClientWithStructured({ fragments: [] }, { tokenCount: 30 });
       extractor = createFragmentExtractor(llm);
 
       const result = await extractor.extract('Text', {
@@ -89,10 +77,7 @@ describe('createFragmentExtractor (FP)', () => {
 
   describe('filterHighQuality', () => {
     it('should filter fragments by minimum score', async () => {
-      const llm = createMockLLMClientWithTools({
-        name: 'submit_fragments',
-        arguments: { fragments: sampleFragments },
-      }, 100);
+      const llm = createMockLLMClientWithStructured({ fragments: sampleFragments }, { tokenCount: 100 });
       extractor = createFragmentExtractor(llm);
 
       const result = await extractor.extract('Text', {

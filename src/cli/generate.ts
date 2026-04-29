@@ -1,10 +1,11 @@
 import dotenv from 'dotenv';
-import { createLLMClient, type LLMProvider } from '../llm/provider-factory.js';
+import { createLLMClientFromResolvedConfig } from '../llm/provider-factory.js';
+import { resolveLLMConfig } from '../llm/config.js';
+import type { LLMClient } from '../llm/types.js';
 import { loadSoulTextManager, type SoulTextManagerFn } from '../soul/manager.js';
 import { generateSimple } from '../pipeline/simple.js';
 import { createFullPipeline } from '../pipeline/full.js';
 import { createLogger, type LoggerFn } from '../logger.js';
-import type { CodexReasoningEffort } from '../llm/codex/types.js';
 import { DatabaseConnection } from '../storage/database.js';
 import { createTaskRepo } from '../storage/task-repository.js';
 import { createWorkRepo } from '../storage/work-repository.js';
@@ -36,6 +37,9 @@ export interface GenerateOptions {
   mode?: 'tournament' | 'collaboration';
   includeRawSoultext?: boolean;
   excludeLearned?: boolean;
+  provider?: string;
+  model?: string;
+  reasoningEffort?: string;
 }
 
 export async function generate(options: GenerateOptions): Promise<void> {
@@ -50,15 +54,15 @@ export async function generate(options: GenerateOptions): Promise<void> {
     mode,
     includeRawSoultext = false,
     excludeLearned = false,
+    provider,
+    model,
+    reasoningEffort,
   } = options;
 
   const logger = createLogger({
     verbose,
     logFile: verbose ? `logs/generate-${Date.now()}.log` : undefined,
   });
-
-  // Check environment
-  const provider = (process.env.LLM_PROVIDER || 'cerebras') as LLMProvider;
 
   // Load soul text
   console.log(`Loading soul text from "${soul}"...`);
@@ -71,13 +75,12 @@ export async function generate(options: GenerateOptions): Promise<void> {
   console.log(`✓ Loaded: ${soulManager.getConstitution().meta.soul_name}\n`);
 
   // Create LLM client
-  const llmClient = await createLLMClient({
+  const llmConfig = resolveLLMConfig(process.env, {
     provider,
-    cerebrasApiKey: process.env.CEREBRAS_API_KEY,
-    cerebrasModel: process.env.CEREBRAS_MODEL || 'zai-glm-4.7',
-    codexModel: process.env.CODEX_MODEL || 'gpt-5.2',
-    codexReasoningEffort: process.env.CODEX_REASONING_EFFORT as CodexReasoningEffort | undefined,
+    model,
+    reasoningEffort,
   });
+  const llmClient = await createLLMClientFromResolvedConfig(llmConfig);
 
   // Simple mode: tournament only, no DB
   if (simple) {
@@ -103,7 +106,7 @@ export async function generate(options: GenerateOptions): Promise<void> {
 }
 
 async function runSimpleMode(
-  llmClient: CerebrasClient,
+  llmClient: LLMClient,
   soulManager: SoulTextManagerFn,
   prompt: string,
   logger: LoggerFn,
@@ -134,7 +137,7 @@ interface FullModeOptions {
 }
 
 async function runFullMode(
-  llmClient: CerebrasClient,
+  llmClient: LLMClient,
   soulManager: SoulTextManagerFn,
   opts: FullModeOptions,
   logger: LoggerFn,

@@ -50,7 +50,23 @@ describe('LLMClient tool calling types', () => {
     ];
 
     const mockClient: LLMClient = {
+      metadata: {
+        providerId: 'mock',
+        providerName: 'Mock',
+        model: 'mock-model',
+        capabilities: {
+          text: true,
+          structuredOutput: true,
+          toolCalling: true,
+          reasoning: false,
+        },
+      },
       complete: vi.fn().mockResolvedValue('text response'),
+      completeStructured: vi.fn().mockResolvedValue({
+        data: {},
+        reasoning: null,
+        tokensUsed: 0,
+      }),
       completeWithTools: vi.fn().mockResolvedValue({
         toolCalls: mockToolCalls,
         content: null,

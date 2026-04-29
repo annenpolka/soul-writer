@@ -13,7 +13,34 @@ function makeContext(overrides?: Partial<PipelineContext>): PipelineContext {
     synthesized: false,
     readerRetakeCount: 0,
     deps: {
-      llmClient: { complete: vi.fn(), getTotalTokens: vi.fn().mockReturnValue(0) },
+      llmClient: {
+        metadata: {
+          providerId: 'mock',
+          providerName: 'Mock',
+          model: 'mock-model',
+          capabilities: {
+            text: true,
+            structuredOutput: true,
+            toolCalling: true,
+            reasoning: false,
+          },
+        },
+        complete: vi.fn(),
+        completeStructured: vi.fn().mockResolvedValue({
+          data: {
+            winner: 'A',
+            reasoning: 'テスト',
+            scores: {
+              A: { style: 0.9, compliance: 0.9, overall: 0.9, voice_accuracy: 0.9 },
+              B: { style: 0.8, compliance: 0.8, overall: 0.8, voice_accuracy: 0.8 },
+            },
+            praised_excerpts: { A: [], B: [] },
+          },
+          reasoning: null,
+          tokensUsed: 50,
+        }),
+        getTotalTokens: vi.fn().mockReturnValue(0),
+      },
       soulText: createMockSoulText(),
       narrativeRules: {
         pov: 'first-person',
@@ -95,7 +122,31 @@ describe('createJudgeRetakeStage', () => {
 
     // Mock LLM client that returns high scores (above threshold)
     const mockLLM = {
+      metadata: {
+        providerId: 'mock',
+        providerName: 'Mock',
+        model: 'mock-model',
+        capabilities: {
+          text: true,
+          structuredOutput: true,
+          toolCalling: true,
+          reasoning: false,
+        },
+      },
       complete: vi.fn().mockResolvedValue('リテイクされた文章です。'),
+      completeStructured: vi.fn().mockResolvedValue({
+        data: {
+          winner: 'A',
+          reasoning: 'テスト',
+          scores: {
+            A: { style: 0.9, compliance: 0.9, overall: 0.9, voice_accuracy: 0.9 },
+            B: { style: 0.8, compliance: 0.8, overall: 0.8, voice_accuracy: 0.8 },
+          },
+          praised_excerpts: { A: [], B: [] },
+        },
+        reasoning: null,
+        tokensUsed: 50,
+      }),
       completeWithTools: vi.fn().mockResolvedValue({
         toolCalls: [{
           id: 'tc-1',

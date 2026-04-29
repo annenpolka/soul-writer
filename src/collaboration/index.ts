@@ -2,7 +2,7 @@ export { createCollaborationSession, type CollaborationSessionFn, type Collabora
 export { createCollaborativeWriter, type CollaborativeWriterFn, type CollaborativeWriterDeps } from './collaborative-writer.js';
 export { createModerator, type ModeratorFn, type ModeratorDeps, type WriterInfo } from './moderator.js';
 export { toTournamentResult } from './adapter.js';
-export { COLLABORATION_TOOLS, parseToolCallToAction, getToolByName } from './tools.js';
+export { parseStructuredAction } from './tools.js';
 export {
   type CollaborationAction,
   type CollaborationState,

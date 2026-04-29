@@ -79,7 +79,9 @@ auth Options:
   auth status    Check authentication status
 
 Global Options:
-  --provider     LLM provider: "cerebras" (default) or "codex" (env: LLM_PROVIDER)
+  --provider     LLM provider: "cerebras" (default), "codex", or "openai-compatible" (env: LLM_PROVIDER)
+  --model        Override selected provider model
+  --reasoning-effort  Override reasoning effort for providers that support it
   --verbose      Enable detailed logging of each pipeline step
   `);
 }
@@ -133,7 +135,21 @@ async function main(): Promise<void> {
         process.exit(1);
       }
 
-      await generate({ soul, prompt, autoTheme, chapters, dbPath, simple, verbose, mode, includeRawSoultext, excludeLearned });
+      await generate({
+        soul,
+        prompt,
+        autoTheme,
+        chapters,
+        dbPath,
+        simple,
+        verbose,
+        mode,
+        includeRawSoultext,
+        excludeLearned,
+        provider: options.provider,
+        model: options.model,
+        reasoningEffort: options['reasoning-effort'],
+      });
       break;
     }
 
@@ -149,7 +165,15 @@ async function main(): Promise<void> {
         process.exit(1);
       }
 
-      await resume({ taskId, soul, dbPath, verbose });
+      await resume({
+        taskId,
+        soul,
+        dbPath,
+        verbose,
+        provider: options.provider,
+        model: options.model,
+        reasoningEffort: options['reasoning-effort'],
+      });
       break;
     }
 
@@ -178,6 +202,9 @@ async function main(): Promise<void> {
         taskDelayMs: options['task-delay'] ? parseInt(options['task-delay'], 10) : undefined,
         mode: options.mode,
         excludeLearned: options['exclude-learned'] === 'true',
+        provider: options.provider,
+        model: options.model,
+        reasoningEffort: options['reasoning-effort'],
       });
       break;
     }

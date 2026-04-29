@@ -1,5 +1,5 @@
-import type { LLMClient, ToolDefinition, ToolCallResponse } from '../../llm/types.js';
-import { assertToolCallingClient, parseToolArguments } from '../../llm/tooling.js';
+import { z } from 'zod';
+import type { LLMClient } from '../../llm/types.js';
 import type { Violation, ChapterContext } from '../../agents/types.js';
 import type { AsyncComplianceRule } from './async-rule.js';
 
@@ -12,38 +12,14 @@ interface RepetitionReport {
   }>;
 }
 
-const REPORT_REPETITIONS_TOOL: ToolDefinition = {
-  type: 'function',
-  function: {
-    name: 'report_repetitions',
-    description: '検出された反復パターンを報告する',
-    parameters: {
-      type: 'object',
-      properties: {
-        repetitions: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              type: {
-                type: 'string',
-                enum: ['phrase', 'pattern', 'motif', 'opening', 'ending', 'simile'],
-              },
-              description: { type: 'string' },
-              severity: { type: 'string', enum: ['warning', 'error'] },
-              examples: { type: 'array', items: { type: 'string' } },
-            },
-            required: ['type', 'description', 'severity', 'examples'],
-            additionalProperties: false,
-          },
-        },
-      },
-      required: ['repetitions'],
-      additionalProperties: false,
-    },
-    strict: true,
-  },
-};
+const RepetitionReportSchema = z.object({
+  repetitions: z.array(z.object({
+    type: z.enum(['phrase', 'pattern', 'motif', 'opening', 'ending', 'simile']),
+    description: z.string(),
+    severity: z.enum(['warning', 'error']),
+    examples: z.array(z.string()),
+  })),
+});
 
 /**
  * LLM-based self-repetition detection rule
@@ -66,22 +42,19 @@ export class SelfRepetitionRule implements AsyncComplianceRule {
   }
 
   async check(text: string, chapterContext?: ChapterContext): Promise<Violation[]> {
-    assertToolCallingClient(this.llmClient);
-
     const systemPrompt = this.buildSystemPrompt();
     const userPrompt = this.buildUserPrompt(text, chapterContext);
 
-    const response = await this.llmClient.completeWithTools(
-      systemPrompt,
-      userPrompt,
-      [REPORT_REPETITIONS_TOOL],
-      {
-        toolChoice: { type: 'function', function: { name: 'report_repetitions' } },
-        temperature: 1.0,
-      },
+    const response = await this.llmClient.completeStructured(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      RepetitionReportSchema,
+      { temperature: 1.0 },
     );
 
-    return this.parseResponse(response, text);
+    return this.parseResponse(response.data, text);
   }
 
   private buildSystemPrompt(): string {
@@ -123,13 +96,10 @@ export class SelfRepetitionRule implements AsyncComplianceRule {
     return parts.join('\n');
   }
 
-  private parseResponse(response: ToolCallResponse, text: string): Violation[] {
-    let report: RepetitionReport;
-    try {
-      report = parseToolArguments<RepetitionReport>(response, 'report_repetitions');
-    } catch {
-      return [];
-    }
+  private parseResponse(raw: unknown, text: string): Violation[] {
+    const parsed = RepetitionReportSchema.safeParse(raw);
+    if (!parsed.success) return [];
+    const report: RepetitionReport = parsed.data;
 
     if (!Array.isArray(report.repetitions)) {
       return [];

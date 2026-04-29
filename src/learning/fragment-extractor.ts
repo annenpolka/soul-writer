@@ -1,6 +1,6 @@
 import type { VerdictLevel } from '../agents/types.js';
-import type { LLMClient, ToolDefinition, ToolCallResponse } from '../llm/types.js';
-import { assertToolCallingClient, parseToolArguments } from '../llm/tooling.js';
+import { z } from 'zod';
+import type { LLMClient } from '../llm/types.js';
 import { verdictToString } from '../evaluation/verdict-utils.js';
 import { buildPrompt } from '../template/composer.js';
 
@@ -25,53 +25,23 @@ export interface FragmentExtractorFn {
   filterHighQuality(fragments: ExtractedFragment[], minScore: number): ExtractedFragment[];
 }
 
-// =====================
-// Tool Definition
-// =====================
-
-const SUBMIT_FRAGMENTS_TOOL: ToolDefinition = {
-  type: 'function',
-  function: {
-    name: 'submit_fragments',
-    description: 'ソウルテキスト断片の抽出結果を提出する',
-    parameters: {
-      type: 'object',
-      properties: {
-        fragments: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              text: { type: 'string' },
-              category: { type: 'string' },
-              score: { type: 'number' },
-              reason: { type: 'string' },
-            },
-            required: ['text', 'category', 'score', 'reason'],
-            additionalProperties: false,
-          },
-        },
-      },
-      required: ['fragments'],
-      additionalProperties: false,
-    },
-    strict: true,
-  },
-};
+const FragmentResponseSchema = z.object({
+  fragments: z.array(z.object({
+    text: z.string(),
+    category: z.string(),
+    score: z.number(),
+    reason: z.string(),
+  })),
+});
 
 // =====================
 // Parser
 // =====================
 
-function parseFragmentResponse(response: ToolCallResponse): ExtractedFragment[] {
-  try {
-    const result = parseToolArguments<{ fragments: ExtractedFragment[] }>(
-      response, 'submit_fragments',
-    );
-    return Array.isArray(result.fragments) ? result.fragments : [];
-  } catch {
-    return [];
-  }
+function parseFragmentResponse(raw: unknown): ExtractedFragment[] {
+  const parsed = FragmentResponseSchema.safeParse(raw);
+  if (!parsed.success) return [];
+  return parsed.data.fragments;
 }
 
 // =====================
@@ -90,19 +60,17 @@ export function createFragmentExtractor(llmClient: LLMClient): FragmentExtractor
       const { system: systemPrompt, user: userPrompt } = buildPrompt('fragment-extractor', templateContext);
       const tokensBefore = llmClient.getTotalTokens();
 
-      assertToolCallingClient(llmClient);
-      const response = await llmClient.completeWithTools(
-        systemPrompt,
-        userPrompt,
-        [SUBMIT_FRAGMENTS_TOOL],
-        {
-          toolChoice: { type: 'function', function: { name: 'submit_fragments' } },
-          temperature: 1.0,
-        },
+      const response = await llmClient.completeStructured(
+        [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        FragmentResponseSchema,
+        { temperature: 1.0 },
       );
 
       const tokensUsed = llmClient.getTotalTokens() - tokensBefore;
-      const fragments = parseFragmentResponse(response);
+      const fragments = parseFragmentResponse(response.data);
 
       return { fragments, tokensUsed };
     },

@@ -1,25 +1,16 @@
 import { describe, it, expect, vi } from 'vitest';
 import { SelfRepetitionRule } from '../../src/compliance/rules/self-repetition.js';
-import type { LLMClient, ToolCallResponse } from '../../src/llm/types.js';
+import type { LLMClient } from '../../src/llm/types.js';
 import type { ChapterContext } from '../../src/agents/types.js';
 
 function createMockLLMClient(toolResponse: unknown): LLMClient {
   return {
     complete: vi.fn(),
-    completeWithTools: vi.fn().mockResolvedValue({
-      toolCalls: [
-        {
-          id: 'call_1',
-          type: 'function',
-          function: {
-            name: 'report_repetitions',
-            arguments: JSON.stringify(toolResponse),
-          },
-        },
-      ],
-      content: null,
+    completeStructured: vi.fn().mockResolvedValue({
+      data: toolResponse,
+      reasoning: null,
       tokensUsed: 100,
-    } satisfies ToolCallResponse),
+    }),
     getTotalTokens: vi.fn().mockReturnValue(100),
   };
 }
@@ -84,9 +75,10 @@ describe('SelfRepetitionRule', () => {
     expect(violations[0].severity).toBe('warning');
 
     // Verify that previous chapter text was included in the prompt
-    const completeWithTools = mockClient.completeWithTools!;
-    expect(completeWithTools).toHaveBeenCalledTimes(1);
-    const userPrompt = (completeWithTools as ReturnType<typeof vi.fn>).mock.calls[0][1] as string;
+    const completeStructured = mockClient.completeStructured;
+    expect(completeStructured).toHaveBeenCalledTimes(1);
+    const messages = (completeStructured as ReturnType<typeof vi.fn>).mock.calls[0][0] as Array<{ role: string; content: string }>;
+    const userPrompt = messages[1].content;
     expect(userPrompt).toContain('【前章1】');
     expect(userPrompt).toContain('窓の外には雨が降っていた');
   });
@@ -94,11 +86,11 @@ describe('SelfRepetitionRule', () => {
   it('should handle tool call parse failure gracefully', async () => {
     const mockClient: LLMClient = {
       complete: vi.fn(),
-      completeWithTools: vi.fn().mockResolvedValue({
-        toolCalls: [],
-        content: null,
+      completeStructured: vi.fn().mockResolvedValue({
+        data: { repetitions: [{ type: 'invalid' }] },
+        reasoning: null,
         tokensUsed: 100,
-      } satisfies ToolCallResponse),
+      }),
       getTotalTokens: vi.fn().mockReturnValue(100),
     };
 

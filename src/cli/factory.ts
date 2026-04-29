@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import dotenv from 'dotenv';
-import { createLLMClient, type LLMProvider } from '../llm/provider-factory.js';
+import { createLLMClientFromResolvedConfig } from '../llm/provider-factory.js';
+import { resolveLLMConfig } from '../llm/config.js';
 import { loadSoulTextManager } from '../soul/manager.js';
 import { DatabaseConnection } from '../storage/database.js';
 import { createTaskRepo } from '../storage/task-repository.js';
@@ -16,7 +17,6 @@ import { createCrossChapterStateRepo } from '../storage/cross-chapter-state-repo
 import { createPhaseMetricsRepo } from '../storage/phase-metrics-repository.js';
 import { FactoryConfigSchema } from '../schemas/factory-config.js';
 import { createBatchRunner, type ProgressInfo, calculateAnalytics, generateCliReport, generateJsonReport } from '../factory/index.js';
-import type { CodexReasoningEffort } from '../llm/codex/types.js';
 
 dotenv.config();
 
@@ -34,6 +34,9 @@ export interface FactoryOptions {
   mode?: string;
   includeRawSoultext?: boolean;
   excludeLearned?: boolean;
+  provider?: string;
+  model?: string;
+  reasoningEffort?: string;
 }
 
 export async function factory(options: FactoryOptions): Promise<void> {
@@ -85,10 +88,7 @@ export async function factory(options: FactoryOptions): Promise<void> {
   console.log(`Mode: ${config.mode}`);
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
 
-  // 2. Check environment
-  const provider = (process.env.LLM_PROVIDER || 'cerebras') as LLMProvider;
-
-  // 3. Load soul text
+  // 2. Load soul text
   console.log(`Loading soul text from "${config.soulPath}"...`);
   const soulManager = await loadSoulTextManager(config.soulPath, {
     includeLearned: !options.excludeLearned,
@@ -98,13 +98,13 @@ export async function factory(options: FactoryOptions): Promise<void> {
   }
   console.log(`✓ Loaded: ${soulManager.getConstitution().meta.soul_name}\n`);
 
-  // 4. Initialize database
+  // 3. Initialize database
   console.log(`Initializing database...`);
   const db = new DatabaseConnection(config.dbPath);
   db.runMigrations();
   console.log(`✓ Database ready\n`);
 
-  // 5. Create repositories
+  // 4. Create repositories
   const sqlite = db.getSqlite();
   const taskRepo = createTaskRepo(sqlite);
   const workRepo = createWorkRepo(sqlite);
@@ -112,7 +112,7 @@ export async function factory(options: FactoryOptions): Promise<void> {
   const checkpointManager = createCheckpointManager(checkpointRepo);
   const candidateRepo = createSoulCandidateRepo(sqlite);
 
-  // 5b. Create analytics repositories
+  // 4b. Create analytics repositories
   const judgeSessionRepo = createJudgeSessionRepo(sqlite);
   const chapterEvalRepo = createChapterEvalRepo(sqlite);
   const synthesisPlanRepo = createSynthesisPlanRepo(sqlite);
@@ -120,16 +120,15 @@ export async function factory(options: FactoryOptions): Promise<void> {
   const crossChapterStateRepo = createCrossChapterStateRepo(sqlite);
   const phaseMetricsRepo = createPhaseMetricsRepo(sqlite);
 
-  // 6. Create LLM client
-  const llmClient = await createLLMClient({
-    provider,
-    cerebrasApiKey: process.env.CEREBRAS_API_KEY,
-    cerebrasModel: process.env.CEREBRAS_MODEL || 'zai-glm-4.7',
-    codexModel: process.env.CODEX_MODEL || 'gpt-5.2',
-    codexReasoningEffort: process.env.CODEX_REASONING_EFFORT as CodexReasoningEffort | undefined,
+  // 5. Create LLM client
+  const llmConfig = resolveLLMConfig(process.env, {
+    provider: options.provider,
+    model: options.model,
+    reasoningEffort: options.reasoningEffort,
   });
+  const llmClient = await createLLMClientFromResolvedConfig(llmConfig);
 
-  // 7. Create and run batch runner
+  // 6. Create and run batch runner
   const runner = createBatchRunner(config, {
     soulText: soulManager.getSoulText(),
     llmClient,

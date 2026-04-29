@@ -1,5 +1,5 @@
-import type { LLMClient, ToolDefinition, ToolCallResponse } from '../../llm/types.js';
-import { assertToolCallingClient, parseToolArguments } from '../../llm/tooling.js';
+import { z } from 'zod';
+import type { LLMClient } from '../../llm/types.js';
 import type { Violation, ChapterContext } from '../../agents/types.js';
 import type { AsyncComplianceRule } from './async-rule.js';
 
@@ -14,38 +14,14 @@ interface VariationReport {
   issues: VariationIssue[];
 }
 
-const REPORT_VARIATION_TOOL: ToolDefinition = {
-  type: 'function',
-  function: {
-    name: 'report_chapter_variation',
-    description: '章間の変奏不足を報告する',
-    parameters: {
-      type: 'object',
-      properties: {
-        issues: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              type: {
-                type: 'string',
-                enum: ['emotional_arc_similarity', 'beat_structure_similarity', 'dramaturgy_mismatch'],
-              },
-              description: { type: 'string' },
-              severity: { type: 'string', enum: ['warning', 'error'] },
-              suggestion: { type: 'string' },
-            },
-            required: ['type', 'description', 'severity', 'suggestion'],
-            additionalProperties: false,
-          },
-        },
-      },
-      required: ['issues'],
-      additionalProperties: false,
-    },
-    strict: true,
-  },
-};
+const VariationReportSchema = z.object({
+  issues: z.array(z.object({
+    type: z.enum(['emotional_arc_similarity', 'beat_structure_similarity', 'dramaturgy_mismatch']),
+    description: z.string(),
+    severity: z.enum(['warning', 'error']),
+    suggestion: z.string(),
+  })),
+});
 
 export function createChapterVariationRule(llmClient: LLMClient): AsyncComplianceRule {
   return {
@@ -56,22 +32,19 @@ export function createChapterVariationRule(llmClient: LLMClient): AsyncComplianc
         return [];
       }
 
-      assertToolCallingClient(llmClient);
-
       const systemPrompt = buildSystemPrompt();
       const userPrompt = buildUserPrompt(text, chapterContext);
 
-      const response = await llmClient.completeWithTools(
-        systemPrompt,
-        userPrompt,
-        [REPORT_VARIATION_TOOL],
-        {
-          toolChoice: { type: 'function', function: { name: 'report_chapter_variation' } },
-          temperature: 1.0,
-        },
+      const response = await llmClient.completeStructured(
+        [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        VariationReportSchema,
+        { temperature: 1.0 },
       );
 
-      return parseResponse(response);
+      return parseResponse(response.data);
     },
   };
 }
@@ -114,13 +87,10 @@ function buildUserPrompt(text: string, chapterContext: ChapterContext): string {
   return parts.join('\n');
 }
 
-function parseResponse(response: ToolCallResponse): Violation[] {
-  let report: VariationReport;
-  try {
-    report = parseToolArguments<VariationReport>(response, 'report_chapter_variation');
-  } catch {
-    return [];
-  }
+function parseResponse(raw: unknown): Violation[] {
+  const parsed = VariationReportSchema.safeParse(raw);
+  if (!parsed.success) return [];
+  const report: VariationReport = parsed.data;
 
   if (!Array.isArray(report.issues)) {
     return [];

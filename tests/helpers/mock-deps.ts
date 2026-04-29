@@ -1,7 +1,21 @@
 import { vi } from 'vitest';
 import type { LLMClient, StructuredResponse } from '../../src/llm/types.js';
-import type { AgentDeps, CorrectorDeps, WriterDeps, ThemeContext } from '../../src/agents/types.js';
+import type { AgentDeps, CorrectorDeps, ThemeContext } from '../../src/agents/types.js';
 import { createMockSoulText } from './mock-soul-text.js';
+
+function mockMetadata(toolCalling = false): LLMClient['metadata'] {
+  return {
+    providerId: 'mock',
+    providerName: 'Mock',
+    model: 'mock-model',
+    capabilities: {
+      text: true,
+      structuredOutput: true,
+      toolCalling,
+      reasoning: false,
+    },
+  };
+}
 
 /**
  * Creates a mock LLMClient for FP agent tests.
@@ -9,6 +23,7 @@ import { createMockSoulText } from './mock-soul-text.js';
  */
 export function createMockLLMClient(response: string = 'mock response', tokenCount: number = 100): LLMClient {
   return {
+    metadata: mockMetadata(),
     complete: vi.fn().mockResolvedValue(response),
     completeStructured: vi.fn().mockResolvedValue({
       data: {},
@@ -27,6 +42,7 @@ export function createMockLLMClientWithTools(
   tokenCount: number = 100,
 ): LLMClient {
   return {
+    metadata: mockMetadata(true),
     complete: vi.fn().mockResolvedValue(''),
     completeWithTools: vi.fn().mockResolvedValue({
       toolCalls: [
@@ -61,6 +77,7 @@ export function createMockLLMClientWithStructured<T>(
 ): LLMClient {
   const tokenCount = options?.tokenCount ?? 100;
   return {
+    metadata: mockMetadata(),
     complete: vi.fn().mockResolvedValue(''),
     completeStructured: vi.fn().mockResolvedValue({
       data,

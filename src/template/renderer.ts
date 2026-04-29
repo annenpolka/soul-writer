@@ -96,7 +96,7 @@ function renderSection(section: Section, context: TemplateContext): string {
         }
         childCtx = { ...context, ...resolvedParams };
       }
-      return renderSections(doc.system.sections, childCtx);
+      return renderSections(doc.system?.sections ?? [], childCtx);
     }
 
     case 'let': {

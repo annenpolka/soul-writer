@@ -35,13 +35,24 @@ soul-writerは、作家の文体・世界観・キャラクターの「魂」を
 
 ```bash
 npm install
-# .env に CEREBRAS_API_KEY を設定
+
+# デフォルトはCerebras
+LLM_PROVIDER=cerebras
+CEREBRAS_API_KEY=your-api-key
+CEREBRAS_MODEL=zai-glm-4.7
 
 # Codex を使う場合
 LLM_PROVIDER=codex
 CODEX_MODEL=gpt-5.2
 CODEX_REASONING_EFFORT=medium  # low / medium / high / xhigh
+
+# OpenAI互換HTTP APIを使う場合
+LLM_PROVIDER=openai-compatible
+OPENAI_COMPAT_BASE_URL=http://localhost:11434/v1
+OPENAI_COMPAT_MODEL=gpt-4o-mini
 ```
+
+`--provider`、`--model`、`--reasoning-effort` は `.env` より優先されます。
 
 ### CLIコマンド
 
@@ -93,7 +104,7 @@ npx tsx src/main.ts factory --count 5 --parallel 2 --mode collaboration
 - **テスト**: Vitest
 - **リンター**: oxlint
 - **データベース**: SQLite (better-sqlite3 + Drizzle ORM)
-- **LLM API**: Cerebras Cloud SDK
+- **LLM API**: プロバイダレジストリ経由のLLM adapter（Cerebras / Codex / OpenAI互換HTTP）
 - **バリデーション**: Zod v4
 - **テンプレート**: YAMLテンプレートエンジン（自作、js-yaml）
 

@@ -30,9 +30,35 @@ export interface CompletionOptions {
 }
 
 /**
+ * Capabilities exposed by an LLM client.
+ */
+export interface LLMCapabilities {
+  /** Plain text completion support is required for every client. */
+  text: true;
+  /** Structured JSON output validated by a Zod schema. */
+  structuredOutput: boolean;
+  /** Function/tool calling support. */
+  toolCalling: boolean;
+  /** Provider can return or accept reasoning context. */
+  reasoning: boolean;
+}
+
+/**
+ * Runtime metadata for diagnostics and capability checks.
+ */
+export interface LLMClientMetadata {
+  providerId: string;
+  providerName: string;
+  model: string;
+  capabilities: LLMCapabilities;
+}
+
+/**
  * LLM Client interface for text generation
  */
 export interface LLMClient {
+  readonly metadata: LLMClientMetadata;
+
   /**
    * Generate a completion from the LLM (legacy string-based)
    */
@@ -53,7 +79,7 @@ export interface LLMClient {
   /**
    * Generate a structured completion from the LLM
    */
-  completeStructured?<T>(
+  completeStructured<T>(
     messages: LLMMessage[],
     schema: ZodType<T>,
     options?: CompletionOptions
@@ -107,18 +133,4 @@ export interface ToolCallResponse {
 export interface ToolCallOptions extends CompletionOptions {
   toolChoice?: 'auto' | 'required' | 'none' | { type: 'function'; function: { name: string } };
   parallelToolCalls?: boolean;
-}
-
-/**
- * Configuration for Cerebras client
- */
-export interface CerebrasConfig {
-  apiKey: string;
-  model: string;
-  /** Maximum app-level retries for empty responses or transient errors (default: 5). SDK handles its own retries separately. */
-  maxRetries?: number;
-  /** Initial retry delay in ms (default: 1000) */
-  initialRetryDelayMs?: number;
-  /** Maximum retry delay in ms (default: 30000) */
-  maxRetryDelayMs?: number;
 }
